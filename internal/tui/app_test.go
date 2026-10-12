@@ -11,12 +11,21 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/just-tomdo/housenka"
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/entry"
 	"github.com/just-tomdo/housenka/internal/store"
 )
+
+// exampleConfig reads the example config from the repository root.
+func exampleConfig(t *testing.T) []byte {
+	t.Helper()
+	b, err := os.ReadFile("../../config.example.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
 
 type fakeOpener struct{ opened, copied []string }
 
@@ -27,7 +36,7 @@ var today = civil.Date{Year: 2026, Month: time.October, Day: 12}
 
 func newTestModel(t *testing.T) (*Model, *store.Store, *fakeOpener) {
 	t.Helper()
-	cfg, err := config.Parse(housenka.ExampleConfig)
+	cfg, err := config.Parse(exampleConfig(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,7 +407,7 @@ func TestHeaderBackgroundHasNoHoles(t *testing.T) {
 }
 
 func TestMidnightRollover(t *testing.T) {
-	cfg, _ := config.Parse(housenka.ExampleConfig)
+	cfg, _ := config.Parse(exampleConfig(t))
 	s, _ := store.Open(filepath.Join(t.TempDir(), "entries"))
 	now := today
 	m := New(cfg, s, &fakeOpener{}, func() civil.Date { return now })

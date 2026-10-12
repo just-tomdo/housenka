@@ -1,4 +1,4 @@
-# Sestavená binárka (go build -o housenka ./cmd/housenka)
+# Sestavená binárka (go build -o housenka .)
 /housenka
 /housenka.exe
 /dist/

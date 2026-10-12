@@ -7,9 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/just-tomdo/housenka"
 	"github.com/just-tomdo/housenka/internal/config"
 )
+
+// The example config lives in the repository root, where main embeds it.
+func init() {
+	b, err := os.ReadFile("../../config.example.yaml")
+	if err != nil {
+		panic(err)
+	}
+	ExampleConfig = b
+}
 
 func run_(t *testing.T, args ...string) (code int, stdout, stderr string) {
 	t.Helper()
@@ -26,7 +34,7 @@ func setHome(t *testing.T) string {
 }
 
 func TestExampleConfigIsValid(t *testing.T) {
-	cfg, err := config.Parse(housenka.ExampleConfig)
+	cfg, err := config.Parse(ExampleConfig)
 	if err != nil {
 		t.Fatalf("config.example.yaml is invalid: %v", err)
 	}

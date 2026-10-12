@@ -11,7 +11,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/just-tomdo/housenka"
 	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/rules"
 )
@@ -33,6 +32,10 @@ Volby:
   --config SOUBOR       jiný config než výchozí
   HOUSENKA_HOME=DIR     (proměnná prostředí) jiný adresář místo ~/.housenka
 `
+
+// ExampleConfig is the commented example configuration written by
+// `housenka config init`. It is embedded and set by the main package.
+var ExampleConfig []byte
 
 // TUI starts the interactive interface. It is set by the main package so
 // that this package does not depend on the UI.
@@ -129,13 +132,16 @@ func configInit(stdout, stderr io.Writer, cfgPath string, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return errUsage
 	}
+	if len(ExampleConfig) == 0 {
+		return errors.New("vzorový config není k dispozici")
+	}
 	if _, err := os.Stat(cfgPath); err == nil && !*force {
 		return fmt.Errorf("config %s už existuje (přepsat: housenka config init --force)", cfgPath)
 	}
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(cfgPath, housenka.ExampleConfig, 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, ExampleConfig, 0o644); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Vytvořen vzorový config %s\nUprav kódy projektů a činností podle Bílého motýla a ověř ho: housenka config check\n", cfgPath)

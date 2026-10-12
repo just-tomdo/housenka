@@ -123,7 +123,7 @@ Při **načtení** se každý záznam znovu zvaliduje proti aktuálnímu configu
 ## Struktura projektu
 
 ```
-cmd/housenka/main.go          # vstup, subpříkazy, načtení configu
+main.go                       # vstup (go install …/housenka@latest), vložený vzorový config
 internal/config/              # typy, Load (strict YAML), Validate, výchozí cesty (XDG)
 internal/gitlaburl/           # Parse(url) → {Host, Group, Repo, Kind, IID, Raw}
 internal/rules/               # ProjectsForRepo, ActivitiesForProject, ValidateEntry

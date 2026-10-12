@@ -11,9 +11,9 @@ Terminálová aplikace pro vykazování práce do Bílého motýla (BM), která 
 ## Instalace
 
 ```sh
-go install github.com/just-tomdo/housenka/cmd/housenka@latest
+go install github.com/just-tomdo/housenka@latest
 # nebo z repozitáře:
-go build -o housenka ./cmd/housenka
+go build -o housenka .
 ```
 
 ## První spuštění
