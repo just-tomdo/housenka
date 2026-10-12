@@ -18,6 +18,11 @@ func (m *Model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
 	v.WindowTitle = "Housenka"
+	if m.cfg.UI.Background {
+		// Sets the terminal's default colors (OSC 10/11), restored on exit.
+		// This also covers the window padding outside the cell grid.
+		v.BackgroundColor, v.ForegroundColor = m.st.p.Base, m.st.p.Text
+	}
 	return v
 }
 
@@ -26,15 +31,15 @@ func (m *Model) render() string {
 		return ""
 	}
 	if m.width < 50 || m.height < 15 {
-		return m.st.Warn.Render("Terminál je příliš malý – zvětši okno (min. 50×15).")
+		return m.paint(m.st.Warn.Render("Terminál je příliš malý – zvětši okno (min. 50×15)."), m.width, m.height)
 	}
-	base := lipgloss.JoinVertical(lipgloss.Left,
+	base := m.paint(lipgloss.JoinVertical(lipgloss.Left,
 		m.headerView(),
 		m.listView(),
 		m.detailView(),
 		m.statusLine(),
 		m.helpView(),
-	)
+	), m.width, m.height)
 	switch {
 	case m.mode == modeForm && m.form != nil:
 		return m.overlay(base, m.st.Modal.Width(m.modalWidth()).Render(m.form.View()))
@@ -44,8 +49,27 @@ func (m *Model) render() string {
 	return base
 }
 
+// paint fills a block of at least width×height cells with the theme
+// background when ui.background is on. Terminals that ignore OSC 11 still
+// get the theme colors this way. Both compositor layers must be painted,
+// otherwise the compositor switches unpainted cells back to the default.
+func (m *Model) paint(block string, width, height int) string {
+	if !m.cfg.UI.Background {
+		return block
+	}
+	lines := strings.Split(block, "\n")
+	for len(lines) < height {
+		lines = append(lines, "")
+	}
+	for i, l := range lines {
+		lines[i] = fillBackground(l, width, m.st.p.Base)
+	}
+	return strings.Join(lines, "\n")
+}
+
 // overlay draws modal centered over base.
 func (m *Model) overlay(base, modal string) string {
+	modal = m.paint(modal, lipgloss.Width(modal), 0)
 	x := max((m.width-lipgloss.Width(modal))/2, 0)
 	y := max((m.height-lipgloss.Height(modal))/2, 0)
 	return lipgloss.NewCompositor(

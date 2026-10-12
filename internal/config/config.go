@@ -61,6 +61,7 @@ type UI struct {
 	Theme       string `yaml:"theme"`
 	NerdFont    bool   `yaml:"nerd_font"`
 	Caterpillar bool   `yaml:"caterpillar"`
+	Background  bool   `yaml:"background"` // paint the theme background instead of the terminal's
 }
 
 // Time holds time limits; all values are in quarter-hours.
@@ -121,7 +122,7 @@ func (h *Hours) UnmarshalYAML(n *yaml.Node) error {
 // Default returns a configuration with defaults for every optional value.
 func Default() Config {
 	return Config{
-		UI: UI{Theme: "tokyonight", NerdFont: false, Caterpillar: true},
+		UI: UI{Theme: "tokyonight", NerdFont: false, Caterpillar: true, Background: true},
 		Time: Time{
 			DailyGoal:    8 * hours.PerHour,
 			MaxEntry:     12 * hours.PerHour,

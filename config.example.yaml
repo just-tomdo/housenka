@@ -28,6 +28,7 @@ ui:
   theme: tokyonight        # tokyonight | catppuccin | gruvbox
   nerd_font: false         # true = ikony z Nerd Fontu (musí být nainstalovaný v terminálu)
   caterpillar: true        # progress bar jako housenka 🐛
+  background: true         # pozadí podle theme; false = ponechat pozadí terminálu (např. průhledné)
 
 time:                      # hodiny po čtvrthodinách (8, 7.5, "7:30")
   daily_goal_hours: 8      # denní cíl pro progress bar

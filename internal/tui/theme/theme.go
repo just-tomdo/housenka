@@ -8,10 +8,9 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// Palette is a set of named colors. All built-in palettes are dark themes;
-// the terminal background itself is left untouched.
+// Palette is a set of named colors. All built-in palettes are dark themes.
 type Palette struct {
-	Base    color.Color // darkest background, used as text on colored blocks
+	Base    color.Color // app background, also text on colored blocks
 	Surface color.Color // panels, inactive badges
 	Overlay color.Color // borders, separators
 	Text    color.Color

@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/just-tomdo/housenka/internal/civil"
@@ -507,5 +508,48 @@ func TestOpenIssue(t *testing.T) {
 	press(m, "j", "i")
 	if len(o.opened) != 2 || !m.toastErr {
 		t.Errorf("entry without issue: opened = %v, toast = %q", o.opened, m.toast)
+	}
+}
+
+// TestThemeBackgroundCoversEveryCell renders the screen in each mode and
+// checks no cell falls back to the terminal's default background.
+func TestThemeBackgroundCoversEveryCell(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	seed(t, s,
+		sample(today, "SHOPDEV", "DEV", 16, "první"),
+		sample(today.AddDays(-1), "INTERNI", "OPS", 4, "porada"),
+	)
+	m.reload("")
+	check := func(name string) {
+		t.Helper()
+		buf := uv.NewScreenBuffer(m.width, m.height)
+		uv.NewStyledString(m.View().Content).Draw(buf, uv.Rect(0, 0, m.width, m.height))
+		for y := range m.height {
+			for x := range m.width {
+				// Width 0 is the second half of a wide character (🐛).
+				if c := buf.CellAt(x, y); c != nil && c.Width > 0 && c.Style.Bg == nil {
+					t.Errorf("%s: cell %d,%d has no background", name, x, y)
+					return
+				}
+			}
+		}
+	}
+	check("day")
+	press(m, "2")
+	check("week")
+	press(m, "?")
+	check("help")
+	press(m, "?", "a")
+	check("form")
+	press(m, "<esc>", "S")
+	check("status")
+	press(m, "<esc>", "dd")
+	check("confirm")
+	press(m, "n")
+
+	m.cfg.UI.Background = false
+	probe := lipgloss.NewStyle().Background(m.st.p.Base).Render("x")
+	if v := m.View(); v.BackgroundColor != nil || strings.Contains(v.Content, probe[:strings.Index(probe, "x")]) {
+		t.Error("background painted although disabled")
 	}
 }
