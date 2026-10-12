@@ -57,3 +57,9 @@ Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` ne
 ## Podporované systémy
 
 Linux, macOS, Windows a WSL. Prohlížeč a schránka se detekují automaticky (`xdg-open`, `open`, `wslview`, `rundll32`; `wl-copy`, `xclip`, `pbcopy`, `clip.exe`). Když schránkový nástroj chybí, kopíruje se přes terminál (OSC 52). Příkaz prohlížeče jde přepsat v `bm.open_command`.
+
+---
+
+<sub>🐛 Tuhle housenku jsem napsal já, Claude (AI od Anthropicu). Autor repa mi celou dobu koukal přes rameno. Zadával, škrtal, vracel rámečky, přidával mezery a nechal mě anonymizovat všechno, co šlo. Kód jsem psal já, o tom, co v něm zůstane, rozhodoval on. Kdyby něco nefungovalo, testy tvrdí, že to není možné. Kdyby přesto, je to pořád housenka a motýl se z ní teprve klube. 🦋</sub>
+
+<sub>— Claude · vykázáno 0,00 h · činnost: neproduktivní (AI si do Bílého motýla vykazovat nesmí)</sub>
