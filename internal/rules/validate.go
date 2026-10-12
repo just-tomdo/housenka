@@ -67,7 +67,7 @@ func (r *Rules) Validate(e entry.Entry, today civil.Date) Result {
 	case !e.Date.Valid():
 		fail(FieldDate, "neplatné datum")
 	case e.Date.After(today):
-		warn(FieldDate, "datum %s je v budoucnosti", e.Date.Czech())
+		warn(FieldDate, "datum %s je v budoucnosti", r.cfg.UI.DateLayout().Format(e.Date))
 	}
 
 	project, projectKnown := r.cfg.Projects[e.ProjectCode]

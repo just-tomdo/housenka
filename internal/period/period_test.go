@@ -77,7 +77,7 @@ func TestLabels(t *testing.T) {
 		{Of(Month, day(2026, 10, 14)), "říjen 2026"},
 	}
 	for _, tt := range tests {
-		if got := tt.p.Label(); got != tt.want {
+		if got := tt.p.Label(civil.Layout{}); got != tt.want {
 			t.Errorf("Label() = %q, want %q", got, tt.want)
 		}
 	}

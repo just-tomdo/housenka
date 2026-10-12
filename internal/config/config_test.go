@@ -53,6 +53,9 @@ func TestParseValid(t *testing.T) {
 	if !cfg.UI.Caterpillar {
 		t.Error("ui.caterpillar default lost")
 	}
+	if cfg.UI.DateFormat != "d. m. yyyy" {
+		t.Errorf("ui.date_format default = %q", cfg.UI.DateFormat)
+	}
 	if cfg.Time.DailyGoal != 30 {
 		t.Errorf("daily goal = %d quarters, want 30", cfg.Time.DailyGoal)
 	}
@@ -139,6 +142,13 @@ func TestParseErrors(t *testing.T) {
 			name:    "unknown theme",
 			mutate:  func(s string) string { return strings.Replace(s, "theme: gruvbox", "theme: neon", 1) },
 			wantMsg: `ui.theme: neznámé téma "neon"`,
+		},
+		{
+			name: "bad date format",
+			mutate: func(s string) string {
+				return strings.Replace(s, "theme: gruvbox", "theme: gruvbox\n  date_format: dd.mm", 1)
+			},
+			wantMsg: `ui.date_format: "dd.mm"`,
 		},
 		{
 			name: "host with scheme",

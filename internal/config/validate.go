@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/just-tomdo/housenka/internal/civil"
 )
 
 // Problems is a list of configuration errors, reported all at once.
@@ -48,6 +50,10 @@ func (c *Config) Validate() error {
 
 	if !slices.Contains(Themes, c.UI.Theme) {
 		add("ui.theme: neznámé téma %q (možnosti: %s)", c.UI.Theme, strings.Join(Themes, ", "))
+	}
+
+	if _, err := civil.ParseLayout(c.UI.DateFormat); err != nil {
+		add("ui.date_format: %q – %v", c.UI.DateFormat, err)
 	}
 
 	for key, v := range map[string]Hours{

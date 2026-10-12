@@ -24,7 +24,7 @@ func TestParseHuman(t *testing.T) {
 		{"+1", Date{2026, time.October, 13}},
 	}
 	for _, tt := range tests {
-		got, err := ParseHuman(tt.in, today)
+		got, err := ParseHuman(tt.in, today, Layout{})
 		if err != nil {
 			t.Errorf("ParseHuman(%q) error: %v", tt.in, err)
 			continue
@@ -34,7 +34,7 @@ func TestParseHuman(t *testing.T) {
 		}
 	}
 	for _, in := range []string{"", "abc", "32.10.", "1.13.2026", "1.2.3.4", "-x", "2026-13-01", "1.-2."} {
-		if _, err := ParseHuman(in, today); err == nil {
+		if _, err := ParseHuman(in, today, Layout{}); err == nil {
 			t.Errorf("ParseHuman(%q) expected error", in)
 		}
 	}

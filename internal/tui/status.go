@@ -79,7 +79,7 @@ func (m *Model) statusModal() string {
 	width := m.modalWidth() - 6
 	var lines []string
 	lines = append(lines,
-		st.Title.Render("Týdenní souhrn")+"  "+st.Period.Render(s.Period.Label()),
+		st.Title.Render("Týdenní souhrn")+"  "+st.Period.Render(s.Period.Label(s.Layout)),
 		st.Subtext.Render("celkem ")+st.Bold.Render(hours.Format(s.Total)+" h"),
 		"")
 	if len(s.Projects) == 0 {

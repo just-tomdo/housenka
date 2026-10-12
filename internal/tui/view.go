@@ -158,7 +158,7 @@ func (m *Model) rowView(r row, selected bool, c columns) string {
 	st := m.st
 	if r.header {
 		d := r.day
-		label := period.WeekdayShort(d.Date.Weekday()) + " " + d.Date.Czech()
+		label := period.WeekdayShort(d.Date.Weekday()) + " " + m.layout.Format(d.Date)
 		if d.Date == m.today {
 			label += " (dnes)"
 		}
@@ -293,7 +293,7 @@ func (m *Model) detailView() string {
 		}
 
 		lines = []string{
-			row("Datum", st.Text.Render(period.WeekdayShort(e.Date.Weekday())+" "+e.Date.Czech()), "Projekt", project),
+			row("Datum", st.Text.Render(period.WeekdayShort(e.Date.Weekday())+" "+m.layout.Format(e.Date)), "Projekt", project),
 			row("Hodiny", st.Bold.Render(hours.Format(e.Quarters)+" h"), "Činnost", activity),
 			row("Stav", state, "Issue", issue),
 			label("Popis") + st.Text.Render(descLines[0]),
@@ -320,7 +320,7 @@ func (m *Model) titledPanel(title, content string) string {
 func (m *Model) statusLine() string {
 	st := m.st
 	modeName, modeStyle := "NORMAL", st.ModeNormal
-	middle := st.StatusBar.Render(" " + m.per.Kind.String() + " · " + m.per.Label() + " ")
+	middle := st.StatusBar.Render(" " + m.per.Kind.String() + " · " + m.per.Label(m.layout) + " ")
 	switch m.mode {
 	case modeForm:
 		modeName, modeStyle = "INSERT", st.ModeInsert

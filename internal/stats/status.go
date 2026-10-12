@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/entry"
 	"github.com/just-tomdo/housenka/internal/gitlaburl"
@@ -16,6 +17,7 @@ import (
 // Status is a work summary for a team status report, grouped by project and issue.
 type Status struct {
 	Period   period.Period
+	Layout   civil.Layout // date format of the period label
 	Total    int
 	Projects []StatusProject // sorted by hours, descending
 }
@@ -38,7 +40,7 @@ type StatusIssue struct {
 
 // BuildStatus aggregates entries of period p for a status report.
 func BuildStatus(p period.Period, entries []entry.Entry, cfg *config.Config) Status {
-	st := Status{Period: p}
+	st := Status{Period: p, Layout: cfg.UI.DateLayout()}
 	projects := map[string]*StatusProject{}
 	issues := map[string]map[string]*StatusIssue{}
 
@@ -121,7 +123,7 @@ func issueKey(raw string) (key, label, link string) {
 // Text renders the status as plain text.
 func (st Status) Text() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s – celkem %s h\n", capitalize(st.Period.Label()), hours.Format(st.Total))
+	fmt.Fprintf(&b, "%s – celkem %s h\n", capitalize(st.Period.Label(st.Layout)), hours.Format(st.Total))
 	for _, p := range st.Projects {
 		fmt.Fprintf(&b, "\n%s (%s h)\n", projectTitle(p), hours.Format(p.Total))
 		for _, i := range p.Issues {
@@ -134,7 +136,7 @@ func (st Status) Text() string {
 // Markdown renders the status as Markdown with links to issues.
 func (st Status) Markdown() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "### %s – celkem %s h\n", capitalize(st.Period.Label()), hours.Format(st.Total))
+	fmt.Fprintf(&b, "### %s – celkem %s h\n", capitalize(st.Period.Label(st.Layout)), hours.Format(st.Total))
 	for _, p := range st.Projects {
 		fmt.Fprintf(&b, "\n**%s** (%s h)\n", projectTitle(p), hours.Format(p.Total))
 		for _, i := range p.Issues {

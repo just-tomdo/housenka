@@ -36,7 +36,7 @@ func (m *Model) headerView() string {
 	st := m.st
 	inner := m.width - 4 // two spaces of padding on each side
 
-	title := st.Title.Render("🐛 Housenka") + "  " + st.Period.Render(m.per.Label())
+	title := st.Title.Render("🐛 Housenka") + "  " + st.Period.Render(m.per.Label(m.layout))
 	var tabs []string
 	for _, k := range []period.Kind{period.Day, period.Week, period.Month} {
 		label := fmt.Sprintf("%d %s", int(k)+1, k)

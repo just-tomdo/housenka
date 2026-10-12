@@ -51,13 +51,15 @@ Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zob
 | filtr | `/` (Esc zruší) |
 | konec | `q`, `:q`, `ctrl+c` |
 
-Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` nebo `j`/`k` vybírají kód a činnost. Popis je víceřádkový (Enter = nový řádek, Tab = dál). Na konci jsou tlačítka **Uložit** a **Zrušit** (Enter je stiskne); zkratky `ctrl+s` uloží a Esc zruší odkudkoli. Datum přijme `12. 10. 2026`, `12.10.`, `dnes`, `včera` nebo `-1`.
+Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` nebo `j`/`k` vybírají kód a činnost. Popis je víceřádkový (Enter = nový řádek, Tab = dál). Na konci jsou tlačítka **Uložit** a **Zrušit** (Enter je stiskne); zkratky `ctrl+s` uloží a Esc zruší odkudkoli. Datum přijme `12. 10. 2026`, `12.10.`, `dnes`, `včera`, `-1` nebo cokoli ve formátu z `ui.date_format`.
 
 Úprava už odeslaného záznamu ho označí jako neodeslaný – v BM je pak potřeba upravit i původní výkaz.
 
 ## Podporované systémy
 
 Linux, macOS, Windows a WSL. Prohlížeč a schránka se detekují automaticky (`xdg-open`, `open`, `wslview`, `rundll32`; `wl-copy`, `xclip`, `pbcopy`, `clip.exe`). Když schránkový nástroj chybí, kopíruje se přes terminál (OSC 52). Příkaz prohlížeče jde přepsat v `bm.open_command`.
+
+Formát zobrazovaného data nastavíš v `ui.date_format`: `d`/`dd` den, `m`/`mm` měsíc, `yy`/`yyyy` rok, ostatní znaky se opíšou. Výchozí je `d. m. yyyy` (9. 10. 2026), dále třeba `dd.mm.yyyy` nebo `yyyy-mm-dd`.
 
 Aplikace kreslí pozadí podle zvoleného theme (`ui.theme`). Kdo chce ponechat pozadí terminálu (třeba průhledné), nastaví `ui.background: false`.
 

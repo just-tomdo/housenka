@@ -553,3 +553,23 @@ func TestThemeBackgroundCoversEveryCell(t *testing.T) {
 		t.Error("background painted although disabled")
 	}
 }
+
+func TestDateFormat(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	m.cfg.UI.DateFormat = "yyyy-mm-dd"
+	m = New(m.cfg, s, &fakeOpener{}, func() civil.Date { return today })
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	seed(t, s, sample(today, "SHOPDEV", "DEV", 4, "x"))
+	m.reload("")
+	if !strings.Contains(screen(m), "po 2026-10-12") {
+		t.Errorf("header does not use the date format:\n%s", screen(m))
+	}
+	press(m, "e")
+	if got := m.form.inputs[fieldDate].Value(); got != "2026-10-12" {
+		t.Errorf("form date = %q", got)
+	}
+	press(m, "<esc>", "2")
+	if !strings.Contains(screen(m), "2026-10-12 – 2026-10-18") {
+		t.Errorf("week range does not use the date format:\n%s", screen(m))
+	}
+}

@@ -53,12 +53,13 @@ const (
 // form edits one entry. Choices offered for project and activity are always
 // limited to what the rules allow for the current issue link and project.
 type form struct {
-	rules *rules.Rules
-	st    styles
-	keys  formKeyMap
-	today civil.Date
-	title string
-	base  entry.Entry // entry being edited (ID, Sent, timestamps are kept)
+	rules  *rules.Rules
+	st     styles
+	keys   formKeyMap
+	today  civil.Date
+	layout civil.Layout // date format
+	title  string
+	base   entry.Entry // entry being edited (ID, Sent, timestamps are kept)
 
 	focus  field
 	inputs map[field]*textinput.Model // single-line fields
@@ -78,8 +79,9 @@ type form struct {
 }
 
 func newForm(r *rules.Rules, st styles, today civil.Date, e entry.Entry, title string) *form {
+	layout := r.Config().UI.DateLayout()
 	f := &form{
-		rules: r, st: st, keys: newFormKeyMap(), today: today, title: title, base: e,
+		rules: r, st: st, keys: newFormKeyMap(), today: today, layout: layout, title: title, base: e,
 		inputs: map[field]*textinput.Model{},
 		errs:   map[field]string{}, warns: map[field]string{},
 		project: e.ProjectCode, activity: e.Activity,
@@ -93,13 +95,13 @@ func newForm(r *rules.Rules, st styles, today civil.Date, e entry.Entry, title s
 	}
 	date := ""
 	if e.Date.Valid() {
-		date = e.Date.Czech()
+		date = layout.Format(e.Date)
 	}
 	hrs := ""
 	if e.Quarters > 0 {
 		hrs = hours.Format(e.Quarters)
 	}
-	mk(fieldDate, date, "12. 10. 2026 · 12.10. · dnes · včera · -1")
+	mk(fieldDate, date, layout.Format(today)+" · dnes · včera · -1")
 	mk(fieldIssue, e.IssueURL, "https://gitlab.example.com/skupina/repo/-/work_items/123")
 	mk(fieldHours, hrs, "2,75 · 2.5 · 1:45")
 	f.desc = newDescArea(st, e.Description)
@@ -326,7 +328,7 @@ func (f *form) submit() (formOutcome, tea.Cmd) {
 	e.Activity = f.activity
 	e.Description = cleanDescription(f.desc.Value())
 
-	d, err := civil.ParseHuman(f.inputs[fieldDate].Value(), f.today)
+	d, err := civil.ParseHuman(f.inputs[fieldDate].Value(), f.today, f.layout)
 	if err != nil {
 		f.errs[fieldDate] = err.Error()
 	}
@@ -461,8 +463,8 @@ func (f *form) hint(fl field) string {
 	cfg := f.rules.Config()
 	switch fl {
 	case fieldDate:
-		if d, err := civil.ParseHuman(f.inputs[fieldDate].Value(), f.today); err == nil {
-			return st.Muted.Render(period.WeekdayShort(d.Weekday()) + " " + d.Czech())
+		if d, err := civil.ParseHuman(f.inputs[fieldDate].Value(), f.today, f.layout); err == nil {
+			return st.Muted.Render(period.WeekdayShort(d.Weekday()) + " " + f.layout.Format(d))
 		}
 	case fieldIssue:
 		switch {

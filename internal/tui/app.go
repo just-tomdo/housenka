@@ -67,6 +67,7 @@ type Model struct {
 	icons  theme.Icons
 	keys   keyMap
 	help   help.Model
+	layout civil.Layout      // date format
 	clock  func() civil.Date // current date; re-read on every key so midnight is handled
 	today  civil.Date
 
@@ -106,7 +107,7 @@ func New(cfg *config.Config, s Store, o Opener, clock func() civil.Date) *Model 
 	m := &Model{
 		cfg: cfg, rules: rules.New(cfg), store: s, opener: o,
 		st: st, icons: theme.GetIcons(cfg.UI.NerdFont), keys: newKeyMap(), help: h,
-		clock: clock, today: today, per: period.Of(period.Day, today), filter: f,
+		layout: cfg.UI.DateLayout(), clock: clock, today: today, per: period.Of(period.Day, today), filter: f,
 	}
 	m.reload("")
 	return m

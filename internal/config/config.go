@@ -12,6 +12,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/hours"
 )
 
@@ -62,6 +63,16 @@ type UI struct {
 	NerdFont    bool   `yaml:"nerd_font"`
 	Caterpillar bool   `yaml:"caterpillar"`
 	Background  bool   `yaml:"background"` // paint the theme background instead of the terminal's
+	DateFormat  string `yaml:"date_format"`
+}
+
+// DateLayout returns the parsed ui.date_format, or the default when invalid
+// (Validate reports that).
+func (u UI) DateLayout() civil.Layout {
+	if l, err := civil.ParseLayout(u.DateFormat); err == nil {
+		return l
+	}
+	return civil.MustLayout(civil.DefaultLayout)
 }
 
 // Time holds time limits; all values are in quarter-hours.
@@ -122,7 +133,7 @@ func (h *Hours) UnmarshalYAML(n *yaml.Node) error {
 // Default returns a configuration with defaults for every optional value.
 func Default() Config {
 	return Config{
-		UI: UI{Theme: "tokyonight", NerdFont: false, Caterpillar: true, Background: true},
+		UI: UI{Theme: "tokyonight", NerdFont: false, Caterpillar: true, Background: true, DateFormat: civil.DefaultLayout},
 		Time: Time{
 			DailyGoal:    8 * hours.PerHour,
 			MaxEntry:     12 * hours.PerHour,
