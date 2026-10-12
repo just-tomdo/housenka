@@ -1,0 +1,33 @@
+# Sestavená binárka (go build -o housenka ./cmd/housenka)
+/housenka
+/housenka.exe
+/dist/
+
+# Go – testy, coverage, lokální workspace
+*.test
+*.out
+coverage.*
+go.work
+go.work.sum
+
+# Osobní config a data Housenky, kdyby skončily v repu
+# (výchozí umístění je ~/.housenka, vzor je config.example.yaml)
+/config.yaml
+/.housenka/
+/entries/
+
+# Lokální prostředí
+.env
+.env.*
+
+# Editory a OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Soukromé hodnoty (skutečné adresy, kódy) – nikdy necommitovat
+*.private.yaml

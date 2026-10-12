@@ -1,0 +1,77 @@
+# Housenka – konfigurace
+#
+# Umístění: ~/.housenka/config.yaml (jinak přepínač --config nebo proměnná HOUSENKA_HOME).
+# Kontrola: `housenka config check`. Zkouška mapování: `housenka parse <odkaz na issue>`.
+#
+# Kódy projektů a činností níže jsou PŘÍKLADY – nahraď je skutečnými kódy z Bílého motýla.
+
+# Domény GitLabu, ze kterých se přijímají odkazy na issue.
+gitlab_hosts: [gitlab.example.com]
+
+bm:
+  # Adresa editoru výkazu (ZMĚŇ na skutečnou). Odkaz se doplní o předvyplněná
+  # pole formuláře, jejichž názvy (parametry v URL) jsou v sekci fields.
+  base_url: https://bm.example.com/vykazy/editor
+  # Názvy polí formuláře – ZMĚŇ podle skutečného editoru. Zjistíš je z odkazu,
+  # který editor sám vytvoří, nebo z atributu name="…" polí ve formuláři.
+  fields:
+    project: project          # kód projektu
+    issue: issue              # odkaz na issue
+    hours: hours              # hodiny ve tvaru 2,75
+    activity: activity        # kód činnosti
+    date: date                # datum ve tvaru 9. 10. 2026
+    description: description  # popis práce
+  # Příkaz pro otevření odkazu v prohlížeči. Vynech = autodetekce podle systému.
+  # open_command: [wslview]
+
+ui:
+  theme: tokyonight        # tokyonight | catppuccin | gruvbox
+  nerd_font: false         # true = ikony z Nerd Fontu (musí být nainstalovaný v terminálu)
+  caterpillar: true        # progress bar jako housenka 🐛
+
+time:                      # hodiny po čtvrthodinách (8, 7.5, "7:30")
+  daily_goal_hours: 8      # denní cíl pro progress bar
+  daily_warning_hours: 8   # nad tímto součtem za den se zobrazí varování
+  max_entry_hours: 12      # maximum jednoho záznamu
+
+# Číselník činností: KÓD: { name, productive }. Kódy musí odpovídat kódům
+# v Bílém motýlu – níže jsou jen PŘÍKLADY.
+# productive je povinné – rozhoduje o poměru produktivní / neproduktivní práce.
+activities:
+  DEV:      { name: Vývoj,             productive: true }
+  ANALYSIS: { name: Analýza a návrh,   productive: true }
+  BUGFIX:   { name: Oprava chyb,       productive: true }
+  TEST:     { name: Testování,         productive: true }
+  PM:       { name: Projektové řízení, productive: true }
+  MEETING:  { name: Schůzka,           productive: false }
+  OPS:      { name: Režie,             productive: false }
+  TRAINING: { name: Vzdělávání,        productive: false }
+  LEAVE:    { name: Volno (lékař),     productive: false }
+
+# Číselník kódů projektů v BM.
+#   activities:       volitelné omezení povolených činností (vynech = všechny)
+#   default_activity: volitelně předvybraná činnost
+#   issue:            required (výchozí) | optional – zda je odkaz na issue povinný
+projects:
+  SHOPDEV:
+    name: E-shop – rozvoj
+    activities: [DEV, ANALYSIS, BUGFIX, TEST, PM, MEETING]
+    default_activity: DEV
+  SHOPSUP:
+    name: E-shop – podpora
+  ACME:
+    name: Acme
+  INTERNI:
+    name: Interní režie
+    activities: [OPS, MEETING, TRAINING, LEAVE]
+    default_activity: OPS
+    issue: optional
+
+# Mapování GitLab repozitáře na povolené kódy projektů.
+#   clients/acme-web  = přesná cesta repozitáře (z odkazu .../clients/acme-web/-/work_items/636)
+#   interni/*         = všechny repozitáře ve skupině interni (včetně podskupin)
+# Přesná cesta má přednost před „/*“, delší „/*“ před kratším. Na velikosti písmen nezáleží.
+repos:
+  clients/shop-web: [SHOPDEV, SHOPSUP]
+  clients/acme-web: [ACME]
+  # interni/*:      [INT01]
