@@ -1,6 +1,6 @@
 # Housenka
 
-TUI aplikace v Go pro vykazování práce do Bílého motýla (BM). Plán a stav implementace jsou v [PLAN.md](PLAN.md), uživatelská dokumentace v [README.md](README.md).
+TUI aplikace v Go pro vykazování práce do Bílého motýla (BM). Uživatelská dokumentace je v [README.md](README.md).
 
 ## Prostředí: Claude běží v sandboxu
 
