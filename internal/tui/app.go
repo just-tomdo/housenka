@@ -134,7 +134,10 @@ func (m *Model) Init() tea.Cmd { return nil }
 
 type toastExpiredMsg struct{ seq int }
 
-type openedMsg struct{ err error }
+type openedMsg struct {
+	what string // toast shown on success
+	err  error
+}
 
 type copiedMsg struct {
 	text, what string
@@ -174,7 +177,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			return m, m.fail(msg.err)
 		}
-		return m, m.notify("Otevřeno v Bílém motýlu", false)
+		return m, m.notify(msg.what, false)
 	case copiedMsg:
 		if errors.Is(msg.err, opener.ErrNoClipboard) {
 			return m, tea.Batch(tea.SetClipboard(msg.text), m.notify(msg.what+" zkopírován přes terminál (OSC 52)", false))
@@ -246,6 +249,8 @@ func (m *Model) handleListKey(km tea.KeyPressMsg) tea.Cmd {
 			m.moveTo(0)
 		case "dd":
 			return m.confirmDelete()
+		case "gx":
+			return m.openIssue()
 		case "yy":
 			if e, ok := m.selected(); ok {
 				m.yanked = &e
@@ -325,6 +330,8 @@ func (m *Model) handleListKey(km tea.KeyPressMsg) tea.Cmd {
 		if e, ok := m.selected(); ok {
 			return m.copyBMURL(e)
 		}
+	case key.Matches(km, keys.OpenIssue):
+		return m.openIssue()
 	case key.Matches(km, keys.ToggleSent):
 		return m.toggleSent()
 	case key.Matches(km, keys.Status):
@@ -485,7 +492,19 @@ func (m *Model) openInBM(e entry.Entry) tea.Cmd {
 	if err != nil {
 		return m.fail(err)
 	}
-	return func() tea.Msg { return openedMsg{m.opener.Open(u)} }
+	return func() tea.Msg { return openedMsg{"Otevřeno v Bílém motýlu", m.opener.Open(u)} }
+}
+
+func (m *Model) openIssue() tea.Cmd {
+	e, ok := m.selected()
+	if !ok {
+		return nil
+	}
+	if e.IssueURL == "" {
+		return m.notify("Záznam nemá odkaz na issue", true)
+	}
+	u := e.IssueURL
+	return func() tea.Msg { return openedMsg{"Issue otevřeno v prohlížeči", m.opener.Open(u)} }
 }
 
 func (m *Model) copyBMURL(e entry.Entry) tea.Cmd {

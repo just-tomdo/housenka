@@ -478,3 +478,34 @@ func TestDeleteKeepsCursorPosition(t *testing.T) {
 		t.Errorf("after deleting the last entry selected %q, want a", e.Description)
 	}
 }
+
+func TestOpenIssue(t *testing.T) {
+	m, s, o := newTestModel(t)
+	seed(t, s,
+		sample(today, "SHOPDEV", "DEV", 4, "s issue"),
+		sample(today, "INTERNI", "OPS", 4, "bez issue"),
+	)
+	m.reload("")
+
+	for _, k := range []string{"i", "gx"} {
+		var cmd tea.Cmd
+		for _, r := range k {
+			_, cmd = m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+		}
+		if cmd == nil {
+			t.Fatalf("%s returned no command", k)
+		}
+		m.Update(cmd())
+	}
+	if len(o.opened) != 2 || o.opened[0] != issueURL || o.opened[1] != issueURL {
+		t.Errorf("opened = %v", o.opened)
+	}
+	if m.toastErr || !strings.Contains(m.toast, "Issue") {
+		t.Errorf("toast = %q (err %v)", m.toast, m.toastErr)
+	}
+
+	press(m, "j", "i")
+	if len(o.opened) != 2 || !m.toastErr {
+		t.Errorf("entry without issue: opened = %v, toast = %q", o.opened, m.toast)
+	}
+}

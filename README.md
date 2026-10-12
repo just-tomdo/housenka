@@ -45,6 +45,7 @@ Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zob
 | zapamatovat / vložit kopii na zobrazený den | `yy` / `p` |
 | smazat | `dd` · Delete |
 | otevřít v BM / kopírovat odkaz do BM | `b` / `Y` |
+| otevřít issue v prohlížeči | `i` · `gx` |
 | přepnout „odesláno“ | `s` · Space |
 | týdenní souhrn pro status | `S` (v souhrnu `y` zkopíruje text, `m` Markdown) |
 | filtr | `/` (Esc zruší) |

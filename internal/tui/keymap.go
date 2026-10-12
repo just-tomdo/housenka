@@ -9,7 +9,8 @@ type keyMap struct {
 	PrevPeriod, NextPeriod, Today           key.Binding
 	Day, Week, Month, CycleKind             key.Binding
 	Add, Edit, Copy, Yank, Paste, Delete    key.Binding
-	OpenBM, CopyURL, ToggleSent, Status     key.Binding
+	OpenBM, CopyURL, OpenIssue, ToggleSent  key.Binding
+	Status                                  key.Binding
 	Filter, Help, Quit                      key.Binding
 }
 
@@ -39,6 +40,7 @@ func newKeyMap() keyMap {
 		Delete:     b([]string{"delete"}, "dd/del", "smazat"),
 		OpenBM:     b([]string{"b"}, "b", "otevřít v BM"),
 		CopyURL:    b([]string{"Y"}, "Y", "kopírovat odkaz BM"),
+		OpenIssue:  b([]string{"i"}, "i/gx", "otevřít issue"),
 		ToggleSent: b([]string{"s", "space"}, "s/space", "odesláno"),
 		Status:     b([]string{"S"}, "S", "týdenní souhrn"),
 		Filter:     b([]string{"/"}, "/", "filtr"),
@@ -58,7 +60,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Down, k.Up, k.Top, k.Bottom, k.HalfDown, k.HalfUp},
 		{k.PrevPeriod, k.NextPeriod, k.Today, k.Day, k.Week, k.Month, k.CycleKind},
 		{k.Add, k.Edit, k.Copy, k.Yank, k.Paste, k.Delete},
-		{k.OpenBM, k.CopyURL, k.ToggleSent, k.Status, k.Filter, k.Help, k.Quit},
+		{k.OpenBM, k.CopyURL, k.OpenIssue, k.ToggleSent, k.Status, k.Filter, k.Help, k.Quit},
 	}
 }
 
