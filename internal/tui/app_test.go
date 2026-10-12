@@ -62,6 +62,8 @@ func press(m *Model, keys ...string) {
 			msg = tea.KeyPressMsg{Code: tea.KeyEscape}
 		case "<tab>":
 			msg = tea.KeyPressMsg{Code: tea.KeyTab}
+		case "<shift+tab>":
+			msg = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 		case "<ctrl+s>":
 			msg = tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}
 		default:
@@ -541,7 +543,10 @@ func TestThemeBackgroundCoversEveryCell(t *testing.T) {
 	check("help")
 	press(m, "?", "a")
 	check("form")
-	press(m, "<esc>", "S")
+	press(m, "<shift+tab>")
+	m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	check("calendar")
+	press(m, "<esc>", "<esc>", "S")
 	check("status")
 	press(m, "<esc>", "dd")
 	check("confirm")
@@ -571,5 +576,49 @@ func TestDateFormat(t *testing.T) {
 	press(m, "<esc>", "2")
 	if !strings.Contains(screen(m), "2026-10-12 – 2026-10-18") {
 		t.Errorf("week range does not use the date format:\n%s", screen(m))
+	}
+}
+
+func TestCalendarPicksDate(t *testing.T) {
+	m, _, _ := newTestModel(t)
+	press(m, "a", "<shift+tab>") // the form starts on the issue field
+	ctrlK := tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl}
+	m.Update(ctrlK)
+	if m.form.cal == nil {
+		t.Fatal("ctrl+k did not open the calendar")
+	}
+	dump(t, "12-calendar", m)
+	if sc := screen(m); !strings.Contains(sc, "říjen 2026") || !strings.Contains(sc, "po út st čt pá so ne") {
+		t.Errorf("calendar not shown:\n%s", sc)
+	}
+	press(m, "k", "h", "<enter>") // a week back, a day back
+	if m.form.cal != nil {
+		t.Fatal("enter did not close the calendar")
+	}
+	if got := m.form.inputs[fieldDate].Value(); got != "4. 10. 2026" {
+		t.Errorf("picked %q, want 4. 10. 2026", got)
+	}
+
+	m.Update(ctrlK)
+	press(m, "L", "<esc>") // esc closes only the calendar
+	if m.mode != modeForm || m.form.cal != nil || m.form.inputs[fieldDate].Value() != "4. 10. 2026" {
+		t.Fatalf("esc: mode=%v cal=%v date=%q", m.mode, m.form.cal != nil, m.form.inputs[fieldDate].Value())
+	}
+
+	// Opens on the date in the field; months clamp the day.
+	m.form.inputs[fieldDate].SetValue("31. 1. 2026")
+	m.Update(ctrlK)
+	press(m, "L", "<enter>")
+	if got := m.form.inputs[fieldDate].Value(); got != "28. 2. 2026" {
+		t.Errorf("next month from 31. 1. = %q", got)
+	}
+}
+
+func TestCalendarOnlyInDateField(t *testing.T) {
+	m, _, _ := newTestModel(t)
+	press(m, "a") // focus on the issue field
+	m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	if m.form.cal != nil {
+		t.Error("calendar opened outside the date field")
 	}
 }

@@ -51,7 +51,7 @@ Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zob
 | filtr | `/` (Esc zruší) |
 | konec | `q`, `:q`, `ctrl+c` |
 
-Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` nebo `j`/`k` vybírají kód a činnost. Popis je víceřádkový (Enter = nový řádek, Tab = dál). Na konci jsou tlačítka **Uložit** a **Zrušit** (Enter je stiskne); zkratky `ctrl+s` uloží a Esc zruší odkudkoli. Datum přijme `12. 10. 2026`, `12.10.`, `dnes`, `včera`, `-1` nebo cokoli ve formátu z `ui.date_format`.
+Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` nebo `j`/`k` vybírají kód a činnost. Popis je víceřádkový (Enter = nový řádek, Tab = dál). Na konci jsou tlačítka **Uložit** a **Zrušit** (Enter je stiskne); zkratky `ctrl+s` uloží a Esc zruší odkudkoli. Datum přijme `12. 10. 2026`, `12.10.`, `dnes`, `včera`, `-1` nebo cokoli ve formátu z `ui.date_format`. V poli Datum otevře `ctrl+k` kalendář: `h`/`l` den, `j`/`k` týden, `H`/`L` měsíc, `t` dnes, Enter vybere, Esc zavře.
 
 Úprava už odeslaného záznamu ho označí jako neodeslaný – v BM je pak potřeba upravit i původní výkaz.
 

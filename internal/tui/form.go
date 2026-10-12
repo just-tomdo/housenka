@@ -63,6 +63,7 @@ type form struct {
 
 	focus  field
 	inputs map[field]*textinput.Model // single-line fields
+	cal    *calendar                  // date picker, open over the form
 	desc   textarea.Model             // multi-line description
 
 	projects   []string
@@ -177,8 +178,25 @@ func (f *form) isButton(fl field) bool { return fl == fieldSave || fl == fieldCa
 // Update handles a message and reports whether the form is still open.
 func (f *form) Update(msg tea.Msg) (formOutcome, tea.Cmd) {
 	km, isKey := msg.(tea.KeyPressMsg)
+	if isKey && f.cal != nil {
+		switch f.cal.Update(km) {
+		case calendarPicked:
+			f.inputs[fieldDate].SetValue(f.layout.Format(f.cal.cursor))
+			f.inputs[fieldDate].CursorEnd()
+			delete(f.errs, fieldDate)
+			delete(f.warns, fieldDate)
+			f.cal = nil
+		case calendarClosed:
+			f.cal = nil
+		}
+		return formOpen, nil
+	}
 	if isKey {
 		switch {
+		case f.focus == fieldDate && key.Matches(km, f.keys.Calendar):
+			selected, _ := civil.ParseHuman(f.inputs[fieldDate].Value(), f.today, f.layout)
+			f.cal = newCalendar(f.st, selected, f.today)
+			return formOpen, nil
 		case key.Matches(km, f.keys.Cancel):
 			return formCancelled, nil
 		case key.Matches(km, f.keys.Save):
@@ -384,7 +402,32 @@ func (f *form) View() string {
 		}
 	}
 	b.WriteString("\n" + f.buttonsView())
-	return b.String()
+	if f.cal == nil {
+		return b.String()
+	}
+	return f.withCalendar(b.String())
+}
+
+// calendarWidth is the width of the calendar box: 20 + padding + border.
+const calendarWidth = 24
+
+// withCalendar draws the open calendar over the form body, next to the
+// date field when there is room, otherwise below it.
+func (f *form) withCalendar(body string) string {
+	cfg := f.rules.Config()
+	box := f.st.PanelFocused.Render(f.cal.View())
+	x, y := 44, 2 // right of the date input, on the date row
+	if f.width < x+calendarWidth {
+		x, y = 12, 3
+	}
+	if cfg.UI.Background {
+		body = paintBlock(body, f.width, 0, f.st.p.Base)
+		box = paintBlock(box, calendarWidth, 0, f.st.p.Base)
+	}
+	return lipgloss.NewCompositor(
+		lipgloss.NewLayer(body),
+		lipgloss.NewLayer(box).X(x).Y(y).Z(1),
+	).Render()
 }
 
 // buttonsView renders the Save and Cancel buttons, plus an error summary

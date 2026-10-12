@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -57,12 +58,17 @@ func (m *Model) paint(block string, width, height int) string {
 	if !m.cfg.UI.Background {
 		return block
 	}
+	return paintBlock(block, width, height, m.st.p.Base)
+}
+
+// paintBlock fills a block of at least width×height cells with bg.
+func paintBlock(block string, width, height int, bg color.Color) string {
 	lines := strings.Split(block, "\n")
 	for len(lines) < height {
 		lines = append(lines, "")
 	}
 	for i, l := range lines {
-		lines[i] = fillBackground(l, width, m.st.p.Base)
+		lines[i] = fillBackground(l, width, bg)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -377,6 +383,8 @@ func (m *Model) helpView() string {
 		k := m.form.keys
 		k.inDesc = m.form.focus == fieldDesc
 		k.inButton = m.form.isButton(m.form.focus)
+		k.inDate = m.form.focus == fieldDate
+		k.inCal = m.form.cal != nil
 		v = m.help.View(k)
 	case modeStatus:
 		v = m.help.View(statusKeys)
