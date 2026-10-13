@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -18,6 +19,11 @@ func (m *Model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
 	v.WindowTitle = "Housenka"
+	if m.cfg.UI.Background {
+		// Sets the terminal's default colors (OSC 10/11), restored on exit.
+		// This also covers the window padding outside the cell grid.
+		v.BackgroundColor, v.ForegroundColor = m.st.p.Base, m.st.p.Text
+	}
 	return v
 }
 
@@ -26,15 +32,15 @@ func (m *Model) render() string {
 		return ""
 	}
 	if m.width < 50 || m.height < 15 {
-		return m.st.Warn.Render("Terminál je příliš malý – zvětši okno (min. 50×15).")
+		return m.paint(m.st.Warn.Render("Terminál je příliš malý – zvětši okno (min. 50×15)."), m.width, m.height)
 	}
-	base := lipgloss.JoinVertical(lipgloss.Left,
+	base := m.paint(lipgloss.JoinVertical(lipgloss.Left,
 		m.headerView(),
 		m.listView(),
 		m.detailView(),
 		m.statusLine(),
 		m.helpView(),
-	)
+	), m.width, m.height)
 	switch {
 	case m.mode == modeForm && m.form != nil:
 		return m.overlay(base, m.st.Modal.Width(m.modalWidth()).Render(m.form.View()))
@@ -44,8 +50,32 @@ func (m *Model) render() string {
 	return base
 }
 
+// paint fills a block of at least width×height cells with the theme
+// background when ui.background is on. Terminals that ignore OSC 11 still
+// get the theme colors this way. Both compositor layers must be painted,
+// otherwise the compositor switches unpainted cells back to the default.
+func (m *Model) paint(block string, width, height int) string {
+	if !m.cfg.UI.Background {
+		return block
+	}
+	return paintBlock(block, width, height, m.st.p.Base)
+}
+
+// paintBlock fills a block of at least width×height cells with bg.
+func paintBlock(block string, width, height int, bg color.Color) string {
+	lines := strings.Split(block, "\n")
+	for len(lines) < height {
+		lines = append(lines, "")
+	}
+	for i, l := range lines {
+		lines[i] = fillBackground(l, width, bg)
+	}
+	return strings.Join(lines, "\n")
+}
+
 // overlay draws modal centered over base.
 func (m *Model) overlay(base, modal string) string {
+	modal = m.paint(modal, lipgloss.Width(modal), 0)
 	x := max((m.width-lipgloss.Width(modal))/2, 0)
 	y := max((m.height-lipgloss.Height(modal))/2, 0)
 	return lipgloss.NewCompositor(
@@ -134,7 +164,7 @@ func (m *Model) rowView(r row, selected bool, c columns) string {
 	st := m.st
 	if r.header {
 		d := r.day
-		label := period.WeekdayShort(d.Date.Weekday()) + " " + d.Date.Czech()
+		label := period.WeekdayShort(d.Date.Weekday()) + " " + m.layout.Format(d.Date)
 		if d.Date == m.today {
 			label += " (dnes)"
 		}
@@ -269,7 +299,7 @@ func (m *Model) detailView() string {
 		}
 
 		lines = []string{
-			row("Datum", st.Text.Render(period.WeekdayShort(e.Date.Weekday())+" "+e.Date.Czech()), "Projekt", project),
+			row("Datum", st.Text.Render(period.WeekdayShort(e.Date.Weekday())+" "+m.layout.Format(e.Date)), "Projekt", project),
 			row("Hodiny", st.Bold.Render(hours.Format(e.Quarters)+" h"), "Činnost", activity),
 			row("Stav", state, "Issue", issue),
 			label("Popis") + st.Text.Render(descLines[0]),
@@ -296,7 +326,7 @@ func (m *Model) titledPanel(title, content string) string {
 func (m *Model) statusLine() string {
 	st := m.st
 	modeName, modeStyle := "NORMAL", st.ModeNormal
-	middle := st.StatusBar.Render(" " + m.per.Kind.String() + " · " + m.per.Label() + " ")
+	middle := st.StatusBar.Render(" " + m.per.Kind.String() + " · " + m.per.Label(m.layout) + " ")
 	switch m.mode {
 	case modeForm:
 		modeName, modeStyle = "INSERT", st.ModeInsert
@@ -353,6 +383,8 @@ func (m *Model) helpView() string {
 		k := m.form.keys
 		k.inDesc = m.form.focus == fieldDesc
 		k.inButton = m.form.isButton(m.form.focus)
+		k.inDate = m.form.focus == fieldDate
+		k.inCal = m.form.cal != nil
 		v = m.help.View(k)
 	case modeStatus:
 		v = m.help.View(statusKeys)

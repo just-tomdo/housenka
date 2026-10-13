@@ -20,13 +20,15 @@ go build -o housenka .
 
 ```sh
 housenka config init      # vytvoří ~/.housenka/config.yaml se vzorem a komentáři
-$EDITOR ~/.housenka/config.yaml
+housenka config edit      # otevře config v editoru a po uložení ho ověří
 housenka config check     # ověří config, vypíše všechny chyby najednou
 housenka parse https://gitlab.example.com/clients/acme-web/-/work_items/636   # zkouška mapování
 housenka                  # spustí TUI
 ```
 
 Ve vzorovém configu je potřeba vyplnit hlavně `bm.base_url` (adresa editoru výkazu) a `bm.fields` (názvy polí formuláře, které se předvyplní – zjistíš je z odkazu, který editor sám vytvoří), dále kódy činností a projektů a mapování repozitářů.
+
+`config edit` použije editor z `$VISUAL` nebo `$EDITOR` (třeba `export EDITOR=nvim`), jinak první nalezený z `nano`, `nvim`, `vim`, `vi`. Když config po uložení obsahuje chyby, vypíše je a nabídne ho otevřít znovu.
 
 Vše je v adresáři `~/.housenka/` (config a `entries/<rok>.json`). Jiné umístění nastavíš přes `HOUSENKA_HOME`, jiný config přes `--config`.
 
@@ -45,18 +47,23 @@ Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zob
 | zapamatovat / vložit kopii na zobrazený den | `yy` / `p` |
 | smazat | `dd` · Delete |
 | otevřít v BM / kopírovat odkaz do BM | `b` / `Y` |
+| otevřít issue v prohlížeči | `i` · `gx` |
 | přepnout „odesláno“ | `s` · Space |
 | týdenní souhrn pro status | `S` (v souhrnu `y` zkopíruje text, `m` Markdown) |
 | filtr | `/` (Esc zruší) |
 | konec | `q`, `:q`, `ctrl+c` |
 
-Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` nebo `j`/`k` vybírají kód a činnost. Popis je víceřádkový (Enter = nový řádek, Tab = dál). Na konci jsou tlačítka **Uložit** a **Zrušit** (Enter je stiskne); zkratky `ctrl+s` uloží a Esc zruší odkudkoli. Datum přijme `12. 10. 2026`, `12.10.`, `dnes`, `včera` nebo `-1`.
+Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` nebo `j`/`k` vybírají kód a činnost. Popis je víceřádkový (Enter = nový řádek, Tab = dál). Na konci jsou tlačítka **Uložit** a **Zrušit** (Enter je stiskne); zkratky `ctrl+s` uloží a Esc zruší odkudkoli. Datum přijme `12. 10. 2026`, `12.10.`, `dnes`, `včera`, `-1` nebo cokoli ve formátu z `ui.date_format`. V poli Datum otevře `ctrl+k` kalendář: `h`/`l` den, `j`/`k` týden, `H`/`L` měsíc, `t` dnes, Enter vybere, Esc zavře.
 
 Úprava už odeslaného záznamu ho označí jako neodeslaný – v BM je pak potřeba upravit i původní výkaz.
 
 ## Podporované systémy
 
 Linux, macOS, Windows a WSL. Prohlížeč a schránka se detekují automaticky (`xdg-open`, `open`, `wslview`, `rundll32`; `wl-copy`, `xclip`, `pbcopy`, `clip.exe`). Když schránkový nástroj chybí, kopíruje se přes terminál (OSC 52). Příkaz prohlížeče jde přepsat v `bm.open_command`.
+
+Formát zobrazovaného data nastavíš v `ui.date_format`: `d`/`dd` den, `m`/`mm` měsíc, `yy`/`yyyy` rok, ostatní znaky se opíšou. Výchozí je `d. m. yyyy` (9. 10. 2026), dále třeba `dd.mm.yyyy` nebo `yyyy-mm-dd`.
+
+Aplikace kreslí pozadí podle zvoleného theme (`ui.theme`). Kdo chce ponechat pozadí terminálu (třeba průhledné), nastaví `ui.background: false`.
 
 ---
 

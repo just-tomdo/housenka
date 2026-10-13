@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
@@ -23,6 +22,8 @@ Použití:
 Příkazy:
   (žádný)               spustí TUI
   config init [--force] vytvoří vzorový config (~/.housenka/config.yaml)
+  config edit           otevře config v editoru ($VISUAL, $EDITOR, jinak nano/nvim/vim/vi)
+                        a po uložení ho zkontroluje
   config check          zkontroluje config a vypíše chyby a varování
   config path           vypíše, kde jsou config a data
   parse ODKAZ           rozebere odkaz na issue a vypíše povolené kódy a činnosti
@@ -102,12 +103,14 @@ func run(args []string, stdout, stderr io.Writer) error {
 		switch sub {
 		case "init":
 			return configInit(stdout, stderr, *cfgPath, rest)
+		case "edit":
+			return configEdit(stdout, stderr, *cfgPath)
 		case "check":
 			return configCheck(stdout, *cfgPath)
 		case "path":
 			return configPath(stdout, *cfgPath)
 		}
-		fmt.Fprintln(stderr, "použití: housenka config init|check|path")
+		fmt.Fprintln(stderr, "použití: housenka config init|edit|check|path")
 		return errUsage
 	}
 	fmt.Fprintf(stderr, "neznámý příkaz %q\n\n%s", cmd, usage)
@@ -132,16 +135,10 @@ func configInit(stdout, stderr io.Writer, cfgPath string, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return errUsage
 	}
-	if len(ExampleConfig) == 0 {
-		return errors.New("vzorový config není k dispozici")
-	}
 	if _, err := os.Stat(cfgPath); err == nil && !*force {
 		return fmt.Errorf("config %s už existuje (přepsat: housenka config init --force)", cfgPath)
 	}
-	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(cfgPath, ExampleConfig, 0o644); err != nil {
+	if err := writeExample(cfgPath); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Vytvořen vzorový config %s\nUprav kódy projektů a činností podle Bílého motýla a ověř ho: housenka config check\n", cfgPath)

@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/just-tomdo/housenka/internal/civil"
@@ -61,6 +62,8 @@ func press(m *Model, keys ...string) {
 			msg = tea.KeyPressMsg{Code: tea.KeyEscape}
 		case "<tab>":
 			msg = tea.KeyPressMsg{Code: tea.KeyTab}
+		case "<shift+tab>":
+			msg = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 		case "<ctrl+s>":
 			msg = tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}
 		default:
@@ -476,5 +479,146 @@ func TestDeleteKeepsCursorPosition(t *testing.T) {
 	press(m, "dd", "y")
 	if e, _ := m.selected(); e.Description != "a" {
 		t.Errorf("after deleting the last entry selected %q, want a", e.Description)
+	}
+}
+
+func TestOpenIssue(t *testing.T) {
+	m, s, o := newTestModel(t)
+	seed(t, s,
+		sample(today, "SHOPDEV", "DEV", 4, "s issue"),
+		sample(today, "INTERNI", "OPS", 4, "bez issue"),
+	)
+	m.reload("")
+
+	for _, k := range []string{"i", "gx"} {
+		var cmd tea.Cmd
+		for _, r := range k {
+			_, cmd = m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+		}
+		if cmd == nil {
+			t.Fatalf("%s returned no command", k)
+		}
+		m.Update(cmd())
+	}
+	if len(o.opened) != 2 || o.opened[0] != issueURL || o.opened[1] != issueURL {
+		t.Errorf("opened = %v", o.opened)
+	}
+	if m.toastErr || !strings.Contains(m.toast, "Issue") {
+		t.Errorf("toast = %q (err %v)", m.toast, m.toastErr)
+	}
+
+	press(m, "j", "i")
+	if len(o.opened) != 2 || !m.toastErr {
+		t.Errorf("entry without issue: opened = %v, toast = %q", o.opened, m.toast)
+	}
+}
+
+// TestThemeBackgroundCoversEveryCell renders the screen in each mode and
+// checks no cell falls back to the terminal's default background.
+func TestThemeBackgroundCoversEveryCell(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	seed(t, s,
+		sample(today, "SHOPDEV", "DEV", 16, "první"),
+		sample(today.AddDays(-1), "INTERNI", "OPS", 4, "porada"),
+	)
+	m.reload("")
+	check := func(name string) {
+		t.Helper()
+		buf := uv.NewScreenBuffer(m.width, m.height)
+		uv.NewStyledString(m.View().Content).Draw(buf, uv.Rect(0, 0, m.width, m.height))
+		for y := range m.height {
+			for x := range m.width {
+				// Width 0 is the second half of a wide character (🐛).
+				if c := buf.CellAt(x, y); c != nil && c.Width > 0 && c.Style.Bg == nil {
+					t.Errorf("%s: cell %d,%d has no background", name, x, y)
+					return
+				}
+			}
+		}
+	}
+	check("day")
+	press(m, "2")
+	check("week")
+	press(m, "?")
+	check("help")
+	press(m, "?", "a")
+	check("form")
+	press(m, "<shift+tab>")
+	m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	check("calendar")
+	press(m, "<esc>", "<esc>", "S")
+	check("status")
+	press(m, "<esc>", "dd")
+	check("confirm")
+	press(m, "n")
+
+	m.cfg.UI.Background = false
+	probe := lipgloss.NewStyle().Background(m.st.p.Base).Render("x")
+	if v := m.View(); v.BackgroundColor != nil || strings.Contains(v.Content, probe[:strings.Index(probe, "x")]) {
+		t.Error("background painted although disabled")
+	}
+}
+
+func TestDateFormat(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	m.cfg.UI.DateFormat = "yyyy-mm-dd"
+	m = New(m.cfg, s, &fakeOpener{}, func() civil.Date { return today })
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	seed(t, s, sample(today, "SHOPDEV", "DEV", 4, "x"))
+	m.reload("")
+	if !strings.Contains(screen(m), "po 2026-10-12") {
+		t.Errorf("header does not use the date format:\n%s", screen(m))
+	}
+	press(m, "e")
+	if got := m.form.inputs[fieldDate].Value(); got != "2026-10-12" {
+		t.Errorf("form date = %q", got)
+	}
+	press(m, "<esc>", "2")
+	if !strings.Contains(screen(m), "2026-10-12 – 2026-10-18") {
+		t.Errorf("week range does not use the date format:\n%s", screen(m))
+	}
+}
+
+func TestCalendarPicksDate(t *testing.T) {
+	m, _, _ := newTestModel(t)
+	press(m, "a", "<shift+tab>") // the form starts on the issue field
+	ctrlK := tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl}
+	m.Update(ctrlK)
+	if m.form.cal == nil {
+		t.Fatal("ctrl+k did not open the calendar")
+	}
+	dump(t, "12-calendar", m)
+	if sc := screen(m); !strings.Contains(sc, "říjen 2026") || !strings.Contains(sc, "po út st čt pá so ne") {
+		t.Errorf("calendar not shown:\n%s", sc)
+	}
+	press(m, "k", "h", "<enter>") // a week back, a day back
+	if m.form.cal != nil {
+		t.Fatal("enter did not close the calendar")
+	}
+	if got := m.form.inputs[fieldDate].Value(); got != "4. 10. 2026" {
+		t.Errorf("picked %q, want 4. 10. 2026", got)
+	}
+
+	m.Update(ctrlK)
+	press(m, "L", "<esc>") // esc closes only the calendar
+	if m.mode != modeForm || m.form.cal != nil || m.form.inputs[fieldDate].Value() != "4. 10. 2026" {
+		t.Fatalf("esc: mode=%v cal=%v date=%q", m.mode, m.form.cal != nil, m.form.inputs[fieldDate].Value())
+	}
+
+	// Opens on the date in the field; months clamp the day.
+	m.form.inputs[fieldDate].SetValue("31. 1. 2026")
+	m.Update(ctrlK)
+	press(m, "L", "<enter>")
+	if got := m.form.inputs[fieldDate].Value(); got != "28. 2. 2026" {
+		t.Errorf("next month from 31. 1. = %q", got)
+	}
+}
+
+func TestCalendarOnlyInDateField(t *testing.T) {
+	m, _, _ := newTestModel(t)
+	press(m, "a") // focus on the issue field
+	m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	if m.form.cal != nil {
+		t.Error("calendar opened outside the date field")
 	}
 }

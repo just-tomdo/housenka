@@ -2,17 +2,20 @@ package civil
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 )
 
-var errHuman = errors.New("neplatné datum – zadej např. 12. 10. 2026, 12.10., dnes, včera nebo -1")
-
-// ParseHuman parses dates as typed by people, relative to today:
-// "12. 10. 2026", "12.10.2026", "12.10.", "12." (this month), "2026-10-12",
-// "dnes", "včera", "-1", "+2".
-func ParseHuman(s string, today Date) (Date, error) {
+// ParseHuman parses dates as typed by people, relative to today: anything
+// in layout, "12. 10. 2026", "12.10.2026", "12.10.", "12." (this month),
+// "2026-10-12", "dnes", "včera", "-1", "+2".
+func ParseHuman(s string, today Date, layout Layout) (Date, error) {
+	errHuman := fmt.Errorf("neplatné datum – zadej např. %s, dnes, včera nebo -1", layout.Format(today))
+	if d, ok := layout.Parse(s); ok {
+		return d, nil
+	}
 	s = strings.ToLower(strings.TrimSpace(s))
 	switch s {
 	case "":

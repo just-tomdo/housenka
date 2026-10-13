@@ -9,7 +9,8 @@ type keyMap struct {
 	PrevPeriod, NextPeriod, Today           key.Binding
 	Day, Week, Month, CycleKind             key.Binding
 	Add, Edit, Copy, Yank, Paste, Delete    key.Binding
-	OpenBM, CopyURL, ToggleSent, Status     key.Binding
+	OpenBM, CopyURL, OpenIssue, ToggleSent  key.Binding
+	Status                                  key.Binding
 	Filter, Help, Quit                      key.Binding
 }
 
@@ -39,6 +40,7 @@ func newKeyMap() keyMap {
 		Delete:     b([]string{"delete"}, "dd/del", "smazat"),
 		OpenBM:     b([]string{"b"}, "b", "otevřít v BM"),
 		CopyURL:    b([]string{"Y"}, "Y", "kopírovat odkaz BM"),
+		OpenIssue:  b([]string{"i"}, "i/gx", "otevřít issue"),
 		ToggleSent: b([]string{"s", "space"}, "s/space", "odesláno"),
 		Status:     b([]string{"S"}, "S", "týdenní souhrn"),
 		Filter:     b([]string{"/"}, "/", "filtr"),
@@ -58,16 +60,19 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Down, k.Up, k.Top, k.Bottom, k.HalfDown, k.HalfUp},
 		{k.PrevPeriod, k.NextPeriod, k.Today, k.Day, k.Week, k.Month, k.CycleKind},
 		{k.Add, k.Edit, k.Copy, k.Yank, k.Paste, k.Delete},
-		{k.OpenBM, k.CopyURL, k.ToggleSent, k.Status, k.Filter, k.Help, k.Quit},
+		{k.OpenBM, k.CopyURL, k.OpenIssue, k.ToggleSent, k.Status, k.Filter, k.Help, k.Quit},
 	}
 }
 
 // formKeyMap holds bindings of the entry form.
 type formKeyMap struct {
-	Next, Prev, Save, Cancel, Option, Newline, Leave, Press, Switch key.Binding
+	Next, Prev, Save, Cancel, Option, Newline, Leave, Press, Switch  key.Binding
+	Calendar, CalDay, CalWeek, CalMonth, CalToday, CalPick, CalClose key.Binding
 
 	inDesc   bool // focus is in the multi-line description
 	inButton bool // focus is on the Save / Cancel buttons
+	inDate   bool // focus is in the date field
+	inCal    bool // the calendar is open
 }
 
 func newFormKeyMap() formKeyMap {
@@ -81,11 +86,23 @@ func newFormKeyMap() formKeyMap {
 		Leave:   key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "další pole")),
 		Press:   key.NewBinding(key.WithKeys("enter", "space"), key.WithHelp("enter", "stisknout")),
 		Switch:  key.NewBinding(key.WithKeys("left", "right", "h", "l"), key.WithHelp("←/→", "jiné tlačítko")),
+
+		Calendar: key.NewBinding(key.WithKeys("ctrl+k"), key.WithHelp("ctrl+k", "kalendář")),
+		CalDay:   key.NewBinding(key.WithKeys("h", "l"), key.WithHelp("h/l ←/→", "den")),
+		CalWeek:  key.NewBinding(key.WithKeys("j", "k"), key.WithHelp("j/k ↑/↓", "týden")),
+		CalMonth: key.NewBinding(key.WithKeys("H", "L"), key.WithHelp("H/L pgup/pgdn", "měsíc")),
+		CalToday: key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "dnes")),
+		CalPick:  key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "vybrat")),
+		CalClose: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "zavřít")),
 	}
 }
 
 func (k formKeyMap) ShortHelp() []key.Binding {
 	switch {
+	case k.inCal:
+		return []key.Binding{k.CalDay, k.CalWeek, k.CalMonth, k.CalToday, k.CalPick, k.CalClose}
+	case k.inDate:
+		return []key.Binding{k.Next, k.Prev, k.Calendar, k.Save, k.Cancel}
 	case k.inButton:
 		return []key.Binding{k.Press, k.Switch, k.Prev, k.Cancel}
 	case k.inDesc:

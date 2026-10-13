@@ -83,30 +83,17 @@ func (p Period) Days() []civil.Date {
 	return days
 }
 
-// Label returns a Czech description, e.g. "po 12. 10. 2026",
-// "týden 42 · 12.–18. 10. 2026" or "říjen 2026".
-func (p Period) Label() string {
+// Label returns a Czech description with dates in layout, e.g.
+// "po 12. 10. 2026", "týden 42 · 12.–18. 10. 2026" or "říjen 2026".
+func (p Period) Label(layout civil.Layout) string {
 	switch p.Kind {
 	case Week:
 		_, w := p.Start.Time().ISOWeek()
-		return fmt.Sprintf("týden %d · %s", w, RangeLabel(p.Start, p.End()))
+		return fmt.Sprintf("týden %d · %s", w, layout.FormatRange(p.Start, p.End()))
 	case Month:
 		return fmt.Sprintf("%s %d", MonthName(p.Start.Month), p.Start.Year)
 	default:
-		return WeekdayShort(p.Start.Weekday()) + " " + p.Start.Czech()
-	}
-}
-
-// RangeLabel formats a date range compactly: "12.–18. 10. 2026",
-// "28. 9.–4. 10. 2026" or "29. 12. 2025–4. 1. 2026".
-func RangeLabel(from, to civil.Date) string {
-	switch {
-	case from.Year != to.Year:
-		return from.Czech() + "–" + to.Czech()
-	case from.Month != to.Month:
-		return fmt.Sprintf("%d. %d.–%s", from.Day, from.Month, to.Czech())
-	default:
-		return fmt.Sprintf("%d.–%s", from.Day, to.Czech())
+		return WeekdayShort(p.Start.Weekday()) + " " + layout.Format(p.Start)
 	}
 }
 
