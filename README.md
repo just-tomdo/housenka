@@ -20,13 +20,15 @@ go build -o housenka .
 
 ```sh
 housenka config init      # vytvoří ~/.housenka/config.yaml se vzorem a komentáři
-$EDITOR ~/.housenka/config.yaml
+housenka config edit      # otevře config v editoru a po uložení ho ověří
 housenka config check     # ověří config, vypíše všechny chyby najednou
 housenka parse https://gitlab.example.com/clients/acme-web/-/work_items/636   # zkouška mapování
 housenka                  # spustí TUI
 ```
 
 Ve vzorovém configu je potřeba vyplnit hlavně `bm.base_url` (adresa editoru výkazu) a `bm.fields` (názvy polí formuláře, které se předvyplní – zjistíš je z odkazu, který editor sám vytvoří), dále kódy činností a projektů a mapování repozitářů.
+
+`config edit` použije editor z `$VISUAL` nebo `$EDITOR` (třeba `export EDITOR=nvim`), jinak první nalezený z `nano`, `nvim`, `vim`, `vi`. Když config po uložení obsahuje chyby, vypíše je a nabídne ho otevřít znovu.
 
 Vše je v adresáři `~/.housenka/` (config a `entries/<rok>.json`). Jiné umístění nastavíš přes `HOUSENKA_HOME`, jiný config přes `--config`.
 
