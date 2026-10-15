@@ -11,7 +11,8 @@ import (
 
 // styles are all lipgloss styles of the UI, derived from one palette.
 type styles struct {
-	p theme.Palette
+	p             theme.Palette
+	projectColors map[string]string // project code → ui color spec from the config
 
 	Title, TabActive, TabInactive, Period lipgloss.Style
 	Panel, PanelFocused, Modal            lipgloss.Style
@@ -27,17 +28,18 @@ type styles struct {
 	Help                                  help.Styles
 }
 
-func newStyles(p theme.Palette) styles {
+func newStyles(p theme.Palette, projectColors map[string]string) styles {
 	s := lipgloss.NewStyle
 	modeBlock := func(bg color.Color) lipgloss.Style {
 		return s().Bold(true).Foreground(p.Base).Background(bg).Padding(0, 1)
 	}
 	return styles{
-		p:           p,
-		Title:       s().Bold(true).Foreground(p.Accent),
-		TabActive:   s().Bold(true).Foreground(p.Base).Background(p.Accent).Padding(0, 1),
-		TabInactive: s().Foreground(p.Muted).Padding(0, 1),
-		Period:      s().Bold(true).Foreground(p.Text),
+		p:             p,
+		projectColors: projectColors,
+		Title:         s().Bold(true).Foreground(p.Accent),
+		TabActive:     s().Bold(true).Foreground(p.Base).Background(p.Accent).Padding(0, 1),
+		TabInactive:   s().Foreground(p.Muted).Padding(0, 1),
+		Period:        s().Bold(true).Foreground(p.Text),
 
 		Panel:        s().Border(lipgloss.NormalBorder()).BorderForeground(p.Overlay).Padding(0, 1),
 		PanelFocused: s().Border(lipgloss.NormalBorder()).BorderForeground(p.Accent).Padding(0, 1),
@@ -89,7 +91,13 @@ func newStyles(p theme.Palette) styles {
 	}
 }
 
-// badge renders a colored label, e.g. a project code.
-func (st styles) badge(text string) string {
-	return lipgloss.NewStyle().Bold(true).Foreground(st.p.Base).Background(st.p.BadgeColor(text)).Padding(0, 1).Render(text)
+// projectColor returns the color of a project code.
+func (st styles) projectColor(code string) color.Color {
+	return st.p.ProjectColor(code, st.projectColors[code])
+}
+
+// badge renders a project code on its color.
+func (st styles) badge(code string) string {
+	bg := st.projectColor(code)
+	return lipgloss.NewStyle().Bold(true).Foreground(st.p.TextOn(bg)).Background(bg).Padding(0, 1).Render(code)
 }

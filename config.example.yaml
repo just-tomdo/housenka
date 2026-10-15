@@ -54,9 +54,13 @@ activities:
 #   activities:       volitelné omezení povolených činností (vynech = všechny)
 #   default_activity: volitelně předvybraná činnost
 #   issue:            required (výchozí) | optional – zda je odkaz na issue povinný
+#   color:            volitelně barva štítku: red, orange, yellow, green, teal, cyan, blue,
+#                     purple, pink (odstín podle theme) nebo "#rrggbb" – v uvozovkách, jinak
+#                     # začne komentář; bez color se barva odvodí z kódu a je pořád stejná
 projects:
   SHOPDEV:
     name: E-shop – rozvoj
+    color: blue
     activities: [DEV, ANALYSIS, BUGFIX, TEST, PM, MEETING]
     default_activity: DEV
   SHOPSUP:

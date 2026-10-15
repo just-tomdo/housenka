@@ -99,7 +99,11 @@ type Model struct {
 // New creates the model showing today's entries. clock returns the current date.
 func New(cfg *config.Config, s Store, o Opener, clock func() civil.Date) *Model {
 	today := clock()
-	st := newStyles(theme.Get(cfg.UI.Theme))
+	colors := map[string]string{}
+	for code, p := range cfg.Projects {
+		colors[code] = p.Color
+	}
+	st := newStyles(theme.Get(cfg.UI.Theme), colors)
 	h := help.New()
 	h.Styles = st.Help
 	f := textinput.New()

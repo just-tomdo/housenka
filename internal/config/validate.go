@@ -3,11 +3,14 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/just-tomdo/housenka/internal/civil"
 )
+
+var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 // Problems is a list of configuration errors, reported all at once.
 type Problems []string
@@ -114,6 +117,9 @@ func (c *Config) Validate() error {
 		case "", IssueRequired, IssueOptional:
 		default:
 			add("projects.%s.issue: neplatná hodnota %q (required nebo optional)", code, pr.Issue)
+		}
+		if pr.Color != "" && !slices.Contains(ColorNames, pr.Color) && !hexColor.MatchString(pr.Color) {
+			add("projects.%s.color: neznámá barva %q (možnosti: %s nebo #rrggbb)", code, pr.Color, strings.Join(ColorNames, ", "))
 		}
 	}
 

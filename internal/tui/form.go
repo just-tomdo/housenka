@@ -454,12 +454,12 @@ func (f *form) fieldView(fl field) string {
 		if len(f.projects) == 0 {
 			return f.st.Muted.Render("— nejdřív zadej platný odkaz na issue —")
 		}
-		return f.options(f.projects, f.project, fl == f.focus)
+		return f.options(f.projects, f.project, fl == f.focus, true)
 	case fieldActivity:
 		if len(f.activities) == 0 {
 			return f.st.Muted.Render("— nejdřív vyber projekt —")
 		}
-		return f.options(f.activities, f.activity, fl == f.focus)
+		return f.options(f.activities, f.activity, fl == f.focus, false)
 	case fieldDesc:
 		return strings.ReplaceAll(f.desc.View(), "\n", "\n"+strings.Repeat(" ", 12))
 	default:
@@ -468,17 +468,23 @@ func (f *form) fieldView(fl field) string {
 }
 
 // options renders choices as chips, wrapping to the available width.
-func (f *form) options(opts []string, selected string, focused bool) string {
+// Project chips are drawn in the project colors.
+func (f *form) options(opts []string, selected string, focused, projects bool) string {
 	var lines []string
 	line := ""
 	limit := max(f.width-14, 20)
 	for _, o := range opts {
 		style := f.st.Option
-		if o == selected {
+		switch {
+		case projects && o == selected:
+			bg := f.st.projectColor(o)
+			style = f.st.OptionActive.Foreground(f.st.p.TextOn(bg)).Background(bg)
+		case projects:
+			style = style.Foreground(f.st.projectColor(o))
+		case o == selected && focused:
+			style = f.st.OptionFocused
+		case o == selected:
 			style = f.st.OptionActive
-			if focused {
-				style = f.st.OptionFocused
-			}
 		}
 		chip := style.Render(o)
 		if line != "" && lipgloss.Width(line)+1+lipgloss.Width(chip) > limit {

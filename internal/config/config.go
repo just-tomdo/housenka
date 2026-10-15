@@ -19,6 +19,10 @@ import (
 // Themes lists the built-in UI themes.
 var Themes = []string{"tokyonight", "catppuccin", "gruvbox"}
 
+// ColorNames lists the named project colors; every theme defines its own
+// shade of each.
+var ColorNames = []string{"red", "orange", "yellow", "green", "teal", "cyan", "blue", "purple", "pink"}
+
 // Config is the whole configuration file.
 type Config struct {
 	GitLabHosts []string            `yaml:"gitlab_hosts"`
@@ -107,6 +111,7 @@ type Project struct {
 	Activities      []string    `yaml:"activities"`       // empty = all activities
 	DefaultActivity string      `yaml:"default_activity"` // optional
 	Issue           IssuePolicy `yaml:"issue"`            // empty = required
+	Color           string      `yaml:"color"`            // name from ColorNames or #rrggbb; empty = derived from the code
 }
 
 // IssueOptional reports whether entries for this project may omit the issue link.
@@ -170,11 +175,18 @@ func Parse(data []byte) (*Config, error) {
 		}
 		return nil, translateYAMLError(err)
 	}
+	if loc := unquotedHexRe.FindIndex(data); loc != nil {
+		// YAML reads `color: #abc123` as an empty value with a comment.
+		line := bytes.Count(data[:loc[0]], []byte("\n")) + 1
+		return nil, fmt.Errorf("řádek %d: barvu zapiš v uvozovkách, např. color: \"#e06c75\" (bez nich ji YAML čte jako komentář)", line)
+	}
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
 }
+
+var unquotedHexRe = regexp.MustCompile(`(?m)^\s*color:\s*#`)
 
 var unknownFieldRe = regexp.MustCompile(`^line (\d+): field (\S+) not found in type \S+$`)
 

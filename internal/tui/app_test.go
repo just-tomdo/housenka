@@ -622,3 +622,25 @@ func TestCalendarOnlyInDateField(t *testing.T) {
 		t.Error("calendar opened outside the date field")
 	}
 }
+
+func TestProjectColorFromConfig(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	p := m.cfg.Projects["SHOPDEV"]
+	p.Color = "red"
+	m.cfg.Projects["SHOPDEV"] = p
+	m = New(m.cfg, s, &fakeOpener{}, func() civil.Date { return today })
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	seed(t, s, sample(today, "SHOPDEV", "DEV", 4, "x"))
+	m.reload("")
+
+	red := m.st.p.Colors["red"]
+	probe := lipgloss.NewStyle().Background(red).Render("x")
+	on := probe[:strings.Index(probe, "x")]
+	if !strings.Contains(m.View().Content, on) {
+		t.Error("list does not draw SHOPDEV in red")
+	}
+	press(m, "e")
+	if !strings.Contains(m.View().Content, on) {
+		t.Error("form does not draw the selected project in red")
+	}
+}
