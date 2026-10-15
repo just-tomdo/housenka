@@ -25,7 +25,7 @@ bm:
   # open_command: [wslview]
 
 ui:
-  theme: tokyonight        # tokyonight | catppuccin | gruvbox
+  theme: tokyonight        # tokyonight | catppuccin | gruvbox | ayu-dark
   nerd_font: false         # true = ikony z Nerd Fontu (musí být nainstalovaný v terminálu)
   caterpillar: true        # progress bar jako housenka 🐛
   date_format: d. m. yyyy  # zobrazení data: d/dd den, m/mm měsíc, yy/yyyy rok (např. dd.mm.yyyy, yyyy-mm-dd)

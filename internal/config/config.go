@@ -17,7 +17,7 @@ import (
 )
 
 // Themes lists the built-in UI themes.
-var Themes = []string{"tokyonight", "catppuccin", "gruvbox"}
+var Themes = []string{"tokyonight", "catppuccin", "gruvbox", "ayu-dark"}
 
 // ColorNames lists the named project colors; every theme defines its own
 // shade of each.

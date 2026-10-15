@@ -59,6 +59,16 @@ var palettes = map[string]Palette{
 			"cyan": c("#7fbbb3"), "blue": c("#83a598"), "purple": c("#d3869b"), "pink": c("#f2a5c0"),
 		},
 	},
+	"ayu-dark": {
+		Base: c("#0b0e14"), Surface: c("#131721"), Overlay: c("#3d424d"),
+		Text: c("#bfbdb6"), Subtext: c("#acb6bf"), Muted: c("#565b66"),
+		Accent: c("#e6b450"), Accent2: c("#59c2ff"),
+		Green: c("#aad94c"), Orange: c("#ff8f40"), Red: c("#f07178"), Yellow: c("#ffb454"),
+		Colors: map[string]color.Color{
+			"red": c("#f07178"), "orange": c("#ff8f40"), "yellow": c("#ffb454"), "green": c("#aad94c"), "teal": c("#95e6cb"),
+			"cyan": c("#39bae6"), "blue": c("#59c2ff"), "purple": c("#d2a6ff"), "pink": c("#f29bc7"),
+		},
+	},
 }
 
 func c(hex string) color.Color { return lipgloss.Color(hex) }
