@@ -27,12 +27,16 @@ Příkazy:
   config check          zkontroluje config a vypíše chyby a varování
   config path           vypíše, kde jsou config a data
   parse ODKAZ           rozebere odkaz na issue a vypíše povolené kódy a činnosti
+  version               vypíše verzi
   help                  tato nápověda
 
 Volby:
   --config SOUBOR       jiný config než výchozí
   HOUSENKA_HOME=DIR     (proměnná prostředí) jiný adresář místo ~/.housenka
 `
+
+// Version is the release version; it is set by the main package.
+var Version = "dev"
 
 // ExampleConfig is the commented example configuration written by
 // `housenka config init`. It is embedded and set by the main package.
@@ -88,6 +92,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runTUI(*cfgPath)
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usage)
+		return nil
+	case "version":
+		fmt.Fprintln(stdout, "housenka", Version)
 		return nil
 	case "parse":
 		if len(rest) != 1 {

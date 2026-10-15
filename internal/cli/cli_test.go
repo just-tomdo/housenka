@@ -128,6 +128,14 @@ func TestUsageErrors(t *testing.T) {
 	}
 }
 
+func TestVersion(t *testing.T) {
+	defer func(v string) { Version = v }(Version)
+	Version = "v1.2.3"
+	if code, out, _ := run_(t, "version"); code != 0 || out != "housenka v1.2.3\n" {
+		t.Errorf("code=%d out=%q", code, out)
+	}
+}
+
 func TestTUIWithoutConfig(t *testing.T) {
 	setHome(t)
 	code, _, errOut := run_(t)

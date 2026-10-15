@@ -19,3 +19,17 @@ Claude Code tu běží v izolovaném kontejneru (konfigurace v `.hole/`), ne př
 - Komunikace s uživatelem česky; kód, identifikátory a komentáře anglicky, texty v UI česky.
 - Před dokončením: `gofmt -l .` (bez výstupu), `go vet ./...`, `go test ./...`.
 - Čas se interně drží v čtvrthodinách (`int`), nikdy jako float.
+
+## Vydání nové verze
+
+Vyvíjí se na `development`, vydává se z `main`. Po mergi se na merge commit v `main` dá tag a pushne:
+
+```sh
+git checkout main && git pull
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Push tagu `v*` spustí `.github/workflows/release.yml`: kontroly a testy, sestavení binárek pro Linux, macOS a Windows (`scripts/build-release.sh`) a založení GitHub release s `checksums.txt`. Z posledního release instaluje `install.sh`. Verze se do binárky dostane z tagu (`housenka version`).
+
+Lokálně se binárky sestaví do `dist/` (je v `.gitignore`) přes `scripts/build-release.sh v0.1.0`.
