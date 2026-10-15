@@ -31,12 +31,24 @@ func (m *Model) periodGoal() int {
 	return goal * n
 }
 
+// currentLabel marks the period containing today; it also names the
+// direction towards it.
+var currentLabel = map[period.Kind]string{period.Day: "dnes", period.Week: "tento týden", period.Month: "tento měsíc"}
+
 // headerView renders the top panel: title, period tabs, totals and the bar.
 func (m *Model) headerView() string {
 	st := m.st
 	inner := m.width - 4 // two spaces of padding on each side
 
 	title := st.Title.Render("🐛 Housenka") + "  " + st.Period.Render(m.per.Label(m.layout))
+	switch {
+	case m.per.Contains(m.today):
+		title += " " + st.Today.Render(currentLabel[m.per.Kind])
+	case m.per.Start.After(m.today):
+		title += st.Muted.Render("  ← " + currentLabel[m.per.Kind])
+	default:
+		title += st.Muted.Render("  " + currentLabel[m.per.Kind] + " →")
+	}
 	var tabs []string
 	for _, k := range []period.Kind{period.Day, period.Week, period.Month} {
 		label := fmt.Sprintf("%d %s", int(k)+1, k)
@@ -148,7 +160,7 @@ func (m *Model) weekDaysLine(width int) string {
 		}
 		label := m.st.Subtext.Render(period.WeekdayShort(wd))
 		if d.Date == m.today {
-			label = m.st.Accent.Render(period.WeekdayShort(wd))
+			label = m.st.Today.Padding(0).Render(period.WeekdayShort(wd))
 		}
 		parts = append(parts, label+" "+m.miniBar(d.Totals, 6)+" "+m.st.Text.Render(hours.Format(d.Total)))
 	}

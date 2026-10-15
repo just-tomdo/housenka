@@ -164,15 +164,15 @@ func (m *Model) rowView(r row, selected bool, c columns) string {
 	st := m.st
 	if r.header {
 		d := r.day
-		label := period.WeekdayShort(d.Date.Weekday()) + " " + m.layout.Format(d.Date)
+		label := st.DayHeader.Render(period.WeekdayShort(d.Date.Weekday()) + " " + m.layout.Format(d.Date))
 		if d.Date == m.today {
-			label += " (dnes)"
+			label += " " + st.Today.Render("dnes")
 		}
 		pct := ""
 		if d.Total > 0 {
 			pct = st.Muted.Render(fmt.Sprintf(" · %d %%", d.ProductivePercent()))
 		}
-		line := st.DayHeader.Render(label) + "  " + m.miniBar(d.Totals, 10) + "  " + st.Text.Render(hours.Format(d.Total)+" h") + pct
+		line := label + "  " + m.miniBar(d.Totals, 10) + "  " + st.Text.Render(hours.Format(d.Total)+" h") + pct
 		return line
 	}
 

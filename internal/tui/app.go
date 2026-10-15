@@ -302,6 +302,7 @@ func (m *Model) handleListKey(km tea.KeyPressMsg) tea.Cmd {
 		m.setPeriod(m.per.Next())
 	case key.Matches(km, keys.Today):
 		m.setPeriod(period.Of(m.per.Kind, m.today))
+		m.selectDate(m.today)
 	case key.Matches(km, keys.Day):
 		m.setKind(period.Day)
 	case key.Matches(km, keys.Week):
@@ -649,6 +650,17 @@ func (m *Model) ensureVisible() {
 		m.offset = m.cursor - h + 1
 	}
 	m.offset = max(min(m.offset, len(m.rows)-h), 0)
+}
+
+// selectDate selects the first entry of date d, if there is one.
+func (m *Model) selectDate(d civil.Date) {
+	for i, r := range m.rows {
+		if !r.header && m.entries[r.entry].Date == d {
+			m.cursor = i
+			m.ensureVisible()
+			return
+		}
+	}
 }
 
 func (m *Model) selected() (entry.Entry, bool) {

@@ -19,6 +19,7 @@ type styles struct {
 	Text, Subtext, Muted, Bold            lipgloss.Style
 	Good, Bad, Warn, Err, Accent          lipgloss.Style
 	DayHeader, Selected, SelectedBar      lipgloss.Style
+	Today                                 lipgloss.Style
 	ModeNormal, ModeInsert, ModeOther     lipgloss.Style
 	StatusBar, StatusSeg                  lipgloss.Style
 	Label, LabelFocused, FieldHint        lipgloss.Style
@@ -56,6 +57,7 @@ func newStyles(p theme.Palette, projectColors map[string]string) styles {
 		Accent:  s().Foreground(p.Accent),
 
 		DayHeader:   s().Bold(true).Foreground(p.Accent2),
+		Today:       s().Bold(true).Foreground(p.Base).Background(p.Accent).Padding(0, 1),
 		Selected:    s().Background(p.Surface),
 		SelectedBar: s().Foreground(p.Accent).Background(p.Surface),
 
