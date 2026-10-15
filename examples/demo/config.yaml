@@ -1,0 +1,79 @@
+# Housenka – ukázkový config pro demo (smyšlené firmy, kódy i adresy).
+#
+# Spuštění: HOUSENKA_HOME=examples/demo housenka
+# Data v entries/ jsou vygenerovaná: go run ./examples/gen examples/demo
+
+gitlab_hosts: [gitlab.example.com]
+
+bm:
+  base_url: https://bm.example.com/vykazy/editor
+  fields:
+    project: project
+    issue: issue
+    hours: hours
+    activity: activity
+    date: date
+    description: description
+
+ui:
+  theme: tokyonight
+  nerd_font: false
+  caterpillar: true
+  date_format: d. m. yyyy
+
+time:
+  daily_goal_hours: 8
+  daily_warning_hours: 8
+  max_entry_hours: 12
+
+activities:
+  DEV:      { name: Vývoj,             productive: true }
+  ANALYSIS: { name: Analýza a návrh,   productive: true }
+  BUGFIX:   { name: Oprava chyb,       productive: true }
+  TEST:     { name: Testování,         productive: true }
+  PM:       { name: Projektové řízení, productive: true }
+  MEETING:  { name: Schůzka,           productive: false }
+  OPS:      { name: Režie,             productive: false }
+  TRAINING: { name: Vzdělávání,        productive: false }
+  LEAVE:    { name: Volno (lékař),     productive: false }
+
+projects:
+  SHOPDEV:
+    name: E-shop – rozvoj
+    color: blue
+    activities: [DEV, ANALYSIS, BUGFIX, TEST, PM, MEETING]
+    default_activity: DEV
+  SHOPSUP:
+    name: E-shop – podpora
+    color: cyan
+    activities: [DEV, BUGFIX, TEST, MEETING]
+    default_activity: BUGFIX
+  ACME:
+    name: Acme – zákaznický portál
+    color: orange
+    activities: [DEV, ANALYSIS, BUGFIX, TEST, MEETING]
+    default_activity: DEV
+  FERDA:
+    name: Ferda Mravenec – mobilní API
+    color: green
+    activities: [DEV, ANALYSIS, BUGFIX, TEST]
+    default_activity: DEV
+  BREWERY:
+    name: Pivovar U Housenky – web
+    color: "#c678dd"
+    activities: [DEV, BUGFIX, MEETING]
+    default_activity: DEV
+    issue: optional
+  INTERNI:
+    name: Interní režie
+    color: teal
+    activities: [OPS, MEETING, TRAINING, LEAVE]
+    default_activity: OPS
+    issue: optional
+
+repos:
+  clients/shop-web: [SHOPDEV, SHOPSUP]
+  clients/acme-web: [ACME]
+  clients/ferda-api: [FERDA]
+  clients/brewery-web: [BREWERY]
+  interni/*: [INTERNI]

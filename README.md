@@ -32,6 +32,16 @@ Ve vzorovém configu je potřeba vyplnit hlavně `bm.base_url` (adresa editoru v
 
 Vše je v adresáři `~/.housenka/` (config a `entries/<rok>.json`). Jiné umístění nastavíš přes `HOUSENKA_HOME`, jiný config přes `--config`.
 
+## Demo
+
+Ukázka s vymyšlenými projekty a půlrokem vyplněných výkazů je v [examples/demo](examples/demo) – spustíš ji bez zásahu do vlastních dat:
+
+```sh
+HOUSENKA_HOME=examples/demo housenka
+```
+
+Podrobnosti a generování dat k dnešnímu dni v [examples/README.md](examples/README.md).
+
 ## Ovládání
 
 Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zobrazí kompletní nápovědu.
