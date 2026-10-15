@@ -622,3 +622,61 @@ func TestCalendarOnlyInDateField(t *testing.T) {
 		t.Error("calendar opened outside the date field")
 	}
 }
+
+func TestProjectColorFromConfig(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	p := m.cfg.Projects["SHOPDEV"]
+	p.Color = "red"
+	m.cfg.Projects["SHOPDEV"] = p
+	m = New(m.cfg, s, &fakeOpener{}, func() civil.Date { return today })
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	seed(t, s, sample(today, "SHOPDEV", "DEV", 4, "x"))
+	m.reload("")
+
+	red := m.st.p.Colors["red"]
+	probe := lipgloss.NewStyle().Background(red).Render("x")
+	on := probe[:strings.Index(probe, "x")]
+	if !strings.Contains(m.View().Content, on) {
+		t.Error("list does not draw SHOPDEV in red")
+	}
+	press(m, "e")
+	if !strings.Contains(m.View().Content, on) {
+		t.Error("form does not draw the selected project in red")
+	}
+}
+
+func TestCurrentPeriodIsMarked(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	seed(t, s,
+		sample(today, "SHOPDEV", "DEV", 4, "dnešní"),
+		sample(today.AddDays(-1), "SHOPDEV", "DEV", 4, "včerejší"),
+	)
+	m.reload("")
+	header := func() string { return strings.Split(ansi.Strip(m.headerView()), "\n")[1] }
+
+	for _, tt := range []struct{ keys, want string }{{"1", "dnes"}, {"2", "tento týden"}, {"3", "tento měsíc"}} {
+		press(m, tt.keys)
+		if !strings.Contains(header(), tt.want) {
+			t.Errorf("%s: header %q lacks %q", tt.keys, header(), tt.want)
+		}
+	}
+	if !strings.Contains(screen(m), "po 12. 10. 2026  dnes") || strings.Contains(screen(m), "ne 11. 10. 2026  dnes") {
+		t.Errorf("only today's day header should be marked:\n%s", screen(m))
+	}
+	press(m, "h") // previous month
+	if h := header(); !strings.Contains(h, "září 2026  tento měsíc →") {
+		t.Errorf("past month header = %q", h)
+	}
+	press(m, "l", "l") // next month
+	if h := header(); !strings.Contains(h, "← tento měsíc") {
+		t.Errorf("future month header = %q", h)
+	}
+	press(m, "t", "1", "h")
+	if h := header(); !strings.Contains(h, "dnes →") {
+		t.Errorf("yesterday header = %q", h)
+	}
+	press(m, "t", "3", "t", "2") // t selects today's entry, so the week is the current one
+	if h := header(); !strings.Contains(h, "týden 42") || !strings.Contains(h, "tento týden") {
+		t.Errorf("t then 2: header = %q", h)
+	}
+}

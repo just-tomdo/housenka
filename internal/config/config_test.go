@@ -53,6 +53,11 @@ func TestParseValid(t *testing.T) {
 	if !cfg.UI.Caterpillar {
 		t.Error("ui.caterpillar default lost")
 	}
+	for _, c := range []string{"blue", "#7aa2f7"} {
+		if _, err := Parse([]byte(strings.Replace(validYAML, "issue: optional", "issue: optional\n    color: \""+c+"\"", 1))); err != nil {
+			t.Errorf("color %q rejected: %v", c, err)
+		}
+	}
 	if cfg.UI.DateFormat != "d. m. yyyy" {
 		t.Errorf("ui.date_format default = %q", cfg.UI.DateFormat)
 	}
@@ -142,6 +147,20 @@ func TestParseErrors(t *testing.T) {
 			name:    "unknown theme",
 			mutate:  func(s string) string { return strings.Replace(s, "theme: gruvbox", "theme: neon", 1) },
 			wantMsg: `ui.theme: neznámé téma "neon"`,
+		},
+		{
+			name: "unquoted hex color",
+			mutate: func(s string) string {
+				return strings.Replace(s, "issue: optional", "issue: optional\n    color: #e06c75", 1)
+			},
+			wantMsg: "barvu zapiš v uvozovkách",
+		},
+		{
+			name: "unknown project color",
+			mutate: func(s string) string {
+				return strings.Replace(s, "issue: optional", "issue: optional\n    color: rdeč", 1)
+			},
+			wantMsg: `color: neznámá barva "rdeč"`,
 		},
 		{
 			name: "bad date format",

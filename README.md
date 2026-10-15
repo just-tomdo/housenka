@@ -32,6 +32,16 @@ Ve vzorovém configu je potřeba vyplnit hlavně `bm.base_url` (adresa editoru v
 
 Vše je v adresáři `~/.housenka/` (config a `entries/<rok>.json`). Jiné umístění nastavíš přes `HOUSENKA_HOME`, jiný config přes `--config`.
 
+## Demo
+
+Ukázka s vymyšlenými projekty a půlrokem vyplněných výkazů je v [examples/demo](examples/demo) – spustíš ji bez zásahu do vlastních dat:
+
+```sh
+HOUSENKA_HOME=examples/demo housenka
+```
+
+Podrobnosti a generování dat k dnešnímu dni v [examples/README.md](examples/README.md).
+
 ## Ovládání
 
 Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zobrazí kompletní nápovědu.
@@ -62,6 +72,8 @@ Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` ne
 Linux, macOS, Windows a WSL. Prohlížeč a schránka se detekují automaticky (`xdg-open`, `open`, `wslview`, `rundll32`; `wl-copy`, `xclip`, `pbcopy`, `clip.exe`). Když schránkový nástroj chybí, kopíruje se přes terminál (OSC 52). Příkaz prohlížeče jde přepsat v `bm.open_command`.
 
 Formát zobrazovaného data nastavíš v `ui.date_format`: `d`/`dd` den, `m`/`mm` měsíc, `yy`/`yyyy` rok, ostatní znaky se opíšou. Výchozí je `d. m. yyyy` (9. 10. 2026), dále třeba `dd.mm.yyyy` nebo `yyyy-mm-dd`.
+
+Každý projekt má barevný štítek. Barvu si můžeš u projektu napevno zvolit klíčem `color`: pojmenovanou (`red`, `orange`, `yellow`, `green`, `teal`, `cyan`, `blue`, `purple`, `pink`), jejíž odstín se přizpůsobí theme, nebo přesnou `"#rrggbb"` (v uvozovkách). Projekty bez `color` dostanou barvu odvozenou z kódu, která se nemění.
 
 Aplikace kreslí pozadí podle zvoleného theme (`ui.theme`). Kdo chce ponechat pozadí terminálu (třeba průhledné), nastaví `ui.background: false`.
 

@@ -25,7 +25,7 @@ bm:
   # open_command: [wslview]
 
 ui:
-  theme: tokyonight        # tokyonight | catppuccin | gruvbox
+  theme: tokyonight        # tokyonight | catppuccin | gruvbox | ayu-dark
   nerd_font: false         # true = ikony z Nerd Fontu (musí být nainstalovaný v terminálu)
   caterpillar: true        # progress bar jako housenka 🐛
   date_format: d. m. yyyy  # zobrazení data: d/dd den, m/mm měsíc, yy/yyyy rok (např. dd.mm.yyyy, yyyy-mm-dd)
@@ -54,9 +54,13 @@ activities:
 #   activities:       volitelné omezení povolených činností (vynech = všechny)
 #   default_activity: volitelně předvybraná činnost
 #   issue:            required (výchozí) | optional – zda je odkaz na issue povinný
+#   color:            volitelně barva štítku: red, orange, yellow, green, teal, cyan, blue,
+#                     purple, pink (odstín podle theme) nebo "#rrggbb" – v uvozovkách, jinak
+#                     # začne komentář; bez color se barva odvodí z kódu a je pořád stejná
 projects:
   SHOPDEV:
     name: E-shop – rozvoj
+    color: blue
     activities: [DEV, ANALYSIS, BUGFIX, TEST, PM, MEETING]
     default_activity: DEV
   SHOPSUP:

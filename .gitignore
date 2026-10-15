@@ -31,3 +31,4 @@ Thumbs.db
 
 # Soukromé hodnoty (skutečné adresy, kódy) – nikdy necommitovat
 *.private.yaml
+/examples/firma/

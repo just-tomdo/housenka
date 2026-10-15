@@ -1,0 +1,106 @@
+# Scénář pro generátor ukázkových dat (go run ./examples/gen examples/demo).
+seed: 2026
+months: 6                 # celé měsíce před aktuálním + aktuální do dneška
+vacation_blocks: [5, 3, 1, 1]
+
+activity_weights: { DEV: 60, BUGFIX: 15, ANALYSIS: 10, TEST: 10, MEETING: 3, PM: 2 }
+activity_notes:
+  DEV: [implementace, úpravy po code review, dokončení]
+  BUGFIX: [oprava z testování, hotfix na produkci]
+  ANALYSIS: [analýza, návrh řešení, odhad pracnosti]
+  TEST: [testování na stage, ověření s klientem]
+  MEETING: [konzultace s klientem]
+  PM: [plánování, komunikace s klientem]
+
+issues:
+  - repo: clients/shop-web
+    project: SHOPDEV
+    weight: 5
+    first_iid: 381
+    kind: work_items
+    titles:
+      - Košík – přepočet ceny dopravy
+      - Nový filtr podle dostupnosti
+      - Napojení na platební bránu (Apple Pay)
+      - Věrnostní program – sbírání bodů
+      - Detail produktu – galerie a zoom
+      - Export objednávek do ERP
+      - Doporučené produkty v košíku
+      - Vyhledávání – našeptávač
+      - Slevové kupóny na kategorie
+      - Hlídací pes na naskladnění
+      - Srovnání produktů
+      - Přechod na nový design patičky
+  - repo: clients/shop-web
+    project: SHOPSUP
+    weight: 2
+    first_iid: 512
+    titles:
+      - Chybná cena po uplatnění kupónu
+      - Nefunkční přihlášení přes Google
+      - Pomalé načítání kategorie Akce
+      - Duplicitní e-maily o objednávce
+      - Chybějící překlady v pokladně
+      - Feed pro srovnávače – chybné EAN
+  - repo: clients/acme-web
+    project: ACME
+    weight: 3
+    first_iid: 120
+    titles:
+      - Klientská zóna – přehled faktur
+      - Import ceníků z CSV
+      - Dvoufázové ověření
+      - Notifikace o expiraci smluv
+      - Role a oprávnění uživatelů
+      - Dashboard s grafy spotřeby
+  - repo: clients/ferda-api
+    project: FERDA
+    weight: 2
+    first_iid: 44
+    titles:
+      - Endpoint pro push notifikace
+      - Stránkování seznamu objednávek
+      - Rate limiting na veřejné API
+      - OpenAPI dokumentace v2
+      - Migrace na nový auth server
+  - repo: clients/brewery-web
+    project: BREWERY
+    weight: 1
+    first_iid: 18
+    titles:
+      - Rezervace stolů online
+      - Stránka s pivním lístkem
+      - Věková brána
+
+routine:
+  - { project: INTERNI, activity: MEETING, description: Týmový stand-up, weekday: monday, hours: 0.5 }
+  - { project: INTERNI, activity: MEETING, description: Plánování sprintu, weekday: wednesday, every_weeks: 2, hours: 1 }
+  - { project: SHOPDEV, activity: MEETING, description: Sprint review s klientem, issue: "https://gitlab.example.com/clients/shop-web/-/work_items/300", weekday: friday, every_weeks: 2, hours: 1 }
+
+occasional:
+  - project: INTERNI
+    activity: TRAINING
+    chance: 0.04
+    hours: [2, 3, 4]
+    descriptions: [Školení Go – concurrency, Interní meetup – testování, Konference – záznam přednášek, Kurz Kubernetes]
+  - project: INTERNI
+    activity: OPS
+    chance: 0.06
+    hours: [0.5, 1]
+    descriptions: [Aktualizace vývojového prostředí, Onboarding nového kolegy, Code review pro jiný tým, Administrativa]
+  - project: INTERNI
+    activity: LEAVE
+    chance: 0.01
+    hours: [2, 3]
+    descriptions: [Návštěva lékaře]
+  - project: BREWERY
+    activity: DEV
+    chance: 0.05
+    hours: [0.5, 1, 1.5]
+    descriptions: [Aktualizace obsahu webu, Výměna fotek v galerii, Úprava otevírací doby]
+  - project: SHOPSUP
+    activity: BUGFIX
+    issue: https://gitlab.example.com/clients/shop-web/-/issues/498
+    chance: 0.05
+    hours: [0.5, 1]
+    descriptions: [Monitoring – kontrola chyb v logu, Kontrola nočních importů]
