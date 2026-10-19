@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,6 +57,30 @@ func (s *Store) Range(from, to civil.Date) ([]entry.Entry, error) {
 				out = append(out, e)
 			}
 		}
+	}
+	sortEntries(out)
+	return out, nil
+}
+
+// All returns the entries of every year, sorted like Range.
+func (s *Store) All() ([]entry.Entry, error) {
+	files, err := filepath.Glob(filepath.Join(s.dir, "*.json"))
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []entry.Entry
+	for _, f := range files {
+		year, err := strconv.Atoi(strings.TrimSuffix(filepath.Base(f), ".json"))
+		if err != nil {
+			continue // not a year file
+		}
+		entries, err := s.load(year)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, entries...)
 	}
 	sortEntries(out)
 	return out, nil

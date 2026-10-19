@@ -46,6 +46,8 @@ func (m *Model) render() string {
 		return m.overlay(base, m.st.Modal.Width(m.modalWidth()).Render(m.form.View()))
 	case m.mode == modeStatus && m.status != nil:
 		return m.overlay(base, m.statusModal())
+	case m.mode == modeIssue && m.issue != nil:
+		return m.overlay(base, m.issueModal())
 	}
 	return base
 }
@@ -345,6 +347,8 @@ func (m *Model) statusLine() string {
 		middle = st.Text.Render(" Otevřít záznam v Bílém motýlu? y/n")
 	case modeStatus:
 		modeName, modeStyle = "SOUHRN", st.ModeOther
+	case modeIssue:
+		modeName, modeStyle = "ISSUE", st.ModeOther
 	}
 	if m.pending != "" {
 		middle += st.Accent.Render(" " + m.pending)
@@ -388,6 +392,8 @@ func (m *Model) helpView() string {
 		v = m.help.View(k)
 	case modeStatus:
 		v = m.help.View(statusKeys)
+	case modeIssue:
+		v = m.help.View(issueKeys)
 	default:
 		v = m.help.View(m.keys)
 	}

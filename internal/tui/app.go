@@ -28,6 +28,7 @@ import (
 // Store is the persistence the UI needs.
 type Store interface {
 	Range(from, to civil.Date) ([]entry.Entry, error)
+	All() ([]entry.Entry, error)
 	Save(e entry.Entry) (entry.Entry, error)
 	Delete(id string) error
 }
@@ -48,6 +49,7 @@ const (
 	modeFilter
 	modeCommand
 	modeStatus
+	modeIssue
 )
 
 // row is one line of the list: a day header or an entry.
@@ -89,6 +91,7 @@ type Model struct {
 	yanked        *entry.Entry
 	lastSaved     entry.Entry
 	status        *statusView
+	issue         *issueView
 
 	toast    string
 	toastErr bool
@@ -240,6 +243,8 @@ func (m *Model) handleKey(km tea.KeyPressMsg) tea.Cmd {
 		return m.handleCommandKey(km)
 	case modeStatus:
 		return m.handleStatusKey(km)
+	case modeIssue:
+		return m.handleIssueKey(km)
 	}
 	return m.handleListKey(km)
 }
@@ -338,6 +343,8 @@ func (m *Model) handleListKey(km tea.KeyPressMsg) tea.Cmd {
 		}
 	case key.Matches(km, keys.OpenIssue):
 		return m.openIssue()
+	case key.Matches(km, keys.IssueSummary):
+		return m.openIssueSummary()
 	case key.Matches(km, keys.ToggleSent):
 		return m.toggleSent()
 	case key.Matches(km, keys.Status):

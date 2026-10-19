@@ -62,6 +62,7 @@ Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zob
 | smazat | `dd` · Delete |
 | otevřít v BM / kopírovat odkaz do BM | `b` / `Y` |
 | otevřít issue v prohlížeči | `i` · `gx` |
+| souhrn issue (všechny výkazy, hodiny podle činností) | `I` (v souhrnu `i` otevře issue) |
 | přepnout „odesláno“ | `s` · Space |
 | týdenní souhrn pro status | `S` (v souhrnu `y` zkopíruje text, `m` Markdown) |
 | filtr | `/` (Esc zruší) |
