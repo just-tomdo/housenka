@@ -195,6 +195,9 @@ func (s *Server) URL() string {
 	if cfg != nil && len(cfg.Web.Hostnames) > 0 {
 		host = cfg.Web.Hostnames[0]
 	}
+	if s.port == 80 {
+		return "http://" + host + "/"
+	}
 	return "http://" + net.JoinHostPort(host, strconv.Itoa(s.port)) + "/"
 }
 
@@ -213,6 +216,9 @@ func (s *Server) checkHost(next http.Handler) http.Handler {
 
 func (s *Server) allowedHost(hostport string) bool {
 	host, port, err := net.SplitHostPort(hostport)
+	if err != nil && s.port == 80 {
+		host, port, err = hostport, "80", nil // browsers omit the default port
+	}
 	if err != nil || port != strconv.Itoa(s.port) {
 		return false
 	}

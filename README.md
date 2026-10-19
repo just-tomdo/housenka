@@ -90,6 +90,20 @@ housenka web stop         # vypne server běžící na pozadí
 
 Server poslouchá jen na tomto počítači (`127.0.0.1`), ostatní v síti se k němu nedostanou. TUI a web můžou běžet zároveň, změny z jednoho se v druhém projeví. Záznamy z běhu na pozadí jdou do `~/.housenka/web.log`.
 
+### Adresa bez portu
+
+Aby stačilo napsat `http://housenka.localhost/` (nebo `http://housenka.local/`), nastav port 80 – v Nastavení → Obecné → Webové rozhraní, nebo v configu `web.port: 80` – a server restartuj (`housenka web stop` a `housenka web start`).
+
+- **Windows a macOS**: funguje rovnou, jen port 80 nesmí používat jiný program (třeba IIS).
+- **Linux a WSL**: porty pod 1024 smí běžně otevřít jen správce. Jednorázově je povol pro všechny programy:
+
+  ```sh
+  echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/50-housenka.conf
+  sudo sysctl --system
+  ```
+
+  Ve WSL se port 80 předá do Windows stejně jako 8765, takže stránku otevřeš v prohlížeči ve Windows. Název `housenka.local` pak přidej do hosts ve Windows (`127.0.0.1 housenka.local`).
+
 ### Nastavení v prohlížeči
 
 Celý config se dá upravit v sekci **⚙ Nastavení**, bez psaní YAML:

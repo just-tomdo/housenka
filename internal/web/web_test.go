@@ -346,6 +346,22 @@ func TestSecurity(t *testing.T) {
 	}
 }
 
+func TestDefaultPort(t *testing.T) {
+	f := newFixture(t)
+	f.srv.port = 80
+	for hostport, want := range map[string]bool{
+		"housenka.localhost": true, "housenka.localhost:80": true, "127.0.0.1": true,
+		"housenka.localhost:8765": false, "evil.example.com": false,
+	} {
+		if got := f.srv.allowedHost(hostport); got != want {
+			t.Errorf("allowedHost(%q) = %v", hostport, got)
+		}
+	}
+	if u := f.srv.URL(); u != "http://housenka.localhost/" {
+		t.Errorf("URL = %q", u)
+	}
+}
+
 func TestThemeCookie(t *testing.T) {
 	f := newFixture(t)
 	r := httptest.NewRequest("GET", "/", nil)

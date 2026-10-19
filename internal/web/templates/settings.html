@@ -51,7 +51,7 @@
     <thead><tr><th>Pravidlo</th><th>Projekty</th><th class="num">Záznamy</th><th></th></tr></thead>
     <tbody>{{range .Repos}}<tr>
       <td><code>{{.Pattern}}</code> {{if .Wildcard}}<span class="tag">celá skupina</span>{{end}}</td>
-      <td class="badges">{{range .Projects}}<span class="badge proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}} title="{{.Name}}">{{.Code}}</span>{{end}}</td>
+      <td><div class="badges">{{range .Projects}}<span class="badge proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}} title="{{.Name}}">{{.Code}}</span>{{end}}</div></td>
       <td class="num muted">{{.Entries}}</td>
       <td class="row-actions">
         <button class="btn small" hx-get="/settings/repos/form?pattern={{.Pattern}}" hx-target="#modal">Upravit</button>

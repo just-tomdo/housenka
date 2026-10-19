@@ -385,6 +385,7 @@ code { font: 0.88em ui-monospace, "SF Mono", Menlo, Consolas, monospace; padding
 .table-wrap { overflow-x: auto; }
 .settings-table th { text-align: left; font-size: 0.8rem; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--line); }
 .settings-table td { padding: 0.55rem 0.75rem; vertical-align: middle; }
+.settings-table th.num { text-align: right; }
 .settings-table tbody tr:hover { background: var(--hover); }
 .badges { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
 .row-actions { white-space: nowrap; text-align: right; }

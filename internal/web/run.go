@@ -149,6 +149,9 @@ func Serve(o Options, out io.Writer) error {
 	}
 	ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
 	if err != nil {
+		if port < 1024 && errors.Is(err, syscall.EACCES) {
+			return fmt.Errorf("port %d smí na tomto systému otevřít jen správce (%v) – povol ho podle README (Adresa bez portu), nebo použij port nad 1023", port, err)
+		}
 		return fmt.Errorf("port %d nejde použít (%v) – nastav jiný v configu (web.port), proměnnou %s nebo --port", port, err, PortEnv)
 	}
 
