@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -158,6 +159,7 @@ func TestNoTempFilesLeft(t *testing.T) {
 		}
 	}
 	files, _ := os.ReadDir(dir)
+	files = slices.DeleteFunc(files, func(f os.DirEntry) bool { return f.Name() == ".lock" })
 	if len(files) != 1 || files[0].Name() != "2026.json" {
 		var names []string
 		for _, f := range files {
@@ -186,5 +188,84 @@ func TestAll(t *testing.T) {
 	}
 	if want := []string{"a", "b", "c"}; !slices.Equal(ids(got), want) {
 		t.Errorf("All = %v, want %v", ids(got), want)
+	}
+}
+
+func TestDeleteWithoutRange(t *testing.T) {
+	s, dir := newStore(t)
+	saved, err := s.Save(entry.Entry{Date: day(2025, 3, 1), Description: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, _ := Open(dir)
+	if err := fresh.Delete(saved.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.All(); len(got) != 0 {
+		t.Errorf("All = %v", ids(got))
+	}
+}
+
+func TestSharedDirectory(t *testing.T) {
+	a, dir := newStore(t)
+	b, _ := Open(dir)
+	oct := func(s *Store) []string {
+		got, err := s.Range(day(2026, 10, 1), day(2026, 10, 31))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ids(got)
+	}
+	if got := oct(b); len(got) != 0 { // b caches the empty year
+		t.Fatalf("b = %v", got)
+	}
+	first, err := a.Save(entry.Entry{Date: day(2026, 10, 12), Description: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := oct(b); !slices.Equal(got, []string{"a"}) {
+		t.Errorf("b after a's save = %v", got)
+	}
+	// b writes from fresh data: a's entry survives.
+	if _, err := b.Save(entry.Entry{Date: day(2026, 10, 13), Description: "b"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := oct(a); !slices.Equal(got, []string{"a", "b"}) {
+		t.Errorf("a after b's save = %v", got)
+	}
+	// An entry changed by a is found and updated by b.
+	first.Description = "a2"
+	if _, err := a.Save(first); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Delete(first.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := oct(a); !slices.Equal(got, []string{"b"}) {
+		t.Errorf("a after b's delete = %v", got)
+	}
+}
+
+func TestConcurrentStores(t *testing.T) {
+	_, dir := newStore(t)
+	const perStore = 20
+	var wg sync.WaitGroup
+	for range 2 {
+		s, err := Open(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wg.Go(func() {
+			for range perStore {
+				if _, err := s.Save(entry.Entry{Date: day(2026, 10, 12)}); err != nil {
+					t.Error(err)
+				}
+			}
+		})
+	}
+	wg.Wait()
+	s, _ := Open(dir)
+	if got, _ := s.All(); len(got) != 2*perStore {
+		t.Errorf("stored %d entries, want %d", len(got), 2*perStore)
 	}
 }
