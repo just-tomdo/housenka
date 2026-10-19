@@ -680,3 +680,45 @@ func TestCurrentPeriodIsMarked(t *testing.T) {
 		t.Errorf("t then 2: header = %q", h)
 	}
 }
+
+func TestIssueSummary(t *testing.T) {
+	m, s, o := newTestModel(t)
+	lastYear := civil.Date{Year: 2025, Month: time.December, Day: 18}
+	seed(t, s,
+		sample(today, "SHOPDEV", "DEV", 8, "dnešní práce"),
+		sample(today.AddDays(-1), "SHOPSUP", "TEST", 4, "testování"),
+		sample(lastYear, "SHOPDEV", "ANALYSIS", 6, "loňská analýza"),
+		sample(today, "INTERNI", "OPS", 4, "porada bez issue"),
+	)
+	m.reload("")
+	press(m, "I")
+	if m.mode != modeIssue {
+		t.Fatalf("I did not open the issue summary (mode %v)", m.mode)
+	}
+	dump(t, "13-issue", m)
+	sc := screen(m)
+	for _, want := range []string{"Issue shop-web#393", "celkem 4,50 h", "3 výkazy", "3 dny",
+		"DEV", "ANALYSIS", "TEST", "Kódy projektů", "loňská analýza", "testování"} {
+		if !strings.Contains(sc, want) {
+			t.Errorf("summary lacks %q:\n%s", want, sc)
+		}
+	}
+	if strings.Contains(sc, "porada bez issue") {
+		t.Error("entry without the issue is listed")
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	m.Update(cmd())
+	if len(o.opened) != 1 || !strings.HasPrefix(o.opened[0], "https://gitlab.example.com/clients/shop-web/-/work_items/393") {
+		t.Errorf("opened = %v", o.opened)
+	}
+	press(m, "<esc>")
+	if m.mode != modeNormal {
+		t.Error("esc did not close the summary")
+	}
+
+	press(m, "j", "I") // the entry without an issue
+	if m.mode != modeNormal || !m.toastErr {
+		t.Errorf("entry without issue: mode %v, toast %q", m.mode, m.toast)
+	}
+}

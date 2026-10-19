@@ -3,6 +3,7 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -163,5 +164,27 @@ func TestNoTempFilesLeft(t *testing.T) {
 			names = append(names, f.Name())
 		}
 		t.Errorf("unexpected files: %v", names)
+	}
+}
+
+func TestAll(t *testing.T) {
+	s, dir := newStore(t)
+	for _, e := range []entry.Entry{
+		{Date: day(2026, 1, 5), Description: "b"},
+		{Date: day(2025, 12, 30), Description: "a"},
+		{Date: day(2027, 2, 1), Description: "c"},
+	} {
+		if _, err := s.Save(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.WriteFile(filepath.Join(dir, "notes.json"), []byte("{}"), 0o644) // not a year file
+
+	got, err := s.All()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"a", "b", "c"}; !slices.Equal(ids(got), want) {
+		t.Errorf("All = %v, want %v", ids(got), want)
 	}
 }

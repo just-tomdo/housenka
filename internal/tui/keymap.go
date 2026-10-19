@@ -10,6 +10,7 @@ type keyMap struct {
 	Day, Week, Month, CycleKind             key.Binding
 	Add, Edit, Copy, Yank, Paste, Delete    key.Binding
 	OpenBM, CopyURL, OpenIssue, ToggleSent  key.Binding
+	IssueSummary                            key.Binding
 	Status                                  key.Binding
 	Filter, Help, Quit                      key.Binding
 }
@@ -19,33 +20,34 @@ func newKeyMap() keyMap {
 		return key.NewBinding(key.WithKeys(keys...), key.WithHelp(help, desc))
 	}
 	return keyMap{
-		Down:       b([]string{"j", "down"}, "j/↓", "dolů"),
-		Up:         b([]string{"k", "up"}, "k/↑", "nahoru"),
-		Top:        b([]string{"home"}, "gg/home", "na začátek"),
-		Bottom:     b([]string{"G", "end"}, "G/end", "na konec"),
-		HalfDown:   b([]string{"ctrl+d", "pgdown"}, "ctrl+d/pgdn", "o stránku dolů"),
-		HalfUp:     b([]string{"ctrl+u", "pgup"}, "ctrl+u/pgup", "o stránku nahoru"),
-		PrevPeriod: b([]string{"h", "left"}, "h/←", "předchozí"),
-		NextPeriod: b([]string{"l", "right"}, "l/→", "další"),
-		Today:      b([]string{"t"}, "t", "dnes"),
-		Day:        b([]string{"1"}, "1", "den"),
-		Week:       b([]string{"2"}, "2", "týden"),
-		Month:      b([]string{"3"}, "3", "měsíc"),
-		CycleKind:  b([]string{"tab"}, "tab", "den/týden/měsíc"),
-		Add:        b([]string{"a", "o", "insert"}, "a/ins", "přidat"),
-		Edit:       b([]string{"e", "enter"}, "e/enter", "upravit"),
-		Copy:       b([]string{"c"}, "c", "kopie na dnes"),
-		Yank:       b([]string{"y"}, "yy", "zapamatovat"),
-		Paste:      b([]string{"p"}, "p", "vložit kopii"),
-		Delete:     b([]string{"delete"}, "dd/del", "smazat"),
-		OpenBM:     b([]string{"b"}, "b", "otevřít v BM"),
-		CopyURL:    b([]string{"Y"}, "Y", "kopírovat odkaz BM"),
-		OpenIssue:  b([]string{"i"}, "i/gx", "otevřít issue"),
-		ToggleSent: b([]string{"s", "space"}, "s/space", "odesláno"),
-		Status:     b([]string{"S"}, "S", "týdenní souhrn"),
-		Filter:     b([]string{"/"}, "/", "filtr"),
-		Help:       b([]string{"?", "f1"}, "?", "nápověda"),
-		Quit:       b([]string{"q", "ctrl+c"}, "q/:q", "konec"),
+		Down:         b([]string{"j", "down"}, "j/↓", "dolů"),
+		Up:           b([]string{"k", "up"}, "k/↑", "nahoru"),
+		Top:          b([]string{"home"}, "gg/home", "na začátek"),
+		Bottom:       b([]string{"G", "end"}, "G/end", "na konec"),
+		HalfDown:     b([]string{"ctrl+d", "pgdown"}, "ctrl+d/pgdn", "o stránku dolů"),
+		HalfUp:       b([]string{"ctrl+u", "pgup"}, "ctrl+u/pgup", "o stránku nahoru"),
+		PrevPeriod:   b([]string{"h", "left"}, "h/←", "předchozí"),
+		NextPeriod:   b([]string{"l", "right"}, "l/→", "další"),
+		Today:        b([]string{"t"}, "t", "dnes"),
+		Day:          b([]string{"1"}, "1", "den"),
+		Week:         b([]string{"2"}, "2", "týden"),
+		Month:        b([]string{"3"}, "3", "měsíc"),
+		CycleKind:    b([]string{"tab"}, "tab", "den/týden/měsíc"),
+		Add:          b([]string{"a", "o", "insert"}, "a/ins", "přidat"),
+		Edit:         b([]string{"e", "enter"}, "e/enter", "upravit"),
+		Copy:         b([]string{"c"}, "c", "kopie na dnes"),
+		Yank:         b([]string{"y"}, "yy", "zapamatovat"),
+		Paste:        b([]string{"p"}, "p", "vložit kopii"),
+		Delete:       b([]string{"delete"}, "dd/del", "smazat"),
+		OpenBM:       b([]string{"b"}, "b", "otevřít v BM"),
+		CopyURL:      b([]string{"Y"}, "Y", "kopírovat odkaz BM"),
+		OpenIssue:    b([]string{"i"}, "i/gx", "otevřít issue"),
+		IssueSummary: b([]string{"I"}, "I", "souhrn issue"),
+		ToggleSent:   b([]string{"s", "space"}, "s/space", "odesláno"),
+		Status:       b([]string{"S"}, "S", "týdenní souhrn"),
+		Filter:       b([]string{"/"}, "/", "filtr"),
+		Help:         b([]string{"?", "f1"}, "?", "nápověda"),
+		Quit:         b([]string{"q", "ctrl+c"}, "q/:q", "konec"),
 	}
 }
 
@@ -60,7 +62,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Down, k.Up, k.Top, k.Bottom, k.HalfDown, k.HalfUp},
 		{k.PrevPeriod, k.NextPeriod, k.Today, k.Day, k.Week, k.Month, k.CycleKind},
 		{k.Add, k.Edit, k.Copy, k.Yank, k.Paste, k.Delete},
-		{k.OpenBM, k.CopyURL, k.OpenIssue, k.ToggleSent, k.Status, k.Filter, k.Help, k.Quit},
+		{k.OpenBM, k.CopyURL, k.OpenIssue, k.IssueSummary, k.ToggleSent, k.Status, k.Filter, k.Help, k.Quit},
 	}
 }
 

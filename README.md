@@ -10,11 +10,15 @@ Terminálová aplikace pro vykazování práce do Bílého motýla (BM), která 
 
 ## Instalace
 
+Na Linuxu, macOS a ve WSL stačí jeden příkaz:
+
 ```sh
-go install github.com/just-tomdo/housenka@latest
-# nebo z repozitáře:
-go build -o housenka .
+curl -fsSL https://raw.githubusercontent.com/just-tomdo/housenka/main/install.sh | sh
 ```
+
+Stáhne poslední vydanou verzi pro tvůj systém, ověří její kontrolní součet a uloží ji do `~/.local/bin` (jiný adresář nastavíš přes `HOUSENKA_INSTALL_DIR`). Když ten adresář nemáš v `PATH`, poradí, jak ho přidat. Na novou verzi aktualizuješ stejným příkazem, nainstalovanou verzi vypíše `housenka version`.
+
+Na Windows stáhni `housenka-windows-amd64.exe` z [Releases](https://github.com/just-tomdo/housenka/releases). Kdo má Go, může i `go install github.com/just-tomdo/housenka@latest` nebo z repozitáře `go build -o housenka .`.
 
 ## První spuštění
 
@@ -58,6 +62,7 @@ Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zob
 | smazat | `dd` · Delete |
 | otevřít v BM / kopírovat odkaz do BM | `b` / `Y` |
 | otevřít issue v prohlížeči | `i` · `gx` |
+| souhrn issue (všechny výkazy, hodiny podle činností) | `I` (v souhrnu `i` otevře issue) |
 | přepnout „odesláno“ | `s` · Space |
 | týdenní souhrn pro status | `S` (v souhrnu `y` zkopíruje text, `m` Markdown) |
 | filtr | `/` (Esc zruší) |
