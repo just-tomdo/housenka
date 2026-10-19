@@ -134,9 +134,25 @@
 
   // --- copying -------------------------------------------------------------------------------
 
+  // The Clipboard API needs a secure context (localhost, *.localhost);
+  // names from the hosts file such as housenka.local fall back to execCommand.
+  function legacyCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    (openDialog() || document.body).appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    if (!ok) throw new Error("copy failed");
+  }
+
   async function copy(text, label) {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+      else legacyCopy(text);
       toast((label || "Text") + " zkopírován do schránky");
     } catch {
       toast("Kopírování se nepovedlo", true);
