@@ -28,6 +28,7 @@ type Config struct {
 	GitLabHosts []string            `yaml:"gitlab_hosts"`
 	BM          BM                  `yaml:"bm"`
 	UI          UI                  `yaml:"ui"`
+	Web         Web                 `yaml:"web"`
 	Time        Time                `yaml:"time"`
 	Activities  map[string]Activity `yaml:"activities"`
 	Projects    map[string]Project  `yaml:"projects"`
@@ -78,6 +79,17 @@ func (u UI) DateLayout() civil.Layout {
 	}
 	return civil.MustLayout(civil.DefaultLayout)
 }
+
+// Web configures the local web interface (housenka web).
+type Web struct {
+	Port        int      `yaml:"port"`
+	Hostnames   []string `yaml:"hostnames"`    // names the browser may use besides 127.0.0.1 and localhost
+	OpenBrowser bool     `yaml:"open_browser"` // open the browser when the server starts
+	Theme       string   `yaml:"theme"`        // "auto" (light or dark by the system) or a web theme name
+}
+
+// DefaultWebPort is the port of the web interface unless configured otherwise.
+const DefaultWebPort = 8765
 
 // Time holds time limits; all values are in quarter-hours.
 type Time struct {
@@ -138,7 +150,8 @@ func (h *Hours) UnmarshalYAML(n *yaml.Node) error {
 // Default returns a configuration with defaults for every optional value.
 func Default() Config {
 	return Config{
-		UI: UI{Theme: "tokyonight", NerdFont: false, Caterpillar: true, Background: true, DateFormat: civil.DefaultLayout},
+		UI:  UI{Theme: "tokyonight", NerdFont: false, Caterpillar: true, Background: true, DateFormat: civil.DefaultLayout},
+		Web: Web{Port: DefaultWebPort, Hostnames: []string{"housenka.localhost"}, OpenBrowser: true, Theme: "auto"},
 		Time: Time{
 			DailyGoal:    8 * hours.PerHour,
 			MaxEntry:     12 * hours.PerHour,
