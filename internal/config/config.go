@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"os"
 	"regexp"
@@ -22,6 +23,14 @@ var Themes = []string{"tokyonight", "catppuccin", "gruvbox", "ayu-dark"}
 // ColorNames lists the named project colors; every theme defines its own
 // shade of each.
 var ColorNames = []string{"red", "orange", "yellow", "green", "teal", "cyan", "blue", "purple", "pink"}
+
+// DerivedColorName returns the color name from ColorNames that a project
+// without a configured color gets: stable for its code.
+func DerivedColorName(code string) string {
+	h := fnv.New32a()
+	h.Write([]byte(code))
+	return ColorNames[h.Sum32()%uint32(len(ColorNames))]
+}
 
 // Config is the whole configuration file.
 type Config struct {

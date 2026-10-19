@@ -1,0 +1,24 @@
+/* name: Housenka tmavá; scheme: dark */
+:root {
+  --base: #15171c;
+  --surface: #1e2229;
+  --overlay: #343a45;
+  --text: #e4e6ea;
+  --subtext: #b3b8c2;
+  --muted: #7a808c;
+  --accent: #7eb3f0;
+  --accent2: #c3a4f5;
+  --green: #8fcf72;
+  --orange: #f0a05a;
+  --red: #f07a86;
+  --yellow: #e8c25a;
+  --c-red: #f07a86;
+  --c-orange: #f0a05a;
+  --c-yellow: #e8c25a;
+  --c-green: #8fcf72;
+  --c-teal: #6fd4c0;
+  --c-cyan: #6cc8e6;
+  --c-blue: #7eb3f0;
+  --c-purple: #c3a4f5;
+  --c-pink: #f29bc7;
+}

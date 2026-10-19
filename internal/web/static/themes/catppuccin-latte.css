@@ -1,0 +1,24 @@
+/* name: Catppuccin Latte; scheme: light */
+:root {
+  --base: #eff1f5;
+  --surface: #e6e9ef;
+  --overlay: #bcc0cc;
+  --text: #4c4f69;
+  --subtext: #6c6f85;
+  --muted: #9ca0b0;
+  --accent: #8839ef;
+  --accent2: #1e66f5;
+  --green: #40a02b;
+  --orange: #fe640b;
+  --red: #d20f39;
+  --yellow: #df8e1d;
+  --c-red: #d20f39;
+  --c-orange: #fe640b;
+  --c-yellow: #df8e1d;
+  --c-green: #40a02b;
+  --c-teal: #179299;
+  --c-cyan: #04a5e5;
+  --c-blue: #1e66f5;
+  --c-purple: #8839ef;
+  --c-pink: #ea76cb;
+}

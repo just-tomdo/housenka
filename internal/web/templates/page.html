@@ -1,0 +1,46 @@
+{{define "page"}}<!doctype html>
+<html lang="cs" data-theme="{{.Theme}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Housenka</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐛</text></svg>">
+<link rel="stylesheet" href="/themes.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/htmx.min.js"></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}' hx-include="#viewstate">
+<header class="topbar">
+  <a class="brand" href="/" title="Housenka – vykazování práce">🐛 <span>Housenka</span></a>
+  <div class="topbar-right">
+    <label class="theme-picker" title="Barevné téma">
+      <span aria-hidden="true">◐</span>
+      <select id="theme" aria-label="Barevné téma">
+        {{range .Themes}}<option value="{{.ID}}"{{if .Selected}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <button class="btn ghost" hx-get="/help" hx-target="#modal" data-key="?" title="Klávesové zkratky (?)">⌨ Zkratky</button>
+  </div>
+</header>
+{{template "main" .Main}}
+<div id="modal"></div>
+<div class="toast-area"><div id="toast"></div></div>
+<dialog id="confirm" class="modal confirm">
+  <form method="dialog">
+    <p id="confirm-text"></p>
+    <footer>
+      <button class="btn danger" value="yes" autofocus>Smazat</button>
+      <button class="btn" value="no">Zrušit</button>
+    </footer>
+  </form>
+</dialog>
+</body>
+</html>{{end}}
+
+{{define "toast"}}<div id="toast" hx-swap-oob="true">{{with .Toast}}<div class="toast{{if .Err}} err{{end}}" role="status">
+  <span>{{.Text}}</span>{{if .Link}} <a class="btn small" href="{{.Link}}" target="_blank" rel="noopener">{{.LinkLabel}}</a>{{end}}
+  <button class="toast-close" type="button" aria-label="Zavřít">×</button>
+</div>{{end}}</div>{{end}}
+
+{{define "update"}}{{template "main" .Main}}{{template "toast" .}}{{end}}

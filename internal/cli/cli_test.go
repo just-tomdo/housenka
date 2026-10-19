@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -249,5 +250,55 @@ func TestConfigEdit(t *testing.T) {
 		}
 		fakeEditor(t, fixed)
 		run_(t, "config", "edit")
+	}
+}
+
+func TestWebCommand(t *testing.T) {
+	home := setHome(t)
+	if code, _, _ := run_(t, "config", "init"); code != 0 {
+		t.Fatal("config init failed")
+	}
+	var got []WebCommand
+	defer func(f func(WebCommand, io.Writer) error) { Web = f }(Web)
+	Web = func(c WebCommand, _ io.Writer) error { got = append(got, c); return nil }
+
+	tests := []struct {
+		args []string
+		env  string
+		want WebCommand
+	}{
+		{[]string{"web"}, "", WebCommand{Action: "run", Port: 0, Open: true}},
+		{[]string{"web", "--port", "9000", "--no-open"}, "", WebCommand{Action: "run", Port: 9000}},
+		{[]string{"web", "start"}, "9100", WebCommand{Action: "start", Port: 9100, Open: true}},
+		{[]string{"web", "start", "--port", "9200"}, "9100", WebCommand{Action: "start", Port: 9200, Open: true}},
+		{[]string{"web", "stop"}, "", WebCommand{Action: "stop"}},
+		{[]string{"web", "status"}, "", WebCommand{Action: "status"}},
+	}
+	for _, tt := range tests {
+		got = nil
+		t.Setenv(webPortEnv, tt.env)
+		if code, _, errOut := run_(t, tt.args...); code != 0 || len(got) != 1 {
+			t.Errorf("%v: code=%d err=%q", tt.args, code, errOut)
+			continue
+		}
+		c := got[0]
+		if c.Action != tt.want.Action || c.Port != tt.want.Port || c.Open != tt.want.Open ||
+			(c.Config != nil) != (tt.want.Action == "run" || tt.want.Action == "start") {
+			t.Errorf("%v: got %+v", tt.args, c)
+		}
+		if c.ConfigPath != filepath.Join(home, "config.yaml") {
+			t.Errorf("%v: config path %q", tt.args, c.ConfigPath)
+		}
+	}
+
+	t.Setenv(webPortEnv, "")
+	for _, args := range [][]string{{"web", "restart"}, {"web", "stop", "--port", "1"}, {"web", "x", "y"}} {
+		if code, _, _ := run_(t, args...); code != 2 {
+			t.Errorf("%v: code = %d, want 2", args, code)
+		}
+	}
+	t.Setenv(webPortEnv, "abc")
+	if code, _, errOut := run_(t, "web"); code != 1 || !strings.Contains(errOut, "není platný port") {
+		t.Errorf("bad env port: code=%d err=%q", code, errOut)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -21,6 +22,12 @@ Použití:
 
 Příkazy:
   (žádný)               spustí TUI
+  web [--port N] [--no-open]
+                        spustí webové rozhraní v prohlížeči (Ctrl+C ho ukončí)
+  web start [--port N] [--no-open]
+                        spustí webové rozhraní na pozadí
+  web stop              vypne webové rozhraní běžící na pozadí
+  web status            vypíše, jestli a kde webové rozhraní běží
   config init [--force] vytvoří vzorový config (~/.housenka/config.yaml)
   config edit           otevře config v editoru ($VISUAL, $EDITOR, jinak nano/nvim/vim/vi)
                         a po uložení ho zkontroluje
@@ -33,6 +40,7 @@ Příkazy:
 Volby:
   --config SOUBOR       jiný config než výchozí
   HOUSENKA_HOME=DIR     (proměnná prostředí) jiný adresář místo ~/.housenka
+  HOUSENKA_WEB_PORT=N   (proměnná prostředí) port webového rozhraní místo web.port
 `
 
 // Version is the release version; it is set by the main package.
@@ -45,6 +53,18 @@ var ExampleConfig []byte
 // TUI starts the interactive interface. It is set by the main package so
 // that this package does not depend on the UI.
 var TUI func(cfg *config.Config, cfgPath string) error
+
+// WebCommand is one `housenka web` invocation. Config is nil for stop and status.
+type WebCommand struct {
+	Action     string // "run", "start", "stop", "status"
+	Config     *config.Config
+	ConfigPath string
+	Port       int  // 0 = web.port from the config
+	Open       bool // open the browser
+}
+
+// Web runs the web interface. It is set by the main package, like TUI.
+var Web func(c WebCommand, stdout io.Writer) error
 
 // errUsage signals a usage error that has already been reported.
 var errUsage = errors.New("usage")
@@ -102,6 +122,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return errUsage
 		}
 		return parse(stdout, *cfgPath, rest[0])
+	case "web":
+		return web(stdout, stderr, *cfgPath, rest)
 	case "config":
 		sub := ""
 		if len(rest) > 0 {
@@ -134,6 +156,60 @@ func runTUI(cfgPath string) error {
 	}
 	return TUI(cfg, cfgPath)
 }
+
+const webUsage = "použití: housenka web [start|stop|status] [--port N] [--no-open]"
+
+func web(stdout, stderr io.Writer, cfgPath string, args []string) error {
+	c := WebCommand{Action: "run", ConfigPath: cfgPath}
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		c.Action, args = args[0], args[1:]
+	}
+	fs := flag.NewFlagSet("web", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	fs.Usage = func() { fmt.Fprintln(stderr, webUsage) }
+	port := fs.Int("port", 0, "port (jinak "+webPortEnv+" nebo web.port z configu)")
+	noOpen := fs.Bool("no-open", false, "neotevírat prohlížeč")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 0 {
+		return errUsage
+	}
+	switch c.Action {
+	case "stop", "status":
+		if *port != 0 || *noOpen {
+			fmt.Fprintln(stderr, webUsage)
+			return errUsage
+		}
+	case "run", "start":
+		cfg, err := config.Load(cfgPath)
+		if err != nil {
+			return err
+		}
+		c.Config = cfg
+		c.Port = *port
+		if c.Port == 0 {
+			if v := os.Getenv(webPortEnv); v != "" {
+				p, err := strconv.Atoi(v)
+				if err != nil || p < 1 || p > 65535 {
+					return fmt.Errorf("%s=%q není platný port", webPortEnv, v)
+				}
+				c.Port = p
+			}
+		}
+		if c.Port < 0 || c.Port > 65535 {
+			return fmt.Errorf("--port %d není platný port", c.Port)
+		}
+		c.Open = cfg.Web.OpenBrowser && !*noOpen
+	default:
+		fmt.Fprintln(stderr, webUsage)
+		return errUsage
+	}
+	if Web == nil {
+		return errors.New("webové rozhraní zatím není k dispozici")
+	}
+	return Web(c, stdout)
+}
+
+// webPortEnv overrides web.port (the same name the web package documents).
+const webPortEnv = "HOUSENKA_WEB_PORT"
 
 func configInit(stdout, stderr io.Writer, cfgPath string, args []string) error {
 	fs := flag.NewFlagSet("config init", flag.ContinueOnError)
