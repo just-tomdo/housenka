@@ -145,14 +145,6 @@ func TestTUIWithoutConfig(t *testing.T) {
 	}
 }
 
-func TestPlural(t *testing.T) {
-	for n, want := range map[int]string{0: "0 činností", 1: "1 činnost", 3: "3 činnosti", 5: "5 činností", 12: "12 činností"} {
-		if got := plural(n, "činnost", "činnosti", "činností"); got != want {
-			t.Errorf("plural(%d) = %q, want %q", n, got, want)
-		}
-	}
-}
-
 func TestEditorCommand(t *testing.T) {
 	env := map[string]string{}
 	getenv := func(k string) string { return env[k] }

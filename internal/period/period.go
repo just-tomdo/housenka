@@ -32,6 +32,12 @@ func (k Kind) String() string {
 // Next returns the following kind, cycling Day -> Week -> Month -> Day.
 func (k Kind) Next() Kind { return (k + 1) % 3 }
 
+// CurrentLabel names the period of this kind that contains today
+// ("dnes", "tento týden", "tento měsíc").
+func (k Kind) CurrentLabel() string {
+	return [...]string{"dnes", "tento týden", "tento měsíc"}[k]
+}
+
 // Period is a normalized date range of a given kind.
 type Period struct {
 	Kind  Kind

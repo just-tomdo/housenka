@@ -17,6 +17,7 @@ import (
 	"github.com/just-tomdo/housenka/internal/period"
 	"github.com/just-tomdo/housenka/internal/rules"
 	"github.com/just-tomdo/housenka/internal/stats"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 // req bundles what most handlers need for one request.
@@ -296,7 +297,7 @@ func (s *Server) help(w http.ResponseWriter, _ *http.Request) {
 // fail shows an error toast and leaves the rest of the page as it is.
 func (s *Server) fail(w http.ResponseWriter, err error) {
 	w.Header().Set("HX-Reswap", "none")
-	s.render(w, "toast", struct{ Toast toastData }{toastData{Text: oneLine(err.Error()), Err: true}})
+	s.render(w, "toast", struct{ Toast toastData }{toastData{Text: text.OneLine(err.Error()), Err: true}})
 }
 
 func (s *Server) render(w http.ResponseWriter, name string, data any) {

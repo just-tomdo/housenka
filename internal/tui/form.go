@@ -19,6 +19,7 @@ import (
 	"github.com/just-tomdo/housenka/internal/hours"
 	"github.com/just-tomdo/housenka/internal/period"
 	"github.com/just-tomdo/housenka/internal/rules"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 type field int
@@ -475,7 +476,7 @@ func (f *form) options(opts []string, selected string, focused, projects bool) s
 func (f *form) hint(fl field) string {
 	st := f.st
 	if msg, ok := f.errs[fl]; ok {
-		return st.Err.Render("✗ " + oneLine(msg))
+		return st.Err.Render("✗ " + text.OneLine(msg))
 	}
 	if msg, ok := f.warns[fl]; ok {
 		return st.Warn.Render("! " + msg)
@@ -491,7 +492,7 @@ func (f *form) hint(fl field) string {
 		case f.issueRef != nil && f.issueErr == nil:
 			return st.Good.Render("✓ " + f.issueRef.Short())
 		case f.issueErr != nil && strings.TrimSpace(f.inputs[fieldIssue].Value()) != "":
-			return st.Err.Render("✗ " + oneLine(f.issueErr.Error()))
+			return st.Err.Render("✗ " + text.OneLine(f.issueErr.Error()))
 		case f.issueErr == nil:
 			return st.Muted.Render("bez issue – jen projekty s issue: optional")
 		}
@@ -515,11 +516,6 @@ func (f *form) hint(fl field) string {
 		}
 	}
 	return ""
-}
-
-// oneLine joins a multi-line message into one line for wrapping.
-func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
 }
 
 func firstLine(s string) string {

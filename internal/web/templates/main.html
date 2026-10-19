@@ -75,7 +75,7 @@
 </section>
 
 <footer class="statusline">
-  <span>{{.Count}} {{if eq .Count 1}}záznam{{else if and (ge .Count 2) (le .Count 4)}}záznamy{{else}}záznamů{{end}}{{if .View.Q}} · filtr „{{.View.Q}}“{{end}}</span>
+  <span>{{plural .Count "záznam" "záznamy" "záznamů"}}{{if .View.Q}} · filtr „{{.View.Q}}“{{end}}</span>
   {{if .Unsent}}<span class="pending">• {{.Unsent}} neodesláno</span>{{end}}
   {{if .Header.GoalReached}}<span class="good">🦋 cíl splněn</span>{{end}}
 </footer>

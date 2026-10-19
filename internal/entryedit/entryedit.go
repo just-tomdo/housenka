@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/just-tomdo/housenka/internal/bm"
 	"github.com/just-tomdo/housenka/internal/civil"
@@ -159,7 +158,7 @@ func PeriodGoal(cfg *config.Config, p period.Period) int {
 	}
 	n := 0
 	for _, d := range p.Days() {
-		if wd := d.Weekday(); wd != time.Saturday && wd != time.Sunday {
+		if !d.IsWeekend() {
 			n++
 		}
 	}

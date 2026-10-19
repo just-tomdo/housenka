@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
@@ -16,6 +15,7 @@ import (
 	"github.com/just-tomdo/housenka/internal/period"
 	"github.com/just-tomdo/housenka/internal/rules"
 	"github.com/just-tomdo/housenka/internal/stats"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 // viewState is what the page shows: a period around a date, and a filter.
@@ -167,8 +167,6 @@ func barOf(t stats.Totals, goal int) bar {
 	}
 }
 
-var currentLabel = map[period.Kind]string{period.Day: "dnes", period.Week: "tento týden", period.Month: "tento měsíc"}
-
 var tabLabels = map[period.Kind]string{period.Day: "Den", period.Week: "Týden", period.Month: "Měsíc"}
 
 // buildMain loads the period of v and prepares everything the header and
@@ -177,7 +175,7 @@ func (s *Server) buildMain(cfg *config.Config, r *rules.Rules, cfgErr error, v v
 	layout := cfg.UI.DateLayout()
 	per := v.Period()
 	m := mainView{
-		View: v, Today: today, PeriodLabel: per.Label(layout), Current: currentLabel[v.Kind],
+		View: v, Today: today, PeriodLabel: per.Label(layout), Current: v.Kind.CurrentLabel(),
 		IsCurrent: per.Contains(today), TowardsPast: per.Start.After(today),
 		Prev: v.with(v.Kind, per.Prev().Start), Next: v.with(v.Kind, per.Next().Start),
 		ToToday: v.with(v.Kind, today), ConfigErr: cfgErr, Caterpillar: cfg.UI.Caterpillar,
@@ -208,11 +206,8 @@ func (s *Server) buildMain(cfg *config.Config, r *rules.Rules, cfgErr error, v v
 	}
 	h.GoalReached = v.Kind == period.Day && sum.Total >= int(cfg.Time.DailyGoal)
 	if v.Kind == period.Week {
-		for _, d := range sum.Days {
+		for _, d := range sum.WeekStrip() {
 			wd := d.Date.Weekday()
-			if (wd == time.Saturday || wd == time.Sunday) && d.Total == 0 {
-				continue
-			}
 			h.WeekDays = append(h.WeekDays, dayChip{
 				Label: period.WeekdayShort(wd), Day: d, Today: d.Date == today,
 				Bar: barOf(d.Totals, int(cfg.Time.DailyGoal)), View: v.with(period.Day, d.Date),
@@ -277,12 +272,12 @@ func newEntryView(cfg *config.Config, r *rules.Rules, e entry.Entry, today civil
 		}
 	}
 	for _, f := range res.Errors() {
-		ev.Errors = append(ev.Errors, oneLine(f.Message))
+		ev.Errors = append(ev.Errors, text.OneLine(f.Message))
 	}
 	if u, err := entryedit.BMURL(cfg, res, e); err == nil {
 		ev.BMURL = u
 	} else {
-		ev.BMErr = oneLine(err.Error())
+		ev.BMErr = text.OneLine(err.Error())
 	}
 	return ev
 }
@@ -308,8 +303,6 @@ func projectColor(cfg *config.Config, code string) (string, template.CSS) {
 	}
 	return "pc-" + config.DerivedColorName(code), ""
 }
-
-func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 // --- form ----------------------------------------------------------------------
 
@@ -372,7 +365,7 @@ type hintsView struct {
 func fieldMessages(m entryedit.Messages) map[string]string {
 	out := map[string]string{}
 	for f, msg := range m {
-		out[string(f)] = oneLine(msg)
+		out[string(f)] = text.OneLine(msg)
 	}
 	return out
 }
@@ -463,11 +456,11 @@ func liveHints(cfg *config.Config, r *rules.Rules, in entryedit.Input, c entryed
 	case c.IssueRef != nil && c.IssueErr == nil:
 		h.Issue = hint{"✓ " + c.IssueRef.Short(), "good"}
 	case c.IssueErr != nil && strings.TrimSpace(in.Issue) != "":
-		h.Issue = hint{oneLine(c.IssueErr.Error()), "err"}
+		h.Issue = hint{text.OneLine(c.IssueErr.Error()), "err"}
 	case c.IssueErr == nil:
 		h.Issue = hint{Text: "bez issue – jen projekty s issue: optional"}
 	default:
-		h.Issue = hint{oneLine(c.IssueErr.Error()), "err"}
+		h.Issue = hint{text.OneLine(c.IssueErr.Error()), "err"}
 	}
 	if q, err := hours.Parse(in.Hours); err == nil && q > 0 {
 		h.Hours = hint{Text: fmt.Sprintf("= %d h %02d min", q/4, q%4*15)}
@@ -581,18 +574,7 @@ var funcs = template.FuncMap{
 		_, r, _ := strings.Cut(s, "\n")
 		return strings.TrimSpace(r)
 	},
-	"plural": czPlural,
+	"plural": text.Plural,
 	"sub":    func(a, b int) int { return a - b },
 	"inc":    func(a int) int { return a + 1 },
-}
-
-// czPlural returns "1 výkaz", "3 výkazy", "5 výkazů".
-func czPlural(n int, one, few, many string) string {
-	switch {
-	case n == 1:
-		return "1 " + one
-	case n >= 2 && n <= 4:
-		return fmt.Sprintf("%d %s", n, few)
-	}
-	return fmt.Sprintf("%d %s", n, many)
 }

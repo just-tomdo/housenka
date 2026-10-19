@@ -16,6 +16,7 @@ import (
 	"github.com/just-tomdo/housenka/internal/gitlaburl"
 	"github.com/just-tomdo/housenka/internal/hours"
 	"github.com/just-tomdo/housenka/internal/rules"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 // The settings pages edit the configuration file. Every change loads the
@@ -238,7 +239,7 @@ func (s *Server) buildSettings(q *req, tab string) settingsData {
 			row.Confirm += " Zmizí z povolených činností projektů " + strings.Join(row.Projects, ", ") + "."
 		}
 		if row.Entries > 0 {
-			row.Confirm += fmt.Sprintf(" %s s ní zůstane, ale bude neplatných.", czPlural(row.Entries, "záznam", "záznamy", "záznamů"))
+			row.Confirm += fmt.Sprintf(" %s s ní zůstane, ale bude neplatných.", text.Plural(row.Entries, "záznam", "záznamy", "záznamů"))
 		}
 		d.Activities = append(d.Activities, row)
 	}
@@ -257,7 +258,7 @@ func deleteProjectQuestion(cfg *config.Config, code string, entries int) string 
 		}
 	}
 	if entries > 0 {
-		q += fmt.Sprintf(" %s s tímto kódem zůstane, ale bude neplatných.", czPlural(entries, "záznam", "záznamy", "záznamů"))
+		q += fmt.Sprintf(" %s s tímto kódem zůstane, ale bude neplatných.", text.Plural(entries, "záznam", "záznamy", "záznamů"))
 	}
 	return q
 }

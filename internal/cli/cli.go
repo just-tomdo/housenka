@@ -13,6 +13,7 @@ import (
 
 	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/rules"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 const usage = `Housenka – vykazování práce do Bílého motýla
@@ -244,9 +245,9 @@ func configCheck(stdout io.Writer, cfgPath string) error {
 		return err
 	}
 	fmt.Fprintf(stdout, "Config %s je v pořádku: %s, %s, %s pro repozitáře.\n", cfgPath,
-		plural(len(cfg.Activities), "činnost", "činnosti", "činností"),
-		plural(len(cfg.Projects), "kód projektu", "kódy projektů", "kódů projektů"),
-		plural(len(cfg.Repos), "pravidlo", "pravidla", "pravidel"))
+		text.Plural(len(cfg.Activities), "činnost", "činnosti", "činností"),
+		text.Plural(len(cfg.Projects), "kód projektu", "kódy projektů", "kódů projektů"),
+		text.Plural(len(cfg.Repos), "pravidlo", "pravidla", "pravidel"))
 	if w := cfg.Warnings(); len(w) > 0 {
 		fmt.Fprintln(stdout, "\nVarování:")
 		for _, line := range w {
@@ -302,16 +303,4 @@ func parse(stdout io.Writer, cfgPath, link string) error {
 		fmt.Fprintf(stdout, "      činnosti: %s\n", strings.Join(acts, ", "))
 	}
 	return nil
-}
-
-// plural picks the Czech form for n: 1 → one, 2–4 → few, otherwise many.
-func plural(n int, one, few, many string) string {
-	form := many
-	switch {
-	case n == 1:
-		form = one
-	case n >= 2 && n <= 4:
-		form = few
-	}
-	return fmt.Sprintf("%d %s", n, form)
 }
