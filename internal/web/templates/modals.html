@@ -5,7 +5,7 @@
   </header>
   <div class="modal-body">
     <p class="facts">
-      <a class="btn small" href="{{.URL}}" target="_blank" rel="noopener" autofocus>Otevřít issue ↗</a>
+      <a class="btn small" href="{{.URL}}" target="_blank" rel="noopener" data-modal-key="i o" autofocus>Otevřít issue ↗ <kbd>i</kbd></a>
       <span>celkem <strong>{{hours .Total}} h</strong></span>
       <span>{{plural (len .Entries) "výkaz" "výkazy" "výkazů"}}</span>
       <span>{{plural .Days "den" "dny" "dní"}}</span>

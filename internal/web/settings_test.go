@@ -200,6 +200,10 @@ func TestSaveGeneral(t *testing.T) {
 	f.post("/settings/general/ui", url.Values{"theme": {"gruvbox"}, "date_format": {"dd.mm.yyyy"}, "caterpillar": {"on"}})
 	body, _ = f.post("/settings/general/web", url.Values{"port": {"9000"}, "hostnames": {"housenka.local"}, "web_theme": {"gruvbox-light"}})
 	contains(t, body, "platí po restartu")
+	// Until the restart the page stays reachable under its old name.
+	if !f.srv.allowedHost("housenka.localhost:8765") || f.srv.allowedHost("housenka.local:8765") {
+		t.Error("host names changed before a restart")
+	}
 	cfg := f.cfg()
 	if len(cfg.GitLabHosts) != 2 || cfg.BM.Fields.Description != "g" || cfg.BM.OpenCommand[0] != "wslview" ||
 		cfg.UI.Theme != "gruvbox" || cfg.UI.Background || cfg.Web.Port != 9000 || cfg.Web.Theme != "gruvbox-light" {

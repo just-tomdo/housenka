@@ -42,6 +42,7 @@ type Server struct {
 	store   Store
 	clock   func() civil.Date
 	port    int
+	hosts   []string // allowed Host names, fixed at start like the port
 	tmpl    *template.Template
 	themes  *themeSet
 	static  http.Handler
@@ -87,8 +88,10 @@ func New(cfg *config.Config, cfgPath string, s Store, clock func() civil.Date, p
 	if cfg == nil {
 		srv.cfg, srv.cfgErr = config.Load(cfgPath)
 	}
+	srv.hosts = []string{"127.0.0.1", "localhost"}
 	if srv.cfg != nil {
 		srv.rules = rules.New(srv.cfg)
+		srv.hosts = append(srv.hosts, srv.cfg.Web.Hostnames...)
 	}
 	return srv, nil
 }
@@ -169,22 +172,17 @@ func (s *Server) cacheStatic(h http.Handler) http.Handler {
 	})
 }
 
-// hostnames are the names the browser may use for the server.
-func (s *Server) hostnames() []string {
-	names := []string{"127.0.0.1", "localhost"}
-	if cfg, _, _ := s.config(); cfg != nil {
-		names = append(names, cfg.Web.Hostnames...)
-	}
-	return names
-}
+// hostnames are the names the browser may use for the server. They are
+// read from the config at start: like the port, a changed web.hostnames
+// applies after a restart, so saving it cannot lock out the open page.
+func (s *Server) hostnames() []string { return s.hosts }
 
 // URL returns the address to open in the browser: the first configured
-// host name, or 127.0.0.1.
+// host name, or localhost.
 func (s *Server) URL() string {
-	cfg, _, _ := s.config()
 	host := "localhost"
-	if cfg != nil && len(cfg.Web.Hostnames) > 0 {
-		host = cfg.Web.Hostnames[0]
+	if len(s.hosts) > 2 {
+		host = s.hosts[2]
 	}
 	if s.port == 80 {
 		return "http://" + host + "/"
@@ -219,20 +217,19 @@ func (s *Server) allowedHost(hostport string) bool {
 const csrfCookie = "housenka_csrf"
 
 // checkCSRF protects changing requests: they must come from a page of this
-// server (Origin) and carry the token from the cookie in X-CSRF-Token
-// (double submit; HTMX sends it from hx-headers).
+// server (Origin, which browsers send with every POST and DELETE) and carry
+// the token from the cookie in X-CSRF-Token (double submit; HTMX sends it
+// from hx-headers).
 func (s *Server) checkCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.URL.Path == "/_/shutdown" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if o := r.Header.Get("Origin"); o != "" {
-			u, err := url.Parse(o)
-			if err != nil || u.Scheme != "http" || !s.allowedHost(u.Host) {
-				http.Error(w, "požadavek z cizí stránky", http.StatusForbidden)
-				return
-			}
+		u, err := url.Parse(r.Header.Get("Origin"))
+		if err != nil || u.Scheme != "http" || !s.allowedHost(u.Host) {
+			http.Error(w, "požadavek z cizí stránky", http.StatusForbidden)
+			return
 		}
 		c, err := r.Cookie(csrfCookie)
 		if err != nil || c.Value == "" ||

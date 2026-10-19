@@ -159,8 +159,11 @@ func Serve(o Options, out io.Writer) error {
 	defer stop()
 	hs := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	srv.shutdown = stop
+	stopped := make(chan struct{})
 	go func() {
+		defer close(stopped)
 		<-ctx.Done()
+		// Running requests (a save, the answer to `web stop`) may finish.
 		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		hs.Shutdown(sctx)
@@ -183,6 +186,7 @@ func Serve(o Options, out io.Writer) error {
 	if err := hs.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
+	<-stopped
 	fmt.Fprintln(out, "Housenka ukončena.")
 	return nil
 }

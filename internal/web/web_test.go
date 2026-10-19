@@ -305,7 +305,7 @@ func TestIssueAndStatus(t *testing.T) {
 	f.save(entry.Entry{Date: today, ProjectCode: "INTERNI", Activity: "REZIE", Quarters: 2, Description: "Porada"})
 
 	body := f.get("/issue?url=" + url.QueryEscape(issue+"#note_1"))
-	contains(t, body, "Issue shop-web#12", "5,50 h", "2 výkazy", "2 dny", "Košík", "Starší práce", "neodesláno")
+	contains(t, body, `data-modal-key="i o"`, "Issue shop-web#12", "5,50 h", "2 výkazy", "2 dny", "Košík", "Starší práce", "neodesláno")
 	lacks(t, body, "Porada")
 
 	body = f.get("/status?date=2026-10-21")
@@ -348,6 +348,9 @@ func TestSecurity(t *testing.T) {
 	}
 	if c := send("POST", sent, host, func(r *http.Request) { r.Header.Set("Origin", "http://evil.example.com") }); c != http.StatusForbidden {
 		t.Errorf("foreign origin = %d", c)
+	}
+	if c := send("POST", sent, host, func(r *http.Request) { r.Header.Del("Origin") }); c != http.StatusForbidden {
+		t.Errorf("missing origin = %d", c)
 	}
 	if c := send("POST", sent, host, nil); c != http.StatusOK {
 		t.Errorf("valid request = %d", c)

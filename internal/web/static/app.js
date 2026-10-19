@@ -288,7 +288,7 @@
     }
     if (dlg) {
       // Modal shortcuts (status: h/l/y/m; issue: i opens the issue).
-      const el = $(`[data-modal-key="${CSS.escape(e.key)}"]`, dlg);
+      const el = $(`[data-modal-key~="${CSS.escape(e.key)}"]`, dlg);
       if (el) {
         e.preventDefault();
         el.click();
