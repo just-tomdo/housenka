@@ -22,6 +22,10 @@ Na Windows stáhni `housenka-windows-amd64.exe` z [Releases](https://github.com/
 
 ## První spuštění
 
+Bez terminálu: spusť `housenka web`. Když config ještě neexistuje, vytvoří se ze vzoru a v prohlížeči tě provede **průvodce nastavením** (Nastavení → Průvodce, víc v [Nastavení v prohlížeči](#nastavení-v-prohlížeči)).
+
+V terminálu:
+
 ```sh
 housenka config init      # vytvoří ~/.housenka/config.yaml se vzorem a komentáři
 housenka config edit      # otevře config v editoru a po uložení ho ověří
@@ -85,6 +89,19 @@ housenka web stop         # vypne server běžící na pozadí
 ```
 
 Server poslouchá jen na tomto počítači (`127.0.0.1`), ostatní v síti se k němu nedostanou. TUI a web můžou běžet zároveň, změny z jednoho se v druhém projeví. Záznamy z běhu na pozadí jdou do `~/.housenka/web.log`.
+
+### Nastavení v prohlížeči
+
+Celý config se dá upravit v sekci **⚙ Nastavení**, bez psaní YAML:
+
+- **Průvodce** ukáže, které části configu ještě obsahují vzorové hodnoty, a odkáže na jejich úpravu. Vzorové činnosti, projekty a repozitáře pak smaže jedním tlačítkem.
+- **Repozitáře**: stačí vložit odkaz na repozitář z GitLabu (klidně i odkaz na issue, adresu `.git` nebo `git@…`) nebo napsat `skupina/projekt`. Housenka nabídne pravidlo jen pro tento repozitář nebo pro celou skupinu, upozorní na existující pravidlo a neznámou doménu GitLabu přidá. Nový projekt jde založit rovnou ve stejném formuláři.
+- **Projekty**: přehled kódů s barvou, povolenými a výchozí činností, repozitáři a počtem záznamů. Ve formuláři se vybírá barva štítku, povolené činnosti a repozitáře.
+- **Činnosti**: kódy činností z BM a jestli jsou produktivní.
+- **Obecné**: domény GitLabu, adresa a pole Bílého motýla (vyplní se samy z odkazu, který vytvoří editor BM), časové limity, web a vzhled TUI.
+- **YAML**: celý soubor jako text pro pokročilé úpravy. Když je config rozbitý, web nabídne jen tuhle záložku, dokud ho neopravíš.
+
+Přejmenování kódu se propíše do celého configu; uložené záznamy si nechají starý kód, tak jak byly odeslány do BM. Smazání se vždy potvrzuje a vypíše, co dalšího se změní. Každá změna se před uložením zkontroluje, komentáře v configu zůstanou a předchozí verze se uloží do `config.yaml.bak`.
 
 Nastavení je v sekci `web` configu:
 
