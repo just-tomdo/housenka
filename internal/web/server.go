@@ -63,8 +63,15 @@ type configStamp struct {
 	size    int64
 }
 
-// New creates the server for a loaded configuration. cfgPath is watched for
-// changes; port is the port the server listens on (for the Host check).
+// ExampleConfig is the commented example configuration, set by the main
+// package; the setup guide compares the configuration with it.
+var ExampleConfig []byte
+
+// New creates the server. cfg is the loaded configuration, or nil when it
+// is missing or invalid (then cfgPath is read for the error and only the
+// text editor of the configuration is offered until it is fixed). cfgPath
+// is watched for changes; port is the port the server listens on (for the
+// Host check).
 func New(cfg *config.Config, cfgPath string, s Store, clock func() civil.Date, port int) (*Server, error) {
 	themes, err := loadThemes(assets, "static/themes")
 	if err != nil {
@@ -81,7 +88,13 @@ func New(cfg *config.Config, cfgPath string, s Store, clock func() civil.Date, p
 	srv := &Server{
 		cfgPath: cfgPath, store: s, clock: clock, port: port, tmpl: tmpl, themes: themes,
 		static: http.FileServerFS(static), token: randomToken(),
-		cfg: cfg, rules: rules.New(cfg), cfgStamp: statConfig(cfgPath),
+		cfg: cfg, cfgStamp: statConfig(cfgPath),
+	}
+	if cfg == nil {
+		srv.cfg, srv.cfgErr = config.Load(cfgPath)
+	}
+	if srv.cfg != nil {
+		srv.rules = rules.New(srv.cfg)
 	}
 	return srv, nil
 }
@@ -102,7 +115,7 @@ func statConfig(path string) configStamp {
 
 // config returns the current configuration, re-reading the file when it
 // changed. An invalid file keeps the previous configuration and reports
-// the error.
+// the error; the configuration is nil when no valid one was loaded yet.
 func (s *Server) config() (*config.Config, *rules.Rules, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -136,7 +149,26 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /help", s.help)
 	mux.HandleFunc("GET /_/health", s.health)
 	mux.HandleFunc("POST /_/shutdown", s.shutdownHandler)
-	return s.checkHost(s.checkCSRF(mux))
+	s.settingsRoutes(mux)
+	return s.checkHost(s.checkCSRF(s.requireConfig(mux)))
+}
+
+// requireConfig sends every page to the configuration text editor while
+// no valid configuration is loaded.
+func (s *Server) requireConfig(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if cfg, _, _ := s.config(); cfg != nil || p == "/settings/yaml" || p == "/themes.css" ||
+			strings.HasPrefix(p, "/static/") || strings.HasPrefix(p, "/_/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if r.Header.Get("HX-Request") != "" {
+			w.Header().Set("HX-Redirect", "/settings/yaml")
+			return
+		}
+		http.Redirect(w, r, "/settings/yaml", http.StatusSeeOther)
+	})
 }
 
 func (s *Server) cacheStatic(h http.Handler) http.Handler {
@@ -148,16 +180,19 @@ func (s *Server) cacheStatic(h http.Handler) http.Handler {
 
 // hostnames are the names the browser may use for the server.
 func (s *Server) hostnames() []string {
-	cfg, _, _ := s.config()
-	return append([]string{"127.0.0.1", "localhost"}, cfg.Web.Hostnames...)
+	names := []string{"127.0.0.1", "localhost"}
+	if cfg, _, _ := s.config(); cfg != nil {
+		names = append(names, cfg.Web.Hostnames...)
+	}
+	return names
 }
 
 // URL returns the address to open in the browser: the first configured
 // host name, or 127.0.0.1.
 func (s *Server) URL() string {
 	cfg, _, _ := s.config()
-	host := "127.0.0.1"
-	if len(cfg.Web.Hostnames) > 0 {
+	host := "localhost"
+	if cfg != nil && len(cfg.Web.Hostnames) > 0 {
 		host = cfg.Web.Hostnames[0]
 	}
 	return "http://" + net.JoinHostPort(host, strconv.Itoa(s.port)) + "/"

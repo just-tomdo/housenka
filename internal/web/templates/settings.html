@@ -1,0 +1,342 @@
+{{define "settings-page"}}{{template "head" .}}
+{{template "settings-content" .}}
+{{template "foot"}}{{end}}
+
+{{define "settings-update"}}{{template "settings-content" .Settings}}{{template "toast" .}}{{end}}
+
+{{define "settings-content"}}<div id="settings-content" class="main settings"{{if .OOB}} hx-swap-oob="true"{{end}}>
+<input type="hidden" id="cfg-hash" name="hash" value="{{.Hash}}">
+<nav class="settings-tabs" aria-label="Části nastavení">
+  {{range .Tabs}}<a class="stab{{if .Active}} active{{end}}" href="/settings/{{.ID}}">{{.Label}}{{if .Warn}} <span class="dot"></span>{{end}}</a>{{end}}
+</nav>
+{{with .ConfigErr}}<div class="banner err">Config na disku teď obsahuje chyby, Housenka používá poslední platnou verzi. Oprav ho v záložce YAML: {{.}}</div>{{end}}
+{{if eq .Tab "setup"}}{{template "settings-setup" .}}
+{{else if eq .Tab "repos"}}{{template "settings-repos" .}}
+{{else if eq .Tab "projects"}}{{template "settings-projects" .}}
+{{else if eq .Tab "activities"}}{{template "settings-activities" .}}
+{{else if eq .Tab "general"}}{{template "settings-general" .General}}
+{{else if eq .Tab "yaml"}}{{template "settings-yaml" .}}{{end}}
+</div>{{end}}
+
+{{define "settings-setup"}}<section class="card pad">
+  <h2>Průvodce nastavením</h2>
+  <p class="subtext">Housenka potřebuje vědět, kde je tvůj GitLab a Bílý motýl a jaké kódy projektů a činností v BM používáš. Projdi kroky shora dolů; ✓ znamená, že část už není vzorová.</p>
+  <ol class="steps">
+    {{range $i, $s := .Steps}}{{with $s}}<li class="step{{if .Done}} done{{end}}">
+      <span class="step-mark">{{if .Done}}✓{{else}}{{inc $i}}{{end}}</span>
+      <span class="step-title">{{.Title}}</span>
+      {{if eq .ID "gitlab"}}<span class="subtext">doména, ze které vkládáš odkazy na issue</span><a class="btn small" href="/settings/general#gitlab">Nastavit</a>
+      {{else if eq .ID "bm"}}<span class="subtext">adresa editoru výkazu a názvy jeho polí</span><a class="btn small" href="/settings/general#bm">Nastavit</a>
+      {{else if eq .ID "activities"}}<span class="subtext">činnosti z BM a jestli jsou produktivní</span><a class="btn small" href="/settings/activities">Upravit</a>
+      {{else if eq .ID "projects"}}<span class="subtext">kódy projektů z BM a jejich povolené činnosti</span><a class="btn small" href="/settings/projects">Upravit</a>
+      {{else if eq .ID "repos"}}<span class="subtext">které repozitáře patří ke kterým projektům</span><a class="btn small" href="/settings/repos">Upravit</a>{{end}}
+    </li>{{end}}{{end}}
+  </ol>
+  <div class="setup-foot">
+    <p class="subtext">Vzorové činnosti, projekty a repozitáře (DEV, SHOPDEV, clients/shop-web …) můžeš smazat najednou, jakmile přidáš vlastní.</p>
+    <button class="btn danger-outline" hx-post="/settings/examples/delete" hx-swap="none" hx-confirm="Smazat všechny nezměněné vzorové činnosti, projekty a repozitáře?">Smazat vzorové položky</button>
+  </div>
+</section>{{end}}
+
+{{define "settings-repos"}}<section>
+  <div class="section-head">
+    <div>
+      <h2>Repozitáře</h2>
+      <p class="subtext">Ke kterým kódům projektů patří odkazy na issue z daného repozitáře. Přesná cesta má přednost před celou skupinou.</p>
+    </div>
+    <button class="btn primary" hx-get="/settings/repos/form" hx-target="#modal">+ Přidat repozitář</button>
+  </div>
+  {{if not .Repos}}<div class="empty card">Zatím žádné repozitáře. Přidej první – stačí vložit odkaz na repozitář z GitLabu.</div>{{end}}
+  {{if .Repos}}<div class="card table-wrap"><table class="settings-table">
+    <thead><tr><th>Pravidlo</th><th>Projekty</th><th class="num">Záznamy</th><th></th></tr></thead>
+    <tbody>{{range .Repos}}<tr>
+      <td><code>{{.Pattern}}</code> {{if .Wildcard}}<span class="tag">celá skupina</span>{{end}}</td>
+      <td class="badges">{{range .Projects}}<span class="badge proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}} title="{{.Name}}">{{.Code}}</span>{{end}}</td>
+      <td class="num muted">{{.Entries}}</td>
+      <td class="row-actions">
+        <button class="btn small" hx-get="/settings/repos/form?pattern={{.Pattern}}" hx-target="#modal">Upravit</button>
+        <button class="btn small ghost danger-text" hx-post="/settings/repos/delete" hx-vals='{"pattern": "{{.Pattern}}"}' hx-swap="none" hx-confirm="{{.Confirm}}">Smazat</button>
+      </td>
+    </tr>{{end}}</tbody>
+  </table></div>{{end}}
+</section>{{end}}
+
+{{define "settings-projects"}}<section>
+  <div class="section-head">
+    <div>
+      <h2>Kódy projektů</h2>
+      <p class="subtext">Kódy projektů z Bílého motýla. Každý má povolené činnosti a repozitáře, ze kterých se na něj vykazuje.</p>
+    </div>
+    <button class="btn primary" hx-get="/settings/projects/form" hx-target="#modal">+ Nový projekt</button>
+  </div>
+  <div class="cards">
+    {{range .Projects}}<article class="card project-card">
+      <header>
+        <span class="badge proj big {{.Class}}"{{with .Style}} style="{{.}}"{{end}}>{{.Code}}</span>
+        <strong>{{.Name}}</strong>
+      </header>
+      <dl>
+        <dt>Issue</dt><dd>{{if .IssueOptional}}volitelné{{else}}povinné{{end}}</dd>
+        {{$def := .Default}}<dt>Činnosti</dt><dd class="badges">{{range .Activities}}<span class="act {{.Kind}}{{if eq .Code $def}} default{{end}}" title="{{.Name}}">{{.Code}}</span>{{else}}<span class="muted">všechny</span>{{end}}</dd>
+        <dt>Výchozí</dt><dd>{{with .Default}}<span class="act">{{.}}</span>{{else}}<span class="muted">–</span>{{end}}</dd>
+        <dt>Repozitáře</dt><dd>{{range .Repos}}<code>{{.}}</code> {{else}}<span class="muted">žádné</span>{{end}}</dd>
+        <dt>Záznamy</dt><dd>{{.Entries}}</dd>
+      </dl>
+      {{with .Warning}}<p class="card-warn">⚠ {{.}}</p>{{end}}
+      <footer>
+        <button class="btn small" hx-get="/settings/projects/form?code={{.Code}}" hx-target="#modal">Upravit</button>
+        <button class="btn small ghost danger-text" hx-post="/settings/projects/delete" hx-vals='{"code": "{{.Code}}"}' hx-swap="none" hx-confirm="{{.Confirm}}">Smazat</button>
+      </footer>
+    </article>{{end}}
+  </div>
+</section>{{end}}
+
+{{define "settings-activities"}}<section>
+  <div class="section-head">
+    <div>
+      <h2>Činnosti</h2>
+      <p class="subtext">Činnosti z Bílého motýla. Produktivní a neproduktivní práce se počítají zvlášť.</p>
+    </div>
+    <button class="btn primary" hx-get="/settings/activities/form" hx-target="#modal">+ Nová činnost</button>
+  </div>
+  <div class="card table-wrap"><table class="settings-table">
+    <thead><tr><th>Kód</th><th>Název</th><th>Druh</th><th>Povolená u projektů</th><th class="num">Záznamy</th><th></th></tr></thead>
+    <tbody>{{range .Activities}}<tr>
+      <td><span class="act {{.Kind}}">{{.Code}}</span></td>
+      <td>{{.Name}}</td>
+      <td class="{{.Kind}}">{{if .Productive}}produktivní{{else}}neproduktivní{{end}}</td>
+      <td>{{range .Projects}}<code>{{.}}</code> {{else}}<span class="muted">jen u projektů bez omezení</span>{{end}}</td>
+      <td class="num muted">{{.Entries}}</td>
+      <td class="row-actions">
+        <button class="btn small" hx-get="/settings/activities/form?code={{.Code}}" hx-target="#modal">Upravit</button>
+        <button class="btn small ghost danger-text" hx-post="/settings/activities/delete" hx-vals='{"code": "{{.Code}}"}' hx-swap="none" hx-confirm="{{.Confirm}}">Smazat</button>
+      </td>
+    </tr>{{end}}</tbody>
+  </table></div>
+</section>{{end}}
+
+{{define "form-errors"}}{{if .}}<div class="form-errors" role="alert"><strong>Neuloženo:</strong><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></div>{{end}}{{end}}
+
+{{define "settings-general"}}<div class="general">
+  <form class="card pad" id="gitlab" hx-post="/settings/general/gitlab" hx-target="#settings-content" hx-swap="outerHTML">
+    <h2>GitLab</h2>
+    {{if eq .Part "gitlab"}}{{template "form-errors" .Errors}}{{end}}
+    <label class="field"><span>Domény, ze kterých se přijímají odkazy na issue (jedna na řádek)</span>
+      <textarea name="hosts" rows="2" placeholder="gitlab.example.com">{{.Hosts}}</textarea></label>
+    <button class="btn primary" type="submit">Uložit</button>
+  </form>
+
+  <form class="card pad" id="bm" hx-post="/settings/general/bm" hx-target="#settings-content" hx-swap="outerHTML">
+    <h2>Bílý motýl</h2>
+    {{if eq .Part "bm"}}{{template "form-errors" .Errors}}{{end}}
+    <div class="helper">
+      <label class="field"><span>Nejrychlejší cesta: vytvoř v BM výkaz s odkazem na issue, zkopíruj odkaz, který editor vytvoří, a vlož ho sem</span>
+        <input name="link" placeholder="https://bm.example.com/…?…" autocomplete="off"
+          hx-get="/settings/bm/from-link" hx-trigger="input changed delay:300ms" hx-target="#bm-fields" hx-swap="outerHTML" hx-include="closest form"></label>
+    </div>
+    {{template "bm-fields" .}}
+    <label class="field"><span>Příkaz pro otevření prohlížeče (prázdné = automaticky)</span>
+      <input name="open_command" value="{{.OpenCommand}}" placeholder="wslview" autocomplete="off"></label>
+    <button class="btn primary" type="submit">Uložit</button>
+  </form>
+
+  <form class="card pad" id="time" hx-post="/settings/general/time" hx-target="#settings-content" hx-swap="outerHTML">
+    <h2>Čas</h2>
+    {{if eq .Part "time"}}{{template "form-errors" .Errors}}{{end}}
+    <div class="grid3">
+      <label class="field"><span>Denní cíl (h)</span><input name="goal" value="{{.Goal}}" inputmode="decimal"></label>
+      <label class="field"><span>Varování nad (h/den)</span><input name="warning" value="{{.Warning}}" inputmode="decimal"></label>
+      <label class="field"><span>Maximum záznamu (h)</span><input name="max" value="{{.Max}}" inputmode="decimal"></label>
+    </div>
+    <p class="subtext">Po čtvrthodinách: 8, 7,5, 7:30.</p>
+    <button class="btn primary" type="submit">Uložit</button>
+  </form>
+
+  <form class="card pad" id="web" hx-post="/settings/general/web" hx-target="#settings-content" hx-swap="outerHTML">
+    <h2>Webové rozhraní</h2>
+    {{if eq .Part "web"}}{{template "form-errors" .Errors}}{{end}}
+    <div class="grid3">
+      <label class="field"><span>Port</span><input name="port" value="{{.Web.Port}}" inputmode="numeric"></label>
+      <label class="field"><span>Výchozí téma</span><select name="web_theme">{{range .WebThemes}}<option value="{{.ID}}"{{if eq .ID $.Web.Theme}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+      <label class="check"><input type="checkbox" name="open_browser"{{if .Web.OpenBrowser}} checked{{end}}> otevřít prohlížeč po spuštění</label>
+    </div>
+    <label class="field"><span>Názvy hostitele (jeden na řádek; *.localhost funguje bez úprav, jiné přidej do souboru hosts)</span>
+      <textarea name="hostnames" rows="2">{{.WebHosts}}</textarea></label>
+    <p class="subtext">Port a názvy hostitele platí po restartu: <code>housenka web stop</code> a <code>housenka web start</code>.</p>
+    <button class="btn primary" type="submit">Uložit</button>
+  </form>
+
+  <form class="card pad" id="ui" hx-post="/settings/general/ui" hx-target="#settings-content" hx-swap="outerHTML">
+    <h2>Vzhled v terminálu (TUI)</h2>
+    {{if eq .Part "ui"}}{{template "form-errors" .Errors}}{{end}}
+    <div class="grid3">
+      <label class="field"><span>Téma</span><select name="theme">{{range .TUIThemes}}<option{{if eq . $.UI.Theme}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+      <label class="field"><span>Formát data</span>
+        <input name="date_format" value="{{.UI.DateFormat}}" autocomplete="off" hx-get="/settings/date-preview" hx-trigger="input changed delay:250ms" hx-target="#date-preview">
+        <small id="date-preview" class="hint">dnes: {{.DatePreview}}</small></label>
+    </div>
+    <div class="checks">
+      <label class="check"><input type="checkbox" name="caterpillar"{{if .UI.Caterpillar}} checked{{end}}> progress bar jako housenka 🐛</label>
+      <label class="check"><input type="checkbox" name="nerd_font"{{if .UI.NerdFont}} checked{{end}}> ikony z Nerd Fontu</label>
+      <label class="check"><input type="checkbox" name="background"{{if .UI.Background}} checked{{end}}> pozadí podle tématu</label>
+    </div>
+    <button class="btn primary" type="submit">Uložit</button>
+  </form>
+</div>{{end}}
+
+{{define "bm-fields"}}<div id="bm-fields" class="bm-fields">
+  {{if eq .Part "bm-filled"}}<p class="hint good">✓ Adresa a pole načtené z odkazu – zkontroluj je a ulož.</p>{{end}}
+  {{if and (eq .Part "bm") .Errors}}<p class="hint err">✗ {{index .Errors 0}}</p>{{end}}
+  <label class="field"><span>Adresa editoru výkazu</span><input name="base_url" value="{{.BaseURL}}" placeholder="https://bm.example.com/…/editor" autocomplete="off"></label>
+  <fieldset class="field">
+    <legend>Názvy polí formuláře (parametry v odkazu)</legend>
+    <div class="grid3">
+      <label class="field"><span>kód projektu</span><input name="f_project" value="{{.Fields.Project}}"></label>
+      <label class="field"><span>odkaz na issue</span><input name="f_issue" value="{{.Fields.Issue}}"></label>
+      <label class="field"><span>hodiny</span><input name="f_hours" value="{{.Fields.Hours}}"></label>
+      <label class="field"><span>činnost</span><input name="f_activity" value="{{.Fields.Activity}}"></label>
+      <label class="field"><span>datum</span><input name="f_date" value="{{.Fields.Date}}"></label>
+      <label class="field"><span>popis</span><input name="f_description" value="{{.Fields.Description}}"></label>
+    </div>
+  </fieldset>
+</div>{{end}}
+
+{{define "settings-yaml"}}<form class="card pad yaml-form" hx-post="/settings/yaml" hx-target="#settings-content" hx-swap="outerHTML">
+  <h2>Config jako text</h2>
+  <p class="subtext">Celý <code>config.yaml</code>. Před uložením se zkontroluje; předchozí verze zůstane v <code>config.yaml.bak</code>.</p>
+  {{with .YAML.Problems}}<div class="form-errors" role="alert"><strong>Config obsahuje chyby:</strong><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
+  {{with .YAML.Message}}<p class="note ok">✓ {{.}}</p>{{end}}
+  <textarea name="yaml" class="yaml" rows="30" spellcheck="false">{{.YAML.Text}}</textarea>
+  <footer class="form-foot">
+    <button class="btn" type="submit" name="action" value="check">Zkontrolovat</button>
+    <button class="btn primary" type="submit" name="action" value="save">Uložit</button>
+  </footer>
+</form>{{end}}
+
+{{define "repo-form"}}<dialog class="modal" aria-labelledby="repo-title">
+<form hx-post="/settings/repos" hx-target="#modal">
+  <header class="modal-head">
+    <h2 id="repo-title">{{if .Old}}Upravit repozitář{{else}}Přidat repozitář{{end}}</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
+  </header>
+  <div class="modal-body fields">
+    {{template "form-errors" .Errors}}
+    <input type="hidden" name="old" value="{{.Old}}">
+    <label class="field"><span>Odkaz na repozitář nebo cesta skupina/projekt</span>
+      <input name="repo" value="{{.Input}}" placeholder="https://gitlab.example.com/skupina/projekt  ·  skupina/projekt  ·  skupina/*" autocomplete="off" autofocus
+        hx-get="/settings/repos/parse" hx-trigger="input changed delay:300ms" hx-target="#repo-analysis" hx-swap="outerHTML" hx-include="closest form"></label>
+    {{template "repo-analysis" .Analysis}}
+    <fieldset class="field">
+      <legend>Projekty, na které se z repozitáře vykazuje</legend>
+      <div class="chips">
+        {{range .Projects}}<label class="chip proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}} title="{{.Name}}">
+          <input type="checkbox" name="projects" value="{{.Value}}"{{if .Checked}} checked{{end}}><span>{{.Code}}</span></label>{{end}}
+      </div>
+      <details class="new-inline"{{if .NewCode}} open{{end}}>
+        <summary>+ založit nový projekt</summary>
+        <div class="grid2">
+          <label class="field"><span>Kód z BM</span><input name="new_code" value="{{.NewCode}}" placeholder="SHOPDEV" autocomplete="off"></label>
+          <label class="field"><span>Název</span><input name="new_name" value="{{.NewName}}" placeholder="E-shop – rozvoj" autocomplete="off"></label>
+        </div>
+        <p class="hint">Projekt se založí se všemi činnostmi; omezit je můžeš potom v záložce Projekty.</p>
+      </details>
+    </fieldset>
+  </div>
+  <footer class="modal-foot">
+    <button class="btn primary" type="submit">Uložit</button>
+    <button class="btn" type="button" data-close>Zrušit</button>
+  </footer>
+</form>
+</dialog>{{end}}
+
+{{define "repo-analysis"}}<div id="repo-analysis" class="repo-analysis">
+  {{with .Err}}<p class="hint err">✗ {{.}}</p>{{end}}
+  {{if .Host}}{{if .HostKnown}}<p class="hint good">✓ doména {{.Host}}</p>{{else}}
+    <label class="check warn-box"><input type="checkbox" name="add_host" value="1"{{if .AddHost}} checked{{end}}> doména <strong>{{.Host}}</strong> není mezi GitLab doménami – přidat ji</label>{{end}}{{end}}
+  {{if .Patterns}}<fieldset class="field">
+    <legend>Pravidlo</legend>
+    {{range .Patterns}}<label class="radio-row">
+      <input type="radio" name="pattern" value="{{.Pattern}}"{{if .Checked}} checked{{end}}>
+      <code>{{.Pattern}}</code> <span class="subtext">{{.Label}}</span>{{if .Exists}} <span class="tag warn">už existuje</span>{{end}}
+    </label>{{end}}
+  </fieldset>{{end}}
+  {{with .Covered}}<p class="hint">ℹ {{.}}</p>{{end}}
+</div>{{end}}
+
+{{define "project-form"}}<dialog class="modal" aria-labelledby="project-title">
+<form class="project-form" hx-post="/settings/projects" hx-target="#modal">
+  <header class="modal-head">
+    <h2 id="project-title">{{if .Old}}Upravit projekt {{.Old}}{{else}}Nový projekt{{end}}</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
+  </header>
+  <div class="modal-body fields">
+    {{template "form-errors" .Errors}}
+    <input type="hidden" name="old" value="{{.Old}}">
+    <div class="grid2">
+      <label class="field"><span>Kód z BM</span><input name="code" value="{{.Code}}" placeholder="SHOPDEV" autocomplete="off" required{{if not .Old}} autofocus{{end}} data-preview-code></label>
+      <label class="field"><span>Název</span><input name="name" value="{{.Name}}" placeholder="E-shop – rozvoj" autocomplete="off" required></label>
+    </div>
+    {{if and .Old .Entries}}<p class="hint" data-rename-note hidden>Při změně kódu zůstane {{plural .Entries "záznam" "záznamy" "záznamů"}} se starým kódem {{.Old}} – tak, jak byly odeslány do BM.</p>{{end}}
+    <fieldset class="field">
+      <legend>Barva štítku <span class="badge proj preview" id="color-preview">{{if .Code}}{{.Code}}{{else}}KÓD{{end}}</span></legend>
+      <div class="swatches">
+        <label class="swatch auto" title="automaticky podle kódu{{with .Derived}} ({{.}}){{end}}"><input type="radio" name="color" value=""{{if eq .Color ""}} checked{{end}} data-derived="{{.Derived}}"><span>auto</span></label>
+        {{range .Swatches}}<label class="swatch pc-{{.Name}}" title="{{.Label}}"><input type="radio" name="color" value="{{.Name}}"{{if .Checked}} checked{{end}}><span></span></label>{{end}}
+        <label class="swatch custom" title="vlastní barva"><input type="radio" name="color" value="custom"{{if eq .Color "custom"}} checked{{end}}><input type="color" name="custom" value="{{if .Custom}}{{.Custom}}{{else}}#3a7bd5{{end}}"></label>
+      </div>
+    </fieldset>
+    <label class="check"><input type="checkbox" name="issue_optional"{{if .IssueOptional}} checked{{end}}> odkaz na issue je volitelný (třeba interní režie bez issue)</label>
+    <fieldset class="field">
+      <legend>Povolené činnosti <span class="subtext">(žádná vybraná = všechny)</span></legend>
+      <div class="chips">
+        {{range .Activities}}<label class="chip act {{.Kind}}" title="{{.Name}}"><input type="checkbox" name="activities" value="{{.Value}}"{{if .Checked}} checked{{end}}><span>{{.Code}}</span></label>{{end}}
+      </div>
+    </fieldset>
+    <label class="field"><span>Výchozí činnost</span>
+      <select name="default_activity">
+        <option value="">– žádná –</option>
+        {{range .Defaults}}<option value="{{.Code}}"{{if eq .Code $.Default}} selected{{end}}>{{.Code}} · {{.Name}}</option>{{end}}
+      </select></label>
+    {{if .Repos}}<fieldset class="field">
+      <legend>Repozitáře, ze kterých se na projekt vykazuje</legend>
+      <div class="repo-checks">
+        {{range .Repos}}<label class="check"><input type="checkbox" name="repos" value="{{.Value}}"{{if .Checked}} checked{{end}}> <code>{{.Code}}</code>{{with .Note}} <span class="muted">· {{.}}</span>{{end}}</label>{{end}}
+      </div>
+      <p class="hint">Nový repozitář přidáš v záložce Repozitáře.</p>
+    </fieldset>{{end}}
+  </div>
+  <footer class="modal-foot">
+    <button class="btn primary" type="submit">Uložit</button>
+    <button class="btn" type="button" data-close>Zrušit</button>
+  </footer>
+</form>
+</dialog>{{end}}
+
+{{define "activity-form"}}<dialog class="modal" aria-labelledby="activity-title">
+<form hx-post="/settings/activities" hx-target="#modal">
+  <header class="modal-head">
+    <h2 id="activity-title">{{if .Old}}Upravit činnost {{.Old}}{{else}}Nová činnost{{end}}</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
+  </header>
+  <div class="modal-body fields">
+    {{template "form-errors" .Errors}}
+    <input type="hidden" name="old" value="{{.Old}}">
+    <div class="grid2">
+      <label class="field"><span>Kód z BM</span><input name="code" value="{{.Code}}" placeholder="DEV" autocomplete="off" required{{if not .Old}} autofocus{{end}}></label>
+      <label class="field"><span>Název</span><input name="name" value="{{.Name}}" placeholder="Vývoj" autocomplete="off" required></label>
+    </div>
+    <fieldset class="field">
+      <legend>Druh práce</legend>
+      <div class="chips">
+        <label class="chip act good"><input type="radio" name="productive" value="true"{{if .Productive}} checked{{end}}><span>produktivní</span></label>
+        <label class="chip act bad"><input type="radio" name="productive" value="false"{{if not .Productive}} checked{{end}}><span>neproduktivní</span></label>
+      </div>
+    </fieldset>
+    {{if .Old}}<p class="hint">{{if .Projects}}Povolená u projektů {{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p}}{{end}}; přejmenování se tam propíše. {{end}}{{if .Entries}}{{plural .Entries "záznam" "záznamy" "záznamů"}} si při změně kódu nechá starý kód.{{end}}</p>{{end}}
+  </div>
+  <footer class="modal-foot">
+    <button class="btn primary" type="submit">Uložit</button>
+    <button class="btn" type="button" data-close>Zrušit</button>
+  </footer>
+</form>
+</dialog>{{end}}

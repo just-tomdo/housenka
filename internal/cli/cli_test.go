@@ -302,3 +302,24 @@ func TestWebCommand(t *testing.T) {
 		t.Errorf("bad env port: code=%d err=%q", code, errOut)
 	}
 }
+
+func TestWebWithoutConfig(t *testing.T) {
+	home := setHome(t)
+	var got []WebCommand
+	defer func(f func(WebCommand, io.Writer) error) { Web = f }(Web)
+	Web = func(c WebCommand, _ io.Writer) error { got = append(got, c); return nil }
+
+	code, out, _ := run_(t, "web", "--no-open")
+	if code != 0 || !strings.Contains(out, "Vytvořen vzorový config") || len(got) != 1 || got[0].Config == nil {
+		t.Fatalf("missing config: code=%d out=%q got=%+v", code, out, got)
+	}
+	if _, err := os.Stat(filepath.Join(home, "config.yaml")); err != nil {
+		t.Error("config not created")
+	}
+
+	os.WriteFile(filepath.Join(home, "config.yaml"), []byte("gitlab_hosts: [\n"), 0o644)
+	code, out, _ = run_(t, "web")
+	if code != 0 || !strings.Contains(out, "oprav je v prohlížeči") || got[1].Config != nil || !got[1].Open {
+		t.Errorf("broken config: code=%d out=%q got=%+v", code, out, got[1])
+	}
+}

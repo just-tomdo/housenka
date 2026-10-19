@@ -582,6 +582,7 @@ var funcs = template.FuncMap{
 	},
 	"plural": czPlural,
 	"sub":    func(a, b int) int { return a - b },
+	"inc":    func(a int) int { return a + 1 },
 }
 
 // czPlural returns "1 výkaz", "3 výkazy", "5 výkazů".

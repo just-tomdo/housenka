@@ -10,6 +10,7 @@ import (
 
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
+	"github.com/just-tomdo/housenka/internal/configedit"
 	"github.com/just-tomdo/housenka/internal/entry"
 	"github.com/just-tomdo/housenka/internal/entryedit"
 	"github.com/just-tomdo/housenka/internal/period"
@@ -44,11 +45,28 @@ func (q *req) viewFromState() viewState {
 
 const themeCookie = "housenka_theme"
 
+// chrome is what every full page needs: theme, CSRF token and navigation.
+type chrome struct {
+	Theme   string
+	Themes  []themeOption
+	CSRF    string
+	Section string // "entries" or "settings"
+	Setup   bool   // the configuration still holds example values
+}
+
 type pageData struct {
-	Theme  string
-	Themes []themeOption
-	CSRF   string
-	Main   mainData
+	chrome
+	Main mainData
+}
+
+func (s *Server) chrome(q *req, section string) chrome {
+	c := chrome{Theme: s.theme(q), CSRF: csrfToken(q.w, q.r), Section: section}
+	c.Themes = append(c.Themes, themeOption{ID: themeAuto, Name: "Podle systému", Selected: c.Theme == themeAuto})
+	for _, t := range s.themes.list {
+		c.Themes = append(c.Themes, themeOption{ID: t.ID, Name: t.Name, Selected: c.Theme == t.ID})
+	}
+	c.Setup = q.cfg != nil && !configedit.SetupDone(s.setupSteps(q.cfg))
+	return c
 }
 
 type themeOption struct {
@@ -74,7 +92,7 @@ func (s *Server) theme(q *req) string {
 	if c, err := q.r.Cookie(themeCookie); err == nil && s.themes.valid(c.Value) {
 		return c.Value
 	}
-	if s.themes.valid(q.cfg.Web.Theme) {
+	if q.cfg != nil && s.themes.valid(q.cfg.Web.Theme) {
 		return q.cfg.Web.Theme
 	}
 	return themeAuto
@@ -83,11 +101,7 @@ func (s *Server) theme(q *req) string {
 func (s *Server) page(w http.ResponseWriter, r *http.Request) {
 	q := s.req(w, r)
 	v := q.viewFromQuery()
-	d := pageData{Theme: s.theme(q), CSRF: csrfToken(w, r)}
-	d.Themes = append(d.Themes, themeOption{ID: themeAuto, Name: "Podle systému", Selected: d.Theme == themeAuto})
-	for _, t := range s.themes.list {
-		d.Themes = append(d.Themes, themeOption{ID: t.ID, Name: t.Name, Selected: d.Theme == t.ID})
-	}
+	d := pageData{chrome: s.chrome(q, "entries")}
 	d.Main = mainData{mainView: s.buildMain(q.cfg, q.rules, q.cfgErr, v, q.today)}
 	s.render(w, "page", d)
 }

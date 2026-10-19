@@ -198,6 +198,49 @@
     }
   });
 
+  // --- settings: project form -------------------------------------------------------
+
+  const colorNames = ["red", "orange", "yellow", "green", "teal", "cyan", "blue", "purple", "pink"];
+
+  // updateProjectForm keeps the badge preview, the rename note and the
+  // default activity choices in line with what is filled in.
+  function updateProjectForm(form) {
+    const code = $("[name=code]", form).value.trim();
+    const old = $("[name=old]", form).value;
+    const preview = $("#color-preview", form);
+    const picked = $("[name=color]:checked", form);
+    if (preview) {
+      preview.textContent = code || "KÓD";
+      preview.className = "badge proj preview";
+      preview.style.removeProperty("--pc");
+      let color = picked ? picked.value : "";
+      if (color === "") color = picked && picked.dataset.derived ? picked.dataset.derived : "";
+      if (color === "custom") preview.style.setProperty("--pc", $("[name=custom]", form).value);
+      else if (colorNames.includes(color)) preview.classList.add("pc-" + color);
+    }
+    const note = $("[data-rename-note]", form);
+    if (note) note.hidden = !old || code === old;
+    const allowed = $$("[name=activities]:checked", form).map((c) => c.value);
+    const select = $("[name=default_activity]", form);
+    for (const opt of select.options) {
+      opt.hidden = opt.value !== "" && allowed.length > 0 && !allowed.includes(opt.value);
+    }
+    if (select.selectedOptions[0] && select.selectedOptions[0].hidden) select.value = "";
+  }
+
+  for (const ev of ["input", "change"]) {
+    document.addEventListener(ev, (e) => {
+      const form = e.target.closest && e.target.closest("form.project-form");
+      if (!form) return;
+      if (e.target.name === "custom") $("[name=color][value=custom]", form).checked = true;
+      updateProjectForm(form);
+    });
+  }
+  document.addEventListener("htmx:afterSwap", (e) => {
+    const form = $("form.project-form", e.detail.target);
+    if (form) updateProjectForm(form);
+  });
+
   // --- keyboard ------------------------------------------------------------------------------------
 
   // clickKey activates the element bound to key: in root first, then in the toolbar.
@@ -254,6 +297,8 @@
       }
       return;
     }
+
+    if (!$("#main")) return; // the shortcuts belong to the entries page
 
     const row = selectedRow();
     let handled = true;

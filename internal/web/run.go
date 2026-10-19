@@ -112,17 +112,20 @@ func running() (state, bool) {
 
 // Options configure starting the server.
 type Options struct {
-	Config     *config.Config
+	Config     *config.Config // nil when the file is invalid; the web offers fixing it
 	ConfigPath string
 	Port       int                  // 0 = web.port from the config
 	Open       func(u string) error // opens the browser; nil = do not open
 }
 
 func (o Options) port() int {
-	if o.Port != 0 {
+	switch {
+	case o.Port != 0:
 		return o.Port
+	case o.Config != nil:
+		return o.Config.Web.Port
 	}
-	return o.Config.Web.Port
+	return config.DefaultWebPort
 }
 
 // Serve runs the server in the foreground until Ctrl+C, SIGTERM or
@@ -165,7 +168,7 @@ func Serve(o Options, out io.Writer) error {
 		return err
 	}
 	defer removeState(st.Token)
-	if !srv.themes.valid(o.Config.Web.Theme) {
+	if o.Config != nil && !srv.themes.valid(o.Config.Web.Theme) {
 		fmt.Fprintf(out, "Varování: neznámé téma web.theme %q, použije se auto (možnosti: %s)\n", o.Config.Web.Theme, strings.Join(srv.themes.ids(), ", "))
 	}
 	fmt.Fprintf(out, "Housenka běží na %s – Ctrl+C ji ukončí\n", st.URL)

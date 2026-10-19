@@ -54,7 +54,8 @@ var ExampleConfig []byte
 // that this package does not depend on the UI.
 var TUI func(cfg *config.Config, cfgPath string) error
 
-// WebCommand is one `housenka web` invocation. Config is nil for stop and status.
+// WebCommand is one `housenka web` invocation. Config is nil for stop and
+// status, and when the config file is invalid.
 type WebCommand struct {
 	Action     string // "run", "start", "stop", "status"
 	Config     *config.Config
@@ -179,9 +180,18 @@ func web(stdout, stderr io.Writer, cfgPath string, args []string) error {
 			return errUsage
 		}
 	case "run", "start":
+		// The web interface helps with a missing or broken config: a
+		// missing one is created from the example and finished in the
+		// browser, a broken one is fixed in its text editor there.
+		if _, err := os.Stat(cfgPath); errors.Is(err, os.ErrNotExist) {
+			if err := writeExample(cfgPath); err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "Vytvořen vzorový config %s – dokonči nastavení v prohlížeči (Nastavení → Průvodce).\n", cfgPath)
+		}
 		cfg, err := config.Load(cfgPath)
 		if err != nil {
-			return err
+			fmt.Fprintf(stdout, "Config obsahuje chyby – oprav je v prohlížeči (Nastavení → YAML):\n%v\n", err)
 		}
 		c.Config = cfg
 		c.Port = *port
@@ -197,7 +207,7 @@ func web(stdout, stderr io.Writer, cfgPath string, args []string) error {
 		if c.Port < 0 || c.Port > 65535 {
 			return fmt.Errorf("--port %d není platný port", c.Port)
 		}
-		c.Open = cfg.Web.OpenBrowser && !*noOpen
+		c.Open = !*noOpen && (cfg == nil || cfg.Web.OpenBrowser)
 	default:
 		fmt.Fprintln(stderr, webUsage)
 		return errUsage

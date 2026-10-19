@@ -28,6 +28,7 @@ var version = "dev"
 func main() {
 	cli.Version = buildVersion()
 	cli.ExampleConfig = exampleConfig
+	web.ExampleConfig = exampleConfig
 	cli.TUI = func(cfg *config.Config, _ string) error { return tui.Run(cfg) }
 	cli.Web = runWeb
 	os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr))
@@ -36,7 +37,11 @@ func main() {
 func runWeb(c cli.WebCommand, out io.Writer) error {
 	o := web.Options{Config: c.Config, ConfigPath: c.ConfigPath, Port: c.Port}
 	if c.Open {
-		o.Open = opener.New(opener.Detect(), c.Config.BM.OpenCommand).Open
+		var cmd []string
+		if c.Config != nil {
+			cmd = c.Config.BM.OpenCommand
+		}
+		o.Open = opener.New(opener.Detect(), cmd).Open
 	}
 	switch c.Action {
 	case "start":
