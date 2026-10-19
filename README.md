@@ -1,6 +1,6 @@
 # 🐛 Housenka
 
-Terminálová aplikace pro vykazování práce do Bílého motýla (BM), která hlídá, aby kombinace issue, kódu projektu, činnosti a času dávala smysl.
+Aplikace pro vykazování práce do Bílého motýla (BM), která hlídá, aby kombinace issue, kódu projektu, činnosti a času dávala smysl. Ovládá se v terminálu (TUI) nebo v prohlížeči (`housenka web`); obě rozhraní umí totéž a sdílí data.
 
 - Z odkazu na GitLab issue pozná repozitář a nabídne **jen kódy projektů povolené v configu**.
 - U projektu nabídne **jen povolené činnosti** a předvybere výchozí.
@@ -28,6 +28,7 @@ housenka config edit      # otevře config v editoru a po uložení ho ověří
 housenka config check     # ověří config, vypíše všechny chyby najednou
 housenka parse https://gitlab.example.com/clients/acme-web/-/work_items/636   # zkouška mapování
 housenka                  # spustí TUI
+housenka web              # nebo webové rozhraní v prohlížeči
 ```
 
 Ve vzorovém configu je potřeba vyplnit hlavně `bm.base_url` (adresa editoru výkazu) a `bm.fields` (názvy polí formuláře, které se předvyplní – zjistíš je z odkazu, který editor sám vytvoří), dále kódy činností a projektů a mapování repozitářů.
@@ -71,6 +72,33 @@ Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zob
 Ve formuláři: Tab / Enter další pole, Shift+Tab předchozí pole, `h`/`l` nebo `j`/`k` vybírají kód a činnost. Popis je víceřádkový (Enter = nový řádek, Tab = dál). Na konci jsou tlačítka **Uložit** a **Zrušit** (Enter je stiskne); zkratky `ctrl+s` uloží a Esc zruší odkudkoli. Datum přijme `12. 10. 2026`, `12.10.`, `dnes`, `včera`, `-1` nebo cokoli ve formátu z `ui.date_format`. V poli Datum otevře `ctrl+k` kalendář: `h`/`l` den, `j`/`k` týden, `H`/`L` měsíc, `t` dnes, Enter vybere, Esc zavře.
 
 Úprava už odeslaného záznamu ho označí jako neodeslaný – v BM je pak potřeba upravit i původní výkaz.
+
+## Webové rozhraní
+
+Pro ty, kdo nechtějí do terminálu, umí Housenka totéž v prohlížeči: přehled dne, týdne a měsíce, formulář s nabídkou povolených kódů a činností, odkazy do BM, souhrn issue i týdenní souhrn. Funguje i se stejnými klávesovými zkratkami jako TUI (`?` je vypíše).
+
+```sh
+housenka web              # spustí server a otevře prohlížeč, Ctrl+C ho ukončí
+housenka web start        # spustí ho na pozadí (terminál pak můžeš zavřít)
+housenka web status       # běží? na jaké adrese?
+housenka web stop         # vypne server běžící na pozadí
+```
+
+Server poslouchá jen na tomto počítači (`127.0.0.1`), ostatní v síti se k němu nedostanou. TUI a web můžou běžet zároveň, změny z jednoho se v druhém projeví. Záznamy z běhu na pozadí jdou do `~/.housenka/web.log`.
+
+Nastavení je v sekci `web` configu:
+
+```yaml
+web:
+  port: 8765                      # nebo HOUSENKA_WEB_PORT=9000, nebo --port 9000
+  hostnames: [housenka.localhost] # názvy, na kterých server odpovídá
+  open_browser: true
+  theme: auto                     # auto = světlé nebo tmavé podle systému
+```
+
+Výchozí adresa je `http://housenka.localhost:8765/`. Názvy končící na `.localhost` prohlížeče samy směrují na tento počítač, není potřeba nic nastavovat. Jiný název, třeba `housenka.local`, přidej do `hostnames` a do souboru hosts (na Windows `C:\Windows\System32\drivers\etc\hosts`, na Linuxu a macOS `/etc/hosts`) řádek `127.0.0.1 housenka.local`. Koncovka `.local` je vyhrazená pro mDNS, takže na některých systémech může první načtení zdržet. Když běží Housenka ve WSL, otevře se stránka v prohlížeči ve Windows; WSL2 ve výchozím nastavení předává adresy `localhost` do WSL automaticky.
+
+Barevné téma se přepíná vpravo nahoře a prohlížeč si volbu pamatuje. K dispozici jsou světlá a tmavá Housenka, Tokyo Night (i Day), Catppuccin Mocha a Latte, Gruvbox tmavý a světlý a Ayu Dark. Nové téma je jeden soubor v [`internal/web/static/themes/`](internal/web/static/themes) – stačí zkopírovat existující, změnit název v hlavičce (`/* name: …; scheme: light|dark */`) a barvy.
 
 ## Podporované systémy
 

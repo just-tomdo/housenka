@@ -1,6 +1,17 @@
 # Housenka
 
-TUI aplikace v Go pro vykazování práce do Bílého motýla (BM). Uživatelská dokumentace je v [README.md](README.md).
+Aplikace v Go pro vykazování práce do Bílého motýla (BM) s TUI a webovým rozhraním (GUI). Uživatelská dokumentace je v [README.md](README.md).
+
+## Rozhraní: TUI a GUI
+
+- **TUI** (`internal/tui`, Bubble Tea) je cesta pro terminálové a vim nadšence. **GUI** (`internal/web`, `housenka web`: lokální server, `html/template` + HTMX) je uživatelsky přívětivá cesta pro ostatní.
+- Mezi nimi platí **parita funkcí**: co umí TUI, musí umět i GUI (včetně klávesových zkratek). Novou funkci přidávej do obou rozhraní.
+- Sdílená logika patří do doménových balíčků (`rules`, `stats`, `period`, `civil`, `hours`, `bm`, `store`) nebo do `internal/entryedit` (parsování formuláře, nabídky, ukládání, kopie, filtr, BM odkaz), nikdy do `internal/tui` ani `internal/web`.
+- Výjimka parity: GUI dostane v budoucnu i editor konfigurace (projekty, repa, činnosti). TUI ho mít nebude, tam zůstává ruční úprava YAML (`housenka config edit`).
+- TUI i GUI můžou běžet zároveň nad stejnými daty: store znovu načítá změněné soubory a zapisuje pod zámkem `entries/.lock`; web server znovu načte změněný config.
+- Témata GUI jsou CSS soubory v `internal/web/static/themes/` (hlavička `/* name: …; scheme: light|dark */` a `:root` s pevnou sadou proměnných, viz `themeVars` v `internal/web/themes.go`). Nové téma = nový soubor.
+- HTMX je embednutý v `internal/web/static/htmx.min.js` (verze v commitu, stažený přes Go proxy: `proxy.golang.org/github.com/bigskysoftware/htmx/@v/<verze>+incompatible.zip`).
+- Bezpečnost serveru: poslouchá jen na `127.0.0.1`, kontroluje `Host` (jen `127.0.0.1`, `localhost` a `web.hostnames`), změnové požadavky vyžadují `Origin` stránky a CSRF token (cookie + hlavička `X-CSRF-Token`). Tohle neoslabovat.
 
 ## Prostředí: Claude běží v sandboxu
 
@@ -8,7 +19,8 @@ Claude Code tu běží v izolovaném kontejneru (konfigurace v `.hole/`), ne př
 
 - **Síť je omezená allowlistem** (`.hole/settings.json`): povolené jsou jen `proxy.golang.org` a `sum.golang.org`. `go get` / `go mod tidy` přes Go proxy fungují. Ostatní síť (GitLab, BM, dokumentace přes web, `go.dev`) nemusí být dostupná, takže selhání sítě neznamená chybu v kódu.
 - **Go**: setup skript instaluje Go 1.25.1 do `/usr/local/go`, `go.mod` vyžaduje `go 1.26.1` a toolchain se stáhne automaticky přes Go proxy (`GOTOOLCHAIN=auto`).
-- **Nejsou tu prohlížeč ani schránka** (`wslview`, `xdg-open`, `cmd.exe`, `clip.exe`, `xclip`, `wl-copy` chybí). Otevírání URL a kopírování do schránky se tu nedá ověřit naživo; testovat přes abstrakci / fake příkaz. Na uživatelově stroji (WSL) budou dostupné.
+- **Nejsou tu nástroje pro otevření prohlížeče ani schránka** (`wslview`, `xdg-open`, `cmd.exe`, `clip.exe`, `xclip`, `wl-copy` chybí). Otevírání URL a kopírování do schránky se tu nedá ověřit naživo; testovat přes abstrakci / fake příkaz. Na uživatelově stroji (WSL) budou dostupné.
+- **GUI** ověřovat testy v `internal/web/web_test.go` (`httptest`). Kouřový test: `HOUSENKA_HOME=<scratchpad>/hh ./housenka web start --no-open`, pak `curl -H 'Host: housenka.localhost:8765' http://127.0.0.1:8765/` a `./housenka web stop`. Na vzhled a JS jde použít headless prohlížeč přes `agent-browser`, pokud je k dispozici.
 - **Terminál** je bez TTY v interaktivním smyslu a `TERM=xterm`. TUI ověřovat testy v `internal/tui/app_test.go` (posílají klávesy do modelu). Obrazovky jako text: `HOUSENKA_SCREENS=<adresář> go test ./internal/tui -count=1`. Kouřový test skutečné binárky: `(sleep 1.5; printf q) | timeout 10 script -qfc "stty cols 110 rows 30; ./housenka" out.txt` a v `out.txt` hledat texty obrazovky.
 - Pro ruční zkoušky používat `HOUSENKA_HOME=<scratchpad>/hh`, nikdy ne skutečné `~/.housenka`.
 - Do `.hole/` nesahat, pokud o to uživatel výslovně nepožádá.
