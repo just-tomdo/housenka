@@ -15,27 +15,32 @@ import (
 type Rules struct {
 	cfg       *config.Config
 	hosts     []string
-	exact     map[string][]string // lower-cased project path -> codes
+	exact     map[string]repoRule // lower-cased project path -> rule
 	wildcards []wildcard          // sorted by prefix length, longest first
+}
+
+type repoRule struct {
+	pattern string // as written in the config
+	codes   []string
 }
 
 type wildcard struct {
 	prefix string // lower-cased, with trailing "/"
-	codes  []string
+	repoRule
 }
 
 // New builds Rules from a validated configuration.
 func New(cfg *config.Config) *Rules {
-	r := &Rules{cfg: cfg, exact: map[string][]string{}}
+	r := &Rules{cfg: cfg, exact: map[string]repoRule{}}
 	for _, h := range cfg.GitLabHosts {
 		r.hosts = append(r.hosts, strings.ToLower(h))
 	}
 	for pattern, codes := range cfg.Repos {
 		p := strings.ToLower(pattern)
 		if prefix, ok := strings.CutSuffix(p, "*"); ok {
-			r.wildcards = append(r.wildcards, wildcard{prefix, codes})
+			r.wildcards = append(r.wildcards, wildcard{prefix, repoRule{pattern, codes}})
 		} else {
-			r.exact[p] = codes
+			r.exact[p] = repoRule{pattern, codes}
 		}
 	}
 	slices.SortFunc(r.wildcards, func(a, b wildcard) int { return len(b.prefix) - len(a.prefix) })
@@ -60,16 +65,25 @@ func (r *Rules) ParseIssue(raw string) (gitlaburl.Ref, error) {
 // ProjectsForRepo returns project codes allowed for a GitLab project path.
 // An exact path match wins over the longest matching "group/*" pattern.
 func (r *Rules) ProjectsForRepo(projectPath string) ([]string, error) {
-	p := strings.ToLower(projectPath)
-	if codes, ok := r.exact[p]; ok {
+	if _, codes, ok := r.MatchRepo(projectPath); ok {
 		return codes, nil
+	}
+	return nil, fmt.Errorf("repozitář %s nemá v configu přiřazené kódy projektů – doplň ho do sekce repos, např.:\n  %s: [KOD01]", projectPath, projectPath)
+}
+
+// MatchRepo returns the repos pattern (as written in the config) that
+// applies to a project path, and its project codes.
+func (r *Rules) MatchRepo(projectPath string) (pattern string, codes []string, ok bool) {
+	p := strings.ToLower(projectPath)
+	if m, ok := r.exact[p]; ok {
+		return m.pattern, m.codes, true
 	}
 	for _, w := range r.wildcards {
 		if strings.HasPrefix(p, w.prefix) {
-			return w.codes, nil
+			return w.pattern, w.codes, true
 		}
 	}
-	return nil, fmt.Errorf("repozitář %s nemá v configu přiřazené kódy projektů – doplň ho do sekce repos, např.:\n  %s: [KOD01]", projectPath, projectPath)
+	return "", nil, false
 }
 
 // ProjectsWithoutIssue returns project codes that may be reported without an issue link.
