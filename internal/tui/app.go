@@ -366,6 +366,12 @@ func (m *Model) handleFormKey(km tea.KeyPressMsg) tea.Cmd {
 	case formSaved:
 		e, resent := entryedit.PrepareSave(m.form.base, m.form.result)
 		saved, err := m.store.Save(e)
+		if errors.Is(err, store.ErrConflict) {
+			// Changed meanwhile in the web interface: show the new version.
+			m.mode, m.form = modeNormal, nil
+			m.reload(e.ID)
+			return m.fail(err)
+		}
 		if err != nil {
 			return m.fail(err)
 		}
@@ -465,6 +471,9 @@ func (m *Model) toggleSent() tea.Cmd {
 	}
 	e.Sent = !e.Sent
 	if _, err := m.store.Save(e); err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			m.reload(e.ID)
+		}
 		return m.fail(err)
 	}
 	m.reload(e.ID)

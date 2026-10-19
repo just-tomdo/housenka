@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/just-tomdo/housenka/internal/atomicfile"
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/entry"
 )
@@ -41,13 +42,7 @@ type Store struct {
 // cachedYear is a loaded year file with the file state it was read from.
 type cachedYear struct {
 	entries []entry.Entry
-	stamp   fileStamp
-}
-
-// fileStamp identifies a version of a file; the zero value means "missing".
-type fileStamp struct {
-	modTime time.Time
-	size    int64
+	stamp   atomicfile.Stamp
 }
 
 // Open returns a store rooted at dir, creating the directory if needed.
@@ -57,6 +52,9 @@ func Open(dir string) (*Store, error) {
 	}
 	return &Store{dir: dir, now: time.Now, years: map[int]cachedYear{}}, nil
 }
+
+// Dir returns the directory the store keeps its files in.
+func (s *Store) Dir() string { return s.dir }
 
 // Range returns entries with from <= Date <= to, sorted by date and creation time.
 func (s *Store) Range(from, to civil.Date) ([]entry.Entry, error) {
@@ -98,9 +96,15 @@ func (s *Store) All() ([]entry.Entry, error) {
 	return out, nil
 }
 
+// ErrConflict means the entry was changed by someone else (another window
+// or process) since the caller read it.
+var ErrConflict = errors.New("záznam se mezitím změnil v jiném okně – zobrazuje se znovu načtený, uprav ho ještě jednou")
+
 // Save inserts e (when e.ID is empty) or replaces the entry with the same ID.
 // If the date moved to another year, the entry is moved between files.
-// It returns the stored entry with ID and timestamps filled in.
+// When e.UpdatedAt is set, the stored entry must still have that time,
+// otherwise Save refuses with ErrConflict instead of overwriting a newer
+// version. It returns the stored entry with ID and timestamps filled in.
 func (s *Store) Save(e entry.Entry) (entry.Entry, error) {
 	if !e.Date.Valid() {
 		return e, errors.New("záznam nemá platné datum")
@@ -114,6 +118,7 @@ func (s *Store) Save(e entry.Entry) (entry.Entry, error) {
 	defer unlock()
 
 	now := s.now()
+	base := e.UpdatedAt
 	e.UpdatedAt = now
 	oldYear := 0
 	if e.ID == "" {
@@ -122,8 +127,12 @@ func (s *Store) Save(e entry.Entry) (entry.Entry, error) {
 	} else if y, i, ok, err := s.find(e.ID); err != nil {
 		return e, err
 	} else if ok {
+		stored := s.years[y].entries[i]
+		if !base.IsZero() && !stored.UpdatedAt.Equal(base) {
+			return e, ErrConflict
+		}
 		oldYear = y
-		e.CreatedAt = s.years[y].entries[i].CreatedAt
+		e.CreatedAt = stored.CreatedAt
 	} else {
 		return e, fmt.Errorf("záznam %s neexistuje", e.ID)
 	}
@@ -205,15 +214,8 @@ func (s *Store) yearFiles() ([]int, error) {
 }
 
 // stamp returns the current state of a year file.
-func (s *Store) stamp(year int) (fileStamp, error) {
-	fi, err := os.Stat(s.path(year))
-	if errors.Is(err, os.ErrNotExist) {
-		return fileStamp{}, nil
-	}
-	if err != nil {
-		return fileStamp{}, err
-	}
-	return fileStamp{fi.ModTime(), fi.Size()}, nil
+func (s *Store) stamp(year int) (atomicfile.Stamp, error) {
+	return atomicfile.StatStamp(s.path(year))
 }
 
 // load returns the entries of a year, from the cache unless the file changed
@@ -226,7 +228,7 @@ func (s *Store) load(year int) ([]entry.Entry, error) {
 	if c, ok := s.years[year]; ok && c.stamp == st {
 		return c.entries, nil
 	}
-	if st == (fileStamp{}) {
+	if st == (atomicfile.Stamp{}) {
 		s.years[year] = cachedYear{}
 		return nil, nil
 	}
@@ -252,23 +254,7 @@ func (s *Store) write(year int, entries []entry.Entry) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(s.dir, ".tmp-*.json")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name()) // no-op after a successful rename
-	if _, err := tmp.Write(append(data, '\n')); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp.Name(), s.path(year)); err != nil {
+	if err := atomicfile.Write(s.path(year), append(data, '\n'), 0o644); err != nil {
 		return err
 	}
 	st, err := s.stamp(year)

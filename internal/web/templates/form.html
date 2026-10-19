@@ -5,6 +5,7 @@
     <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
   </header>
   <input type="hidden" name="title" value="{{.Title}}">
+  {{with .Version}}<input type="hidden" name="version" value="{{.}}">{{end}}
   {{if .Sent}}<p class="note warn">Záznam je už odeslaný do BM. Když změníš vykazované údaje, označí se jako neodeslaný a bude potřeba ho upravit i v BM.</p>{{end}}
   <div class="fields" hx-get="/form/refresh" hx-include="closest form" hx-target="#choices" hx-swap="outerHTML"
     hx-trigger="input[target.matches('[data-live]')] delay:300ms, change[target.type==='radio']" hx-sync="this:replace">

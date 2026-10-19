@@ -722,3 +722,31 @@ func TestIssueSummary(t *testing.T) {
 		t.Errorf("entry without issue: mode %v, toast %q", m.mode, m.toast)
 	}
 }
+
+// An entry changed in another process (the web interface) is not
+// overwritten by the TUI's older copy.
+func TestStaleEntryIsNotOverwritten(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	seed(t, s, entry.Entry{Date: m.today, IssueURL: "https://gitlab.example.com/clients/shop-web/-/issues/1",
+		ProjectCode: "SHOPDEV", Activity: "DEV", Quarters: 8, Description: "práce"})
+	m.reload("")
+
+	other, err := store.Open(s.Dir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, _ := other.All()
+	all[0].Quarters = 12
+	if _, err := other.Save(all[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	press(m, "s")
+	got, _ := other.All()
+	if got[0].Quarters != 12 || got[0].Sent {
+		t.Errorf("stored = %+v", got[0])
+	}
+	if !strings.Contains(m.toast, "změnil v jiném okně") || m.entries[0].Quarters != 12 {
+		t.Errorf("toast %q, shown %+v", m.toast, m.entries[0])
+	}
+}

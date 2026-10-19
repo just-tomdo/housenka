@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -268,4 +269,52 @@ func TestConcurrentStores(t *testing.T) {
 	if got, _ := s.All(); len(got) != 2*perStore {
 		t.Errorf("stored %d entries, want %d", len(got), 2*perStore)
 	}
+}
+
+func TestSaveRefusesStaleEntry(t *testing.T) {
+	a, dir := newStore(t)
+	b, _ := Open(dir)
+	saved, err := a.Save(entry.Entry{Date: day(2026, 10, 12), Quarters: 8, Description: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// b (the other window) changes the entry.
+	fresh, _ := b.Range(day(2026, 10, 1), day(2026, 10, 31))
+	fresh[0].Quarters = 12
+	if _, err := b.Save(fresh[0]); err != nil {
+		t.Fatal(err)
+	}
+	// a still holds the old version and must not overwrite b's change.
+	saved.Sent = true
+	if _, err := a.Save(saved); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale save: %v", err)
+	}
+	got, _ := a.Range(day(2026, 10, 1), day(2026, 10, 31))
+	if got[0].Quarters != 12 || got[0].Sent {
+		t.Errorf("stored = %+v", got[0])
+	}
+	// A caller that does not track versions still overwrites.
+	got[0].UpdatedAt = time.Time{}
+	got[0].Description = "forced"
+	if _, err := a.Save(got[0]); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSameSizeChangeIsSeen(t *testing.T) {
+	a, dir := newStore(t)
+	b, _ := Open(dir)
+	saved, _ := a.Save(entry.Entry{Date: day(2026, 10, 12), Description: "aaaa"})
+	for i := range 50 {
+		got, _ := b.Range(day(2026, 10, 1), day(2026, 10, 31)) // b caches the year
+		got[0].Description = []string{"bbbb", "cccc"}[i%2]
+		if _, err := b.Save(got[0]); err != nil {
+			t.Fatal(err)
+		}
+		fresh, _ := a.Range(day(2026, 10, 1), day(2026, 10, 31))
+		if fresh[0].Description != got[0].Description {
+			t.Fatalf("round %d: a sees %q, want %q", i, fresh[0].Description, got[0].Description)
+		}
+	}
+	_ = saved
 }

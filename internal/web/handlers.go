@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
@@ -160,6 +161,7 @@ func (s *Server) editEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	f := buildForm(q.cfg, q.rules, inputOf(e, q.cfg.UI.DateLayout()), q.today, nil, nil)
 	f.Title, f.Action, f.Sent = "Úprava záznamu", "/entries/"+e.ID, e.Sent
+	f.Version = e.UpdatedAt.Format(time.RFC3339Nano)
 	s.render(w, "form", f)
 }
 
@@ -186,12 +188,16 @@ func (s *Server) saveEntry(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, err)
 			return
 		}
+		// Save refuses when the entry changed since the form was opened.
+		if v, err := time.Parse(time.RFC3339Nano, r.FormValue("version")); err == nil {
+			base.UpdatedAt = v
+		}
 	}
 	in := formInput(r)
 	e, errs, warns := entryedit.Parse(q.rules, base, in, q.today)
 	if len(errs) > 0 {
 		f := buildForm(q.cfg, q.rules, in, q.today, errs, warns)
-		f.Title, f.Action, f.Sent = r.FormValue("title"), r.URL.Path, base.Sent
+		f.Title, f.Action, f.Sent, f.Version = r.FormValue("title"), r.URL.Path, base.Sent, r.FormValue("version")
 		s.render(w, "form", f)
 		return
 	}

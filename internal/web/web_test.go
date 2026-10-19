@@ -242,6 +242,27 @@ func TestSaveEntry(t *testing.T) {
 	}
 }
 
+func TestSaveRefusesStaleForm(t *testing.T) {
+	f := newFixture(t)
+	e := f.save(sample(today, "Práce"))
+	form := url.Values{"date": {"dnes"}, "issue": {issue}, "project": {"SHOPDEV"}, "activity": {"DEV"},
+		"hours": {"1"}, "description": {"Z webu"}, "version": {e.UpdatedAt.Format(time.RFC3339Nano)}}
+	contains(t, f.get("/entries/"+e.ID+"/edit"), `name="version" value="`+e.UpdatedAt.Format(time.RFC3339Nano)+`"`)
+
+	// The TUI changes the entry while the form is open.
+	e.Quarters = 4
+	f.save(e)
+
+	_, hdr, body := f.do(http.MethodPost, "/entries/"+e.ID, form)
+	if hdr.Get("HX-Reswap") != "none" || !strings.Contains(body, "změnil v jiném okně") {
+		t.Errorf("stale form: %v %s", hdr, body)
+	}
+	all, _ := f.store.All()
+	if all[0].Quarters != 4 || all[0].Description != "Práce" {
+		t.Errorf("stored = %+v", all[0])
+	}
+}
+
 func TestSaveMovesView(t *testing.T) {
 	f := newFixture(t)
 	form := url.Values{"date": {"1. 9. 2026"}, "issue": {issue}, "project": {"SHOPDEV"}, "activity": {"DEV"},

@@ -11,10 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/just-tomdo/housenka/internal/atomicfile"
 	"github.com/just-tomdo/housenka/internal/config"
 )
 
@@ -99,8 +99,9 @@ func (d *Doc) Save(path string) error {
 }
 
 // WriteFile replaces the file at path with data if its current contents
-// still have expectedHash. The previous contents are kept in path + ".bak";
-// the file is replaced atomically.
+// still have expectedHash. The previous contents are kept in path + ".bak"
+// with the same permissions; the file is replaced atomically, a symlink
+// stays a symlink and the permissions of the file are kept.
 func WriteFile(path string, data []byte, expectedHash string) error {
 	old, err := os.ReadFile(path)
 	switch {
@@ -110,31 +111,16 @@ func WriteFile(path string, data []byte, expectedHash string) error {
 	case Hash(old) != expectedHash:
 		return ErrConflict
 	default:
-		if err := os.WriteFile(path+".bak", old, 0o644); err != nil {
+		perm := os.FileMode(0o644)
+		if fi, err := os.Stat(path); err == nil {
+			perm = fi.Mode().Perm()
+		}
+		if err := os.Remove(path + ".bak"); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err := atomicfile.Write(path+".bak", old, perm); err != nil {
 			return err
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".config-*.yaml")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name()) // no-op after a successful rename
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
+	return atomicfile.Write(path, data, 0o644)
 }

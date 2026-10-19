@@ -13,13 +13,12 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/just-tomdo/housenka/internal/atomicfile"
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/entry"
@@ -54,13 +53,8 @@ type Server struct {
 	mu       sync.Mutex
 	cfg      *config.Config
 	rules    *rules.Rules
-	cfgStamp configStamp
+	cfgStamp atomicfile.Stamp
 	cfgErr   error // the config file changed but is invalid; the previous one is used
-}
-
-type configStamp struct {
-	modTime time.Time
-	size    int64
 }
 
 // ExampleConfig is the commented example configuration, set by the main
@@ -105,12 +99,9 @@ func randomToken() string {
 	return hex.EncodeToString(b)
 }
 
-func statConfig(path string) configStamp {
-	fi, err := os.Stat(path)
-	if err != nil {
-		return configStamp{}
-	}
-	return configStamp{fi.ModTime(), fi.Size()}
+func statConfig(path string) atomicfile.Stamp {
+	st, _ := atomicfile.StatStamp(path)
+	return st
 }
 
 // config returns the current configuration, re-reading the file when it

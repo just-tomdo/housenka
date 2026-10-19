@@ -306,3 +306,27 @@ func TestSetupAndUsage(t *testing.T) {
 		t.Errorf("ProjectsOf = %v", got)
 	}
 }
+
+func TestSaveKeepsSymlinkAndMode(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "dotfiles", "config.yaml")
+	os.MkdirAll(filepath.Dir(target), 0o755)
+	os.WriteFile(target, []byte(testYAML), 0o600)
+	link := filepath.Join(dir, "config.yaml")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skip("symlinks not available:", err)
+	}
+	d, _ := Load(link)
+	d.SetActivity("", "TEST", Activity{Name: "Test", Productive: true})
+	if err := d.Save(link); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Lstat(link); fi.Mode()&os.ModeSymlink == 0 {
+		t.Error("symlink replaced")
+	}
+	for _, p := range []string{target, link + ".bak"} {
+		if fi, err := os.Stat(p); err != nil || fi.Mode().Perm() != 0o600 {
+			t.Errorf("%s: mode %v, %v", p, fi.Mode().Perm(), err)
+		}
+	}
+}

@@ -325,7 +325,8 @@ type formView struct {
 	DateISO  string // the typed date for the date picker, "" when invalid
 	Example  string // date placeholder
 	Sent     bool
-	Resubmit bool // editing a sent entry
+	Version  string // UpdatedAt of the edited entry, to detect changes made meanwhile
+	Resubmit bool   // editing a sent entry
 }
 
 type option struct {
