@@ -2,6 +2,7 @@ package configedit
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -52,6 +53,36 @@ func TestRoundTripExamples(t *testing.T) {
 				os.WriteFile(p, out, 0o644)
 			}
 			t.Errorf("%s changed by a round trip", path)
+		}
+	}
+}
+
+func TestRoundTripKeepsHandLayout(t *testing.T) {
+	src := strings.Join([]string{
+		"gitlab_hosts: [gitlab.example.com]",
+		"",
+		"web: {}",
+		"",
+		"projects:",
+		"  # clients",
+		"  SHOPDEV: { name: Shop }",
+		"  SHOPSUP: { name: Podpora }",
+		"",
+		"  # internal work",
+		"  INTERNI: { name: Interní, issue: optional }",
+		"",
+	}, "\n")
+	for _, data := range []string{src, strings.ReplaceAll(src, "\n", "\r\n")} {
+		d, err := Parse([]byte(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := d.Bytes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(out) != data {
+			t.Errorf("round trip changed the file:\n%q\nwant\n%q", out, data)
 		}
 	}
 }

@@ -12,19 +12,30 @@ import (
 // came from source), and rows of flow mappings
 // (`DEV: { name: Vývoj, productive: true }`) aligned like a table.
 func pretty(data, source []byte) []byte {
+	crlf := strings.Contains(string(source), "\r\n")
+	source = []byte(strings.ReplaceAll(string(source), "\r\n", "\n"))
 	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 	lines = alignFlowMaps(lines, blockScalars(lines))
 	lines = alignFlowSeqs(lines, blockScalars(lines), valueColumns(source))
 
+	blank := blankBefore(source)
 	spaced := make([]string, 0, len(lines)+16)
 	verbatim := blockScalars(lines)
 	for i, l := range lines {
-		if i > 0 && !verbatim[i] && l != "" && !startsIndented(l) && !strings.HasPrefix(l, "---") {
+		if i == 0 || verbatim[i] || l == "" || spaced[len(spaced)-1] == "" {
+			spaced = append(spaced, l)
+			continue
+		}
+		prev := lines[i-1]
+		switch {
+		case blank[normalize(l)]:
+			// An empty line the source had before this line (also inside a section).
+			spaced = append(spaced, "")
+		case !startsIndented(l) && !strings.HasPrefix(l, "---") &&
+			strings.TrimSpace(prev) != "" && (startsIndented(prev) || !strings.HasPrefix(prev, "#")):
 			// A top-level line after the previous section's content (or its
 			// indented trailing comment) starts a new section.
-			if prev := lines[i-1]; strings.TrimSpace(prev) != "" && (startsIndented(prev) || !strings.HasPrefix(prev, "#")) {
-				spaced = append(spaced, "")
-			}
+			spaced = append(spaced, "")
 		}
 		spaced = append(spaced, l)
 	}
@@ -32,7 +43,58 @@ func pretty(data, source []byte) []byte {
 	if strings.HasSuffix(string(source), "\n\n") {
 		end = "\n\n" // keep a trailing empty line
 	}
-	return []byte(strings.Join(alignComments(spaced, blockScalars(spaced), commentColumns(source)), "\n") + end)
+	spaced = alignComments(spaced, blockScalars(spaced), commentColumns(source))
+	// A line whose content did not change keeps its exact source layout.
+	orig := map[string]string{}
+	for _, l := range strings.Split(string(source), "\n") {
+		if n := normalize(l); n != "" {
+			if _, seen := orig[n]; !seen {
+				orig[n] = strings.TrimRight(l, " \t")
+			}
+		}
+	}
+	// Blocks of sibling lines are restored only as a whole, so a changed or
+	// added row still lines up with the rest of its table.
+	verbatim = blockScalars(spaced)
+	for i := 0; i < len(spaced); {
+		j := i + 1
+		for j < len(spaced) && spaced[j] != "" && indentOf(spaced[j]) == indentOf(spaced[i]) {
+			j++
+		}
+		same := true
+		for k := i; k < j && same; k++ {
+			o, ok := orig[normalize(spaced[k])]
+			same = ok && !verbatim[k] && indentOf(o) == indentOf(spaced[k])
+		}
+		if same {
+			for k := i; k < j; k++ {
+				if spaced[k] != "" {
+					spaced[k] = orig[normalize(spaced[k])]
+				}
+			}
+		}
+		i = j
+	}
+	out := strings.Join(spaced, "\n") + end
+	if crlf {
+		out = strings.ReplaceAll(out, "\n", "\r\n")
+	}
+	return []byte(out)
+}
+
+// normalize compares lines regardless of alignment spaces.
+func normalize(l string) string { return strings.Join(strings.Fields(l), " ") }
+
+// blankBefore lists the source lines that follow an empty line.
+func blankBefore(source []byte) map[string]bool {
+	lines := strings.Split(string(source), "\n")
+	out := map[string]bool{}
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i-1]) == "" && strings.TrimSpace(lines[i]) != "" {
+			out[normalize(lines[i])] = true
+		}
+	}
+	return out
 }
 
 var flowSeqRe = regexp.MustCompile(`^(\s*)([^\s#\[\]][^\[\]]*?):(\s+)(\[.*\])$`)
@@ -258,6 +320,9 @@ func alignFlowMaps(lines []string, verbatim []bool) []string {
 					}
 				}
 				lines[i+k] = r.indent + pad(r.key+":", keyW+1) + "{ " + b.String() + " }"
+				if len(r.items) == 0 {
+					lines[i+k] = r.indent + r.key + ": {}"
+				}
 				if r.comment != "" {
 					lines[i+k] += "  " + r.comment
 				}

@@ -208,7 +208,8 @@ func TestSaveGeneral(t *testing.T) {
 
 	body = f.get("/settings/bm/from-link?" + url.Values{"link": {"https://bm.example.com/ed?x=1&pp=A&ii=B&hh=1&aa=D&dd=1.1.&tt=t"}}.Encode())
 	contains(t, body, "načtené z odkazu", `value="https://bm.example.com/ed?x=1"`, `name="f_issue" value="ii"`, `name="f_description" value="tt"`)
-	contains(t, f.get("/settings/bm/from-link?link=nesmysl"), "vlož celý odkaz")
+	// A link that cannot be read keeps the field names typed so far.
+	contains(t, f.get("/settings/bm/from-link?link=nesmysl&f_project=typed"), "vlož celý odkaz", `name="f_project" value="typed"`)
 	contains(t, f.get("/settings/date-preview?date_format=yyyy-mm-dd"), "dnes: 2026-10-19")
 }
 
@@ -231,6 +232,12 @@ func TestSettingsYAML(t *testing.T) {
 	if _, err := os.Stat(f.cfgPath + ".bak"); err != nil {
 		t.Error("no backup")
 	}
+}
+
+func TestYAMLKeepsLeadingNewline(t *testing.T) {
+	f := newFixture(t)
+	os.WriteFile(f.cfgPath, []byte("\n"+testYAML), 0o644)
+	contains(t, f.get("/settings/yaml"), "spellcheck=\"false\">\n\n\ngitlab_hosts")
 }
 
 func TestBrokenConfig(t *testing.T) {
@@ -291,7 +298,7 @@ func TestSetupGuide(t *testing.T) {
 	f.post("/settings/projects", url.Values{"code": {"MUJ"}, "name": {"Můj projekt"}})
 	f.post("/settings/repos", url.Values{"repo": {"tym/web"}, "pattern": {"tym/web"}, "projects": {"MUJ"}})
 	body, _ = f.post("/settings/examples/delete", url.Values{})
-	contains(t, body, "Odstraněno vzorových položek")
+	contains(t, body, "Odstraněny vzorové položky: clients/acme-web, clients/shop-web")
 	cfg := f.cfg()
 	if len(cfg.Activities) != 1 || len(cfg.Projects) != 1 || len(cfg.Repos) != 1 {
 		t.Errorf("left: %v %v %v", cfg.ActivityCodes(), cfg.ProjectCodes(), cfg.Repos)

@@ -34,7 +34,7 @@
   </ol>
   <div class="setup-foot">
     <p class="subtext">Vzorové činnosti, projekty a repozitáře (DEV, SHOPDEV, clients/shop-web …) můžeš smazat najednou, jakmile přidáš vlastní.</p>
-    <button class="btn danger-outline" hx-post="/settings/examples/delete" hx-swap="none" hx-confirm="Smazat všechny nezměněné vzorové činnosti, projekty a repozitáře?">Smazat vzorové položky</button>
+    <button class="btn danger-outline" hx-post="/settings/examples/delete" hx-swap="none" hx-confirm="Smazat vzorové činnosti, projekty a repozitáře, které jsou beze změny a nic je nepoužívá (záznamy ani tvoje vlastní projekty)?">Smazat vzorové položky</button>
   </div>
 </section>{{end}}
 
@@ -122,7 +122,8 @@
     <h2>GitLab</h2>
     {{if eq .Part "gitlab"}}{{template "form-errors" .Errors}}{{end}}
     <label class="field"><span>Domény, ze kterých se přijímají odkazy na issue (jedna na řádek)</span>
-      <textarea name="hosts" rows="2" placeholder="gitlab.example.com">{{.Hosts}}</textarea></label>
+      <textarea name="hosts" rows="2" placeholder="gitlab.example.com">
+{{.Hosts}}</textarea></label>
     <button class="btn primary" type="submit">Uložit</button>
   </form>
 
@@ -161,7 +162,8 @@
       <label class="check"><input type="checkbox" name="open_browser"{{if .Web.OpenBrowser}} checked{{end}}> otevřít prohlížeč po spuštění</label>
     </div>
     <label class="field"><span>Názvy hostitele (jeden na řádek; *.localhost funguje bez úprav, jiné přidej do souboru hosts)</span>
-      <textarea name="hostnames" rows="2">{{.WebHosts}}</textarea></label>
+      <textarea name="hostnames" rows="2">
+{{.WebHosts}}</textarea></label>
     <p class="subtext">Port a názvy hostitele platí po restartu: <code>housenka web stop</code> a <code>housenka web start</code>.</p>
     <button class="btn primary" type="submit">Uložit</button>
   </form>
@@ -206,7 +208,8 @@
   <p class="subtext">Celý <code>config.yaml</code>. Před uložením se zkontroluje; předchozí verze zůstane v <code>config.yaml.bak</code>.</p>
   {{with .YAML.Problems}}<div class="form-errors" role="alert"><strong>Config obsahuje chyby:</strong><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
   {{with .YAML.Message}}<p class="note ok">✓ {{.}}</p>{{end}}
-  <textarea name="yaml" class="yaml" rows="30" spellcheck="false">{{.YAML.Text}}</textarea>
+  <textarea name="yaml" class="yaml" rows="30" spellcheck="false">
+{{.YAML.Text}}</textarea>
   <footer class="form-foot">
     <button class="btn" type="submit" name="action" value="check">Zkontrolovat</button>
     <button class="btn primary" type="submit" name="action" value="save">Uložit</button>

@@ -122,7 +122,7 @@ func TestDeleteActivity(t *testing.T) {
 	if !slices.Equal(cfg.Projects["SHOPDEV"].Activities, []string{"DEV"}) || cfg.Projects["SHOPDEV"].DefaultActivity != "" {
 		t.Errorf("SHOPDEV = %+v", cfg.Projects["SHOPDEV"])
 	}
-	mustContain(t, out, "# Activities comment", "  DEV:   { name: Vývoj,")
+	mustContain(t, out, "# Activities comment", "  DEV:     { name: Vývoj,   productive: true }  # main work\n  REZIE:   { name: Režie,   productive: false }")
 }
 
 func TestSetProject(t *testing.T) {
@@ -328,5 +328,58 @@ func TestSaveKeepsSymlinkAndMode(t *testing.T) {
 		if fi, err := os.Stat(p); err != nil || fi.Mode().Perm() != 0o600 {
 			t.Errorf("%s: mode %v, %v", p, fi.Mode().Perm(), err)
 		}
+	}
+}
+
+func TestDeleteKeepsTrailingComment(t *testing.T) {
+	d, err := Parse(readExample(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.DeleteRepo("clients/acme-web"); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := render(t, d)
+	mustContain(t, out, "  clients/shop-web: [SHOPDEV, SHOPSUP]\n  # interni/*:      [INT01]\n")
+	if strings.Contains(out, "acme-web: [ACME]") {
+		t.Error("rule not deleted")
+	}
+}
+
+func TestExampleLeftovers(t *testing.T) {
+	example, err := config.Parse(readExample(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, _ := Parse(readExample(t))
+	// The user's own project uses the example activity DEV, SHOPSUP got
+	// its own color, ACME has entries, and TEST was used in an entry.
+	d.SetProject("", "MUJ", Project{Name: "Můj", Activities: []string{"DEV", "OPS"}})
+	d.SetProject("SHOPSUP", "SHOPSUP", Project{Name: "E-shop – podpora", Color: "red", Repos: []string{"clients/shop-web"}})
+	_, cfg := render(t, d)
+	u := CountUsage([]entry.Entry{{ProjectCode: "ACME", Activity: "TEST"}})
+
+	l := ExampleLeftovers(cfg, example, u)
+	if !slices.Equal(l.Projects, []string{"INTERNI", "SHOPDEV"}) {
+		t.Errorf("projects = %v", l.Projects)
+	}
+	// clients/shop-web keeps the changed SHOPSUP, clients/acme-web keeps ACME.
+	if len(l.Repos) != 0 {
+		t.Errorf("repos = %v", l.Repos)
+	}
+	for _, kept := range []string{"DEV", "OPS", "TEST"} {
+		if slices.Contains(l.Activities, kept) {
+			t.Errorf("%s would be removed: %v", kept, l.Activities)
+		}
+	}
+	if !slices.Contains(l.Activities, "LEAVE") || !slices.Contains(l.Activities, "ANALYSIS") {
+		t.Errorf("activities = %v", l.Activities)
+	}
+	if err := d.DeleteLeftovers(l); err != nil {
+		t.Fatal(err)
+	}
+	_, cfg = render(t, d)
+	if !slices.Equal(cfg.Projects["MUJ"].Activities, []string{"DEV", "OPS"}) || !slices.Equal(cfg.Repos["clients/shop-web"], []string{"SHOPSUP"}) {
+		t.Errorf("after cleanup: %+v %v", cfg.Projects["MUJ"], cfg.Repos)
 	}
 }

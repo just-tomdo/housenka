@@ -740,8 +740,8 @@ func (s *Server) deleteActivity(w http.ResponseWriter, r *http.Request) {
 	s.saved(w, r, "activities", "Činnost "+code+" smazána")
 }
 
-// deleteExamples removes repos, projects and activities that are still
-// exactly as in the example configuration.
+// deleteExamples removes the example repos, projects and activities that
+// are unchanged and not used by entries or by anything the user added.
 func (s *Server) deleteExamples(w http.ResponseWriter, r *http.Request) {
 	q := s.req(w, r)
 	ex := s.exampleConfig()
@@ -749,40 +749,26 @@ func (s *Server) deleteExamples(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, errors.New("vzorový config není k dispozici"))
 		return
 	}
-	var n int
-	errs := s.change(r, func(d *configedit.Doc) error {
-		for pat, codes := range ex.Repos {
-			if c, ok := q.cfg.Repos[pat]; ok && slices.Equal(c, codes) {
-				if err := d.DeleteRepo(pat); err != nil {
-					return err
-				}
-				n++
-			}
-		}
-		for code, p := range ex.Projects {
-			if c, ok := q.cfg.Projects[code]; ok && c.Name == p.Name {
-				if _, err := d.DeleteProject(code); err != nil {
-					return err
-				}
-				n++
-			}
-		}
-		for code, a := range ex.Activities {
-			if c, ok := q.cfg.Activities[code]; ok && c.Name == a.Name {
-				if err := d.DeleteActivity(code); err != nil {
-					return err
-				}
-				n++
-			}
-		}
-		return nil
-	})
-	if errs != nil {
+	all, err := s.store.All()
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	l := configedit.ExampleLeftovers(q.cfg, ex, configedit.CountUsage(all))
+	if l.Empty() {
+		s.fail(w, errors.New("Žádné nepoužité vzorové položky – co zbylo, používají tvoje projekty nebo záznamy"))
+		return
+	}
+	if errs := s.change(r, func(d *configedit.Doc) error { return d.DeleteLeftovers(l) }); errs != nil {
 		s.fail(w, errors.New("Vzorové položky nejde odstranit: "+strings.Join(errs, "; ")+
 			" – nejdřív přidej vlastní činnosti a projekty"))
 		return
 	}
-	s.saved(w, r, "setup", fmt.Sprintf("Odstraněno vzorových položek: %d", n))
+	var parts []string
+	for _, p := range [][]string{l.Repos, l.Projects, l.Activities} {
+		parts = append(parts, p...)
+	}
+	s.saved(w, r, "setup", "Odstraněny vzorové položky: "+strings.Join(parts, ", "))
 }
 
 // --- general ---------------------------------------------------------------------------------
@@ -918,8 +904,8 @@ func generalFromForm(g generalView, r *http.Request, part string) generalView {
 // bmFromLink fills the BM address and field names from a link of the BM editor.
 func (s *Server) bmFromLink(w http.ResponseWriter, r *http.Request) {
 	q := s.req(w, r)
-	g := newGeneralView(q.cfg)
-	g.BaseURL, g.OpenCommand = r.FormValue("base_url"), r.FormValue("open_command")
+	// Start from what is typed in the form, not from the saved config.
+	g := generalFromForm(newGeneralView(q.cfg), r, "bm")
 	base, f, err := configedit.BMFromLink(r.FormValue("link"))
 	if err != nil {
 		g.Part, g.Errors = "bm", []string{err.Error()}

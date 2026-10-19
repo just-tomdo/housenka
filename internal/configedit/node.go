@@ -46,17 +46,44 @@ func orStr(a, b string) string {
 	return b
 }
 
-// del removes key from m. A head comment of the removed key moves to the
-// next key, so section comments are not lost.
+// del removes key from m without losing comments around it: its head
+// comment moves to the next key, and a trailing comment block (which
+// yaml.v3 keeps on the key as a foot comment, like a commented-out example
+// at the end of a section) moves to the previous key.
 func del(m *yaml.Node, key string) {
 	_, i := lookup(m, key)
 	if i < 0 {
 		return
 	}
-	if hc := m.Content[i].HeadComment; hc != "" && i+2 < len(m.Content) && m.Content[i+2].HeadComment == "" {
-		m.Content[i+2].HeadComment = hc
+	k, v := m.Content[i], m.Content[i+1]
+	if hc := k.HeadComment; hc != "" {
+		if i+2 < len(m.Content) {
+			m.Content[i+2].HeadComment = joinComments(hc, m.Content[i+2].HeadComment)
+		} else if i > 0 {
+			m.Content[i-2].FootComment = joinComments(m.Content[i-2].FootComment, hc)
+		}
+	}
+	if fc := joinComments(k.FootComment, v.FootComment); fc != "" {
+		switch {
+		case i > 0:
+			m.Content[i-2].FootComment = joinComments(m.Content[i-2].FootComment, fc)
+		case i+2 < len(m.Content):
+			m.Content[i+2].HeadComment = joinComments(fc, m.Content[i+2].HeadComment)
+		default:
+			m.FootComment = joinComments(m.FootComment, fc)
+		}
 	}
 	m.Content = slices.Delete(m.Content, i, i+2)
+}
+
+func joinComments(a, b string) string {
+	switch {
+	case a == "":
+		return b
+	case b == "":
+		return a
+	}
+	return a + "\n" + b
 }
 
 // rename changes key old to new in place.

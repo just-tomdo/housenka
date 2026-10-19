@@ -30,7 +30,8 @@
     </div>
     <div class="field">
       <label for="f-desc">Popis</label>
-      <textarea id="f-desc" name="description" rows="4" placeholder="co jsem dělal">{{.In.Description}}</textarea>
+      <textarea id="f-desc" name="description" rows="4" placeholder="co jsem dělal">
+{{.In.Description}}</textarea>
       {{template "hint" (.Hint "description").WithID "hint-description"}}
     </div>
   </div>
