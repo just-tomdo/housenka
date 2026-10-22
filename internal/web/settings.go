@@ -244,7 +244,7 @@ func (s *Server) buildSettings(q *req, tab string) settingsData {
 		d.Activities = append(d.Activities, row)
 	}
 
-	d.General = newGeneralView(cfg)
+	d.General = newGeneralView(cfg, q.today)
 	d.General.WebThemes = s.webThemes()
 	return d
 }
@@ -800,12 +800,12 @@ func (s *Server) webThemes() []themeOption {
 	return out
 }
 
-func newGeneralView(cfg *config.Config) generalView {
+func newGeneralView(cfg *config.Config, today civil.Date) generalView {
 	return generalView{
 		Hosts: strings.Join(cfg.GitLabHosts, "\n"), BaseURL: cfg.BM.BaseURL, Fields: cfg.BM.Fields,
 		OpenCommand: strings.Join(cfg.BM.OpenCommand, " "),
 		Goal:        hoursText(int(cfg.Time.DailyGoal)), Warning: hoursText(int(cfg.Time.DailyWarning)), Max: hoursText(int(cfg.Time.MaxEntry)),
-		UI: cfg.UI, TUIThemes: config.Themes, DatePreview: cfg.UI.DateLayout().Format(civil.Today()),
+		UI: cfg.UI, TUIThemes: config.Themes, DatePreview: cfg.UI.DateLayout().Format(today),
 		Web: cfg.Web, WebHosts: strings.Join(cfg.Web.Hostnames, "\n"),
 	}
 }
@@ -906,7 +906,7 @@ func generalFromForm(g generalView, r *http.Request, part string) generalView {
 func (s *Server) bmFromLink(w http.ResponseWriter, r *http.Request) {
 	q := s.req(w, r)
 	// Start from what is typed in the form, not from the saved config.
-	g := generalFromForm(newGeneralView(q.cfg), r, "bm")
+	g := generalFromForm(newGeneralView(q.cfg, q.today), r, "bm")
 	base, f, err := configedit.BMFromLink(r.FormValue("link"))
 	if err != nil {
 		g.Part, g.Errors = "bm", []string{err.Error()}
