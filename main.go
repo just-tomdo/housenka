@@ -47,9 +47,9 @@ func runWeb(c cli.WebCommand, out io.Writer) error {
 	case "start":
 		return web.Start(o, out)
 	case "stop":
-		return web.Stop(out)
+		return web.Stop(c.Port, c.Force, out)
 	case "status":
-		return web.Status(out)
+		return web.Status(c.Port, out)
 	}
 	return web.Serve(o, out)
 }

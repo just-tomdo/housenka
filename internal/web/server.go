@@ -8,11 +8,13 @@ import (
 	"crypto/subtle"
 	"embed"
 	"encoding/hex"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -253,7 +255,7 @@ func csrfToken(w http.ResponseWriter, r *http.Request) string {
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write([]byte("housenka\n"))
+	fmt.Fprintf(w, "housenka %d\n", os.Getpid()) // the PID lets status and stop identify the process
 }
 
 func (s *Server) shutdownHandler(w http.ResponseWriter, r *http.Request) {

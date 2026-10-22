@@ -2,9 +2,13 @@ package web
 
 import (
 	"bytes"
+	"fmt"
 	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +26,19 @@ func freePort(t *testing.T) int {
 	return ln.Addr().(*net.TCPAddr).Port
 }
 
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if cond() {
+			return
+		}
+	}
+	t.Fatalf("timed out waiting: %s", what)
+}
+
 func TestServeStatusStop(t *testing.T) {
+	defer func(d time.Duration) { stateCheckEvery = d }(stateCheckEvery)
+	stateCheckEvery = 50 * time.Millisecond
 	home := t.TempDir()
 	t.Setenv(config.HomeEnv, home)
 	cfgPath := filepath.Join(home, "config.yaml")
@@ -58,16 +74,26 @@ func TestServeStatusStop(t *testing.T) {
 	}
 
 	var status bytes.Buffer
-	Status(&status)
-	if !strings.Contains(status.String(), "běží na "+st.URL) {
+	Status(port, &status)
+	if !strings.Contains(status.String(), "běží na "+st.URL) || !strings.Contains(status.String(), fmt.Sprintf("PID %d", os.Getpid())) {
 		t.Errorf("status = %q", status.String())
 	}
+
+	// A deleted state file: status still finds the server by its port, and
+	// the server writes the file again.
+	os.Remove(filepath.Join(home, "web.json"))
+	status.Reset()
+	Status(port, &status)
+	if !strings.Contains(status.String(), fmt.Sprintf("běží na http://localhost:%d/ (PID %d)", port, os.Getpid())) {
+		t.Errorf("status without state file = %q", status.String())
+	}
+	waitFor(t, "state file rewritten", func() bool { _, ok := readState(); return ok })
 	if err := Serve(Options{Config: cfg, ConfigPath: cfgPath, Port: port}, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "už běží") {
 		t.Errorf("second server: %v", err)
 	}
 
 	var stop bytes.Buffer
-	if err := Stop(&stop); err != nil {
+	if err := Stop(port, false, &stop); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -82,7 +108,7 @@ func TestServeStatusStop(t *testing.T) {
 		t.Errorf("state file left behind: %v", err)
 	}
 	status.Reset()
-	Status(&status)
+	Status(port, &status)
 	if !strings.Contains(status.String(), "neběží") {
 		t.Errorf("status after stop = %q", status.String())
 	}
@@ -93,10 +119,103 @@ func TestStaleState(t *testing.T) {
 	t.Setenv(config.HomeEnv, home)
 	writeState(state{PID: 1, Port: freePort(t), URL: "http://x/", Token: "t"})
 	var out bytes.Buffer
-	if err := Stop(&out); err != nil || !strings.Contains(out.String(), "neběží") {
+	if err := Stop(0, false, &out); err != nil || !strings.Contains(out.String(), "neběží") {
 		t.Errorf("stop with stale state: %v %q", err, out.String())
 	}
 	if _, ok := readState(); ok {
 		t.Error("stale state not removed")
 	}
+}
+
+// helperEnv makes the test binary act as a misbehaving server (see TestMain).
+const helperEnv = "HOUSENKA_TEST_HELPER"
+
+func TestMain(m *testing.M) {
+	switch os.Getenv(helperEnv) {
+	case "deaf":
+		// Answers health like Housenka but ignores the shutdown request.
+		mux := http.NewServeMux()
+		mux.HandleFunc("/_/health", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprintf(w, "housenka %d\n", os.Getpid()) })
+		mux.HandleFunc("/_/shutdown", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok\n")) })
+		http.ListenAndServe("127.0.0.1:"+os.Getenv("HELPER_PORT"), mux)
+		os.Exit(0)
+	case "hung":
+		// Holds the port but never answers.
+		ln, err := net.Listen("tcp", "127.0.0.1:"+os.Getenv("HELPER_PORT"))
+		if err != nil {
+			os.Exit(1)
+		}
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				os.Exit(1)
+			}
+			defer c.Close()
+		}
+	}
+	os.Exit(m.Run())
+}
+
+// startHelper runs the test binary as a misbehaving server and writes its
+// state file as the real server would.
+func startHelper(t *testing.T, mode string) (*exec.Cmd, int) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("helper processes are tested on Unix")
+	}
+	port := freePort(t)
+	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	cmd.Env = append(os.Environ(), helperEnv+"="+mode, fmt.Sprintf("HELPER_PORT=%d", port))
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan struct{})
+	go func() { cmd.Wait(); close(exited) }()
+	t.Cleanup(func() { cmd.Process.Kill(); <-exited })
+	waitFor(t, "helper listening", func() bool { return !portFree(port) })
+	writeState(state{PID: cmd.Process.Pid, Port: port, URL: fmt.Sprintf("http://localhost:%d/", port), Token: "secret"})
+	return cmd, port
+}
+
+func TestStopEndsServerIgnoringShutdown(t *testing.T) {
+	t.Setenv(config.HomeEnv, t.TempDir())
+	cmd, port := startHelper(t, "deaf")
+	var out bytes.Buffer
+	if err := Stop(port, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), fmt.Sprintf("Housenka (PID %d) byla ukončena", cmd.Process.Pid)) {
+		t.Errorf("out = %q", out.String())
+	}
+	waitFor(t, "process gone", func() bool { return portFree(port) })
+	if _, ok := readState(); ok {
+		t.Error("state file left behind")
+	}
+}
+
+func TestUnresponsiveServer(t *testing.T) {
+	t.Setenv(config.HomeEnv, t.TempDir())
+	defer func(c *http.Client) { client = c }(client)
+	client = &http.Client{Timeout: 200 * time.Millisecond}
+	cmd, port := startHelper(t, "hung")
+
+	var out bytes.Buffer
+	Status(port, &out)
+	if !strings.Contains(out.String(), "neodpovídá") {
+		t.Errorf("status = %q", out.String())
+	}
+	if _, ok := readState(); !ok {
+		t.Fatal("state of a living but silent server was removed")
+	}
+	if err := Stop(port, false, &out); err == nil || !strings.Contains(err.Error(), "--force") {
+		t.Errorf("stop without force: %v", err)
+	}
+	out.Reset()
+	if err := Stop(port, true, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), fmt.Sprintf("PID %d", cmd.Process.Pid)) {
+		t.Errorf("out = %q", out.String())
+	}
+	waitFor(t, "process gone", func() bool { return portFree(port) })
 }

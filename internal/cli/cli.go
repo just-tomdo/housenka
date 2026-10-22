@@ -27,7 +27,8 @@ Příkazy:
                         spustí webové rozhraní v prohlížeči (Ctrl+C ho ukončí)
   web start [--port N] [--no-open]
                         spustí webové rozhraní na pozadí
-  web stop              vypne webové rozhraní běžící na pozadí
+  web stop [--force]    vypne webové rozhraní běžící na pozadí
+                        (--force ukončí i server, který neodpovídá)
   web status            vypíše, jestli a kde webové rozhraní běží
   config init [--force] vytvoří vzorový config (~/.housenka/config.yaml)
   config edit           otevře config v editoru ($VISUAL, $EDITOR, jinak nano/nvim/vim/vi)
@@ -61,8 +62,9 @@ type WebCommand struct {
 	Action     string // "run", "start", "stop", "status"
 	Config     *config.Config
 	ConfigPath string
-	Port       int  // 0 = web.port from the config
+	Port       int  // 0 = web.port from the config; stop and status get it resolved
 	Open       bool // open the browser
+	Force      bool // stop: end a server that does not answer
 }
 
 // Web runs the web interface. It is set by the main package, like TUI.
@@ -159,7 +161,7 @@ func runTUI(cfgPath string) error {
 	return TUI(cfg, cfgPath)
 }
 
-const webUsage = "použití: housenka web [start|stop|status] [--port N] [--no-open]"
+const webUsage = "použití: housenka web [start|stop|status] [--port N] [--no-open] [--force]"
 
 func web(stdout, stderr io.Writer, cfgPath string, args []string) error {
 	c := WebCommand{Action: "run", ConfigPath: cfgPath}
@@ -171,15 +173,41 @@ func web(stdout, stderr io.Writer, cfgPath string, args []string) error {
 	fs.Usage = func() { fmt.Fprintln(stderr, webUsage) }
 	port := fs.Int("port", 0, "port (jinak "+webPortEnv+" nebo web.port z configu)")
 	noOpen := fs.Bool("no-open", false, "neotevírat prohlížeč")
+	force := fs.Bool("force", false, "ukončit i server, který neodpovídá (jen web stop)")
 	if err := fs.Parse(args); err != nil || fs.NArg() > 0 {
+		return errUsage
+	}
+	c.Port = *port
+	if c.Port == 0 {
+		if v := os.Getenv(webPortEnv); v != "" {
+			p, err := strconv.Atoi(v)
+			if err != nil || p < 1 || p > 65535 {
+				return fmt.Errorf("%s=%q není platný port", webPortEnv, v)
+			}
+			c.Port = p
+		}
+	}
+	if c.Port < 0 || c.Port > 65535 {
+		return fmt.Errorf("--port %d není platný port", c.Port)
+	}
+	if *force && c.Action != "stop" {
+		fmt.Fprintln(stderr, webUsage)
 		return errUsage
 	}
 	switch c.Action {
 	case "stop", "status":
-		if *port != 0 || *noOpen {
+		if *noOpen {
 			fmt.Fprintln(stderr, webUsage)
 			return errUsage
 		}
+		// Where to look for a server whose state file is missing.
+		if c.Port == 0 {
+			c.Port = config.DefaultWebPort
+			if cfg, err := config.Load(cfgPath); err == nil {
+				c.Port = cfg.Web.Port
+			}
+		}
+		c.Force = *force
 	case "run", "start":
 		// The web interface helps with a missing or broken config: a
 		// missing one is created from the example and finished in the
@@ -195,19 +223,6 @@ func web(stdout, stderr io.Writer, cfgPath string, args []string) error {
 			fmt.Fprintf(stdout, "Config obsahuje chyby – oprav je v prohlížeči (Nastavení → YAML):\n%v\n", err)
 		}
 		c.Config = cfg
-		c.Port = *port
-		if c.Port == 0 {
-			if v := os.Getenv(webPortEnv); v != "" {
-				p, err := strconv.Atoi(v)
-				if err != nil || p < 1 || p > 65535 {
-					return fmt.Errorf("%s=%q není platný port", webPortEnv, v)
-				}
-				c.Port = p
-			}
-		}
-		if c.Port < 0 || c.Port > 65535 {
-			return fmt.Errorf("--port %d není platný port", c.Port)
-		}
 		c.Open = !*noOpen && (cfg == nil || cfg.Web.OpenBrowser)
 	default:
 		fmt.Fprintln(stderr, webUsage)

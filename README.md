@@ -88,6 +88,8 @@ housenka web status       # běží? na jaké adrese?
 housenka web stop         # vypne server běžící na pozadí
 ```
 
+Server na pozadí se nemůže „ztratit“. Svůj stavový soubor `~/.housenka/web.json` si hlídá a když zmizí, zapíše ho znovu. `status` a `stop` ho najdou i podle portu. Když server na požadavek o vypnutí nezareaguje, `stop` ukončí jeho proces. Když server vůbec neodpovídá, `status` to řekne a `housenka web stop --force` ho ukončí.
+
 Server poslouchá jen na tomto počítači (`127.0.0.1`), ostatní v síti se k němu nedostanou. TUI a web můžou běžet zároveň, změny z jednoho se v druhém projeví. Záznamy z běhu na pozadí jdou do `~/.housenka/web.log`.
 
 ### Adresa bez portu

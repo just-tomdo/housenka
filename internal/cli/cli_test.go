@@ -263,8 +263,9 @@ func TestWebCommand(t *testing.T) {
 		{[]string{"web", "--port", "9000", "--no-open"}, "", WebCommand{Action: "run", Port: 9000}},
 		{[]string{"web", "start"}, "9100", WebCommand{Action: "start", Port: 9100, Open: true}},
 		{[]string{"web", "start", "--port", "9200"}, "9100", WebCommand{Action: "start", Port: 9200, Open: true}},
-		{[]string{"web", "stop"}, "", WebCommand{Action: "stop"}},
-		{[]string{"web", "status"}, "", WebCommand{Action: "status"}},
+		{[]string{"web", "stop"}, "", WebCommand{Action: "stop", Port: 8765}},
+		{[]string{"web", "stop", "--force", "--port", "9300"}, "", WebCommand{Action: "stop", Port: 9300, Force: true}},
+		{[]string{"web", "status"}, "9100", WebCommand{Action: "status", Port: 9100}},
 	}
 	for _, tt := range tests {
 		got = nil
@@ -274,7 +275,7 @@ func TestWebCommand(t *testing.T) {
 			continue
 		}
 		c := got[0]
-		if c.Action != tt.want.Action || c.Port != tt.want.Port || c.Open != tt.want.Open ||
+		if c.Action != tt.want.Action || c.Port != tt.want.Port || c.Open != tt.want.Open || c.Force != tt.want.Force ||
 			(c.Config != nil) != (tt.want.Action == "run" || tt.want.Action == "start") {
 			t.Errorf("%v: got %+v", tt.args, c)
 		}
@@ -284,7 +285,7 @@ func TestWebCommand(t *testing.T) {
 	}
 
 	t.Setenv(webPortEnv, "")
-	for _, args := range [][]string{{"web", "restart"}, {"web", "stop", "--port", "1"}, {"web", "x", "y"}} {
+	for _, args := range [][]string{{"web", "restart"}, {"web", "stop", "--no-open"}, {"web", "status", "--force"}, {"web", "start", "--force"}, {"web", "x", "y"}} {
 		if code, _, _ := run_(t, args...); code != 2 {
 			t.Errorf("%v: code = %d, want 2", args, code)
 		}
