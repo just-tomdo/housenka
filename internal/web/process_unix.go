@@ -5,6 +5,11 @@ package web
 import (
 	"errors"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -35,4 +40,21 @@ func terminate(pid int) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return p.Kill()
+}
+
+// processProgram returns the file name of the program pid runs, or "".
+func processProgram(pid int) string {
+	if runtime.GOOS == "linux" {
+		exe, err := os.Readlink("/proc/" + strconv.Itoa(pid) + "/exe")
+		if err != nil {
+			return ""
+		}
+		// An upgraded binary shows as "/path/housenka (deleted)".
+		return filepath.Base(strings.TrimSuffix(exe, " (deleted)"))
+	}
+	out, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "comm=").Output()
+	if err != nil {
+		return ""
+	}
+	return filepath.Base(strings.TrimSpace(string(out)))
 }

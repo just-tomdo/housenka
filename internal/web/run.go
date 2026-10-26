@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,21 +88,57 @@ func removeState(token string) {
 
 var client = &http.Client{Timeout: 3 * time.Second}
 
-// healthPID asks the server on port who it is: the PID of a Housenka
-// server answering there.
-func healthPID(port int) (int, bool) {
+// serverID is how a Housenka server introduces itself on /_/health.
+type serverID struct {
+	PID  int
+	Home string // homeID of its Housenka home; "" for older versions
+}
+
+// homeID identifies this Housenka home (~/.housenka or HOUSENKA_HOME), so
+// a server of another home on the same port is never taken for ours.
+func homeID() string {
+	dir, err := config.HomeDir()
+	if err == nil {
+		if abs, err := filepath.Abs(dir); err == nil {
+			dir = abs
+		}
+	}
+	sum := sha256.Sum256([]byte(dir))
+	return hex.EncodeToString(sum[:6])
+}
+
+// whoIs asks the server on port who it is.
+func whoIs(port int) (serverID, bool) {
 	resp, err := client.Get("http://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(port)) + "/_/health")
 	if err != nil {
-		return 0, false
+		return serverID{}, false
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 100))
-	rest, ok := strings.CutPrefix(strings.TrimSpace(string(body)), "housenka")
-	if resp.StatusCode != http.StatusOK || !ok {
-		return 0, false
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 200))
+	f := strings.Fields(string(body))
+	if resp.StatusCode != http.StatusOK || len(f) == 0 || f[0] != "housenka" {
+		return serverID{}, false
 	}
-	pid, _ := strconv.Atoi(strings.TrimSpace(rest)) // 0 for older versions
-	return pid, true
+	var id serverID
+	if len(f) > 1 {
+		id.PID, _ = strconv.Atoi(f[1])
+	}
+	if len(f) > 2 {
+		id.Home = f[2]
+	}
+	return id, true
+}
+
+// answers reports whether any Housenka answers on port.
+func answers(port int) bool {
+	_, ok := whoIs(port)
+	return ok
+}
+
+// is reports whether the server on port is the process pid of this home.
+func is(port, pid int) bool {
+	id, ok := whoIs(port)
+	return ok && id.PID == pid && (id.Home == "" || id.Home == homeID())
 }
 
 // portFree reports whether nothing listens on port.
@@ -128,19 +166,24 @@ const (
 func lookup(port int) (state, serverStatus) {
 	st, ok := readState()
 	if ok {
-		if pid, answers := healthPID(st.Port); answers && (pid == 0 || pid == st.PID) {
+		id, answering := whoIs(st.Port)
+		switch {
+		case answering && id.PID == st.PID && (id.Home == "" || id.Home == homeID()):
 			return st, up
-		}
-		if processAlive(st.PID) && !portFree(st.Port) {
+		case !answering && processAlive(st.PID) && sameProgram(st.PID) && !portFree(st.Port):
+			// Our process still holds the port but does not answer.
 			return st, unresponsive
 		}
+		// Gone: the process ended, the port is free or held by another
+		// server, or the PID now belongs to another program.
 		removeState(st.Token)
 	}
 	// No state file (deleted meanwhile?): a running server rewrites it
-	// within stateCheckEvery; until then it is found by its port.
+	// within stateCheckEvery; until then it is found by its port, but only
+	// when it belongs to this Housenka home.
 	if port != 0 {
-		if pid, answers := healthPID(port); answers && pid != 0 {
-			return state{PID: pid, Port: port, URL: fmt.Sprintf("http://localhost:%d/", port)}, up
+		if id, ok := whoIs(port); ok && id.PID != 0 && id.Home == homeID() {
+			return state{PID: id.PID, Port: port, URL: fmt.Sprintf("http://localhost:%d/", port)}, up
 		}
 	}
 	return state{}, stopped
@@ -170,7 +213,7 @@ func keepState(ctx context.Context, st state) {
 			continue
 		}
 		if ok && cur.Token != st.Token {
-			if pid, answers := healthPID(cur.Port); answers && pid != os.Getpid() {
+			if id, ok := whoIs(cur.Port); ok && id.PID != os.Getpid() {
 				continue // another live server owns the file
 			}
 		}
@@ -315,7 +358,7 @@ func Start(o Options, out io.Writer) error {
 		case <-time.After(100 * time.Millisecond):
 		}
 		if st, ok := readState(); ok && st.PID == cmd.Process.Pid {
-			if _, answers := healthPID(st.Port); !answers {
+			if !is(st.Port, st.PID) {
 				continue
 			}
 			fmt.Fprintf(out, "Housenka běží na pozadí na %s (PID %d)\nVypneš ji příkazem housenka web stop.\n", st.URL, st.PID)
@@ -354,6 +397,7 @@ func Stop(port int, force bool, out io.Writer) error {
 		if !force {
 			return fmt.Errorf("Housenka (PID %d) na portu %d neodpovídá – ukonči ji příkazem housenka web stop --force", st.PID, st.Port)
 		}
+		// lookup checked that the PID is still this program holding the port.
 		return kill(st, out)
 	}
 	if st.Token == "" {
@@ -373,7 +417,7 @@ func Stop(port int, force bool, out io.Writer) error {
 			resp.Body.Close()
 		}
 		for range 50 {
-			if _, answers := healthPID(st.Port); !answers {
+			if !answers(st.Port) {
 				fmt.Fprintf(out, "Housenka na %s je vypnutá.\n", st.URL)
 				return nil
 			}
@@ -382,10 +426,10 @@ func Stop(port int, force bool, out io.Writer) error {
 	}
 	// Still there: end the process, but only the one that answers as
 	// this server (a reused PID must never be hit).
-	if pid, answers := healthPID(st.Port); answers && pid == st.PID {
+	if is(st.Port, st.PID) {
 		return kill(st, out)
 	}
-	if _, answers := healthPID(st.Port); !answers {
+	if !answers(st.Port) {
 		fmt.Fprintf(out, "Housenka na %s je vypnutá.\n", st.URL)
 		return nil
 	}

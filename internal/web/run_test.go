@@ -219,3 +219,74 @@ func TestUnresponsiveServer(t *testing.T) {
 	}
 	waitFor(t, "process gone", func() bool { return portFree(port) })
 }
+
+func TestServerOfAnotherHomeIsNotOurs(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv(config.HomeEnv, home)
+	cfgPath := filepath.Join(home, "config.yaml")
+	os.WriteFile(cfgPath, []byte(testYAML), 0o644)
+	cfg, _ := config.Load(cfgPath)
+	port := freePort(t)
+	done := make(chan error, 1)
+	go func() { done <- Serve(Options{Config: cfg, ConfigPath: cfgPath, Port: port}, &bytes.Buffer{}) }()
+	waitFor(t, "server up", func() bool { _, ok := running(); return ok })
+
+	// Another home (a demo next to the real data) on the same port.
+	t.Setenv(config.HomeEnv, t.TempDir())
+	var out bytes.Buffer
+	Status(port, &out)
+	if !strings.Contains(out.String(), "neběží") {
+		t.Errorf("status of another home = %q", out.String())
+	}
+	out.Reset()
+	if err := Stop(port, true, &out); err != nil || !strings.Contains(out.String(), "neběží") {
+		t.Errorf("stop of another home: %v %q", err, out.String())
+	}
+
+	t.Setenv(config.HomeEnv, home)
+	if !answers(port) {
+		t.Fatal("the other home stopped our server")
+	}
+	if err := Stop(port, false, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	<-done
+}
+
+// startSleeper runs an unrelated program whose PID a stale state file may
+// point to after a crash.
+func startSleeper(t *testing.T) *exec.Cmd {
+	t.Helper()
+	cmd := exec.Command("sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Skip("sleep not available:", err)
+	}
+	t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait() })
+	return cmd
+}
+
+func TestReusedPIDIsNeverHit(t *testing.T) {
+	for _, mode := range []string{"hung", "deaf"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Setenv(config.HomeEnv, t.TempDir())
+			defer func(c *http.Client) { client = c }(client)
+			client = &http.Client{Timeout: 200 * time.Millisecond}
+			_, port := startHelper(t, mode)
+			sleeper := startSleeper(t)
+			// The state file is stale: its PID now belongs to sleep, and the
+			// port is held by another server.
+			writeState(state{PID: sleeper.Process.Pid, Port: port, URL: "http://localhost/", Token: "old"})
+
+			var out bytes.Buffer
+			if err := Stop(port, true, &out); err != nil || !strings.Contains(out.String(), "neběží") {
+				t.Errorf("stop: %v %q", err, out.String())
+			}
+			if !processAlive(sleeper.Process.Pid) {
+				t.Error("an unrelated process was killed")
+			}
+			if _, ok := readState(); ok {
+				t.Error("stale state file kept")
+			}
+		})
+	}
+}

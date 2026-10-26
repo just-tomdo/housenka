@@ -45,6 +45,7 @@ type Server struct {
 	clock   func() civil.Date
 	port    int
 	hosts   []string // allowed Host names, fixed at start like the port
+	home    string   // homeID of the Housenka home the server belongs to
 	tmpl    *template.Template
 	themes  *themeSet
 	static  http.Handler
@@ -85,7 +86,7 @@ func New(cfg *config.Config, cfgPath string, s Store, clock func() civil.Date, p
 	srv := &Server{
 		cfgPath: cfgPath, store: s, clock: clock, port: port, tmpl: tmpl, themes: themes,
 		static: http.FileServerFS(static), token: randomToken(),
-		cfg: cfg, cfgStamp: statConfig(cfgPath),
+		cfg: cfg, cfgStamp: statConfig(cfgPath), home: homeID(),
 	}
 	if cfg == nil {
 		srv.cfg, srv.cfgErr = config.Load(cfgPath)
@@ -255,7 +256,8 @@ func csrfToken(w http.ResponseWriter, r *http.Request) string {
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprintf(w, "housenka %d\n", os.Getpid()) // the PID lets status and stop identify the process
+	// The PID and the home let status and stop identify the process.
+	fmt.Fprintf(w, "housenka %d %s\n", os.Getpid(), s.home)
 }
 
 func (s *Server) shutdownHandler(w http.ResponseWriter, r *http.Request) {
