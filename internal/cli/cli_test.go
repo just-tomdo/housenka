@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -144,14 +145,6 @@ func TestTUIWithoutConfig(t *testing.T) {
 	}
 }
 
-func TestPlural(t *testing.T) {
-	for n, want := range map[int]string{0: "0 činností", 1: "1 činnost", 3: "3 činnosti", 5: "5 činností", 12: "12 činností"} {
-		if got := plural(n, "činnost", "činnosti", "činností"); got != want {
-			t.Errorf("plural(%d) = %q, want %q", n, got, want)
-		}
-	}
-}
-
 func TestEditorCommand(t *testing.T) {
 	env := map[string]string{}
 	getenv := func(k string) string { return env[k] }
@@ -249,5 +242,77 @@ func TestConfigEdit(t *testing.T) {
 		}
 		fakeEditor(t, fixed)
 		run_(t, "config", "edit")
+	}
+}
+
+func TestWebCommand(t *testing.T) {
+	home := setHome(t)
+	if code, _, _ := run_(t, "config", "init"); code != 0 {
+		t.Fatal("config init failed")
+	}
+	var got []WebCommand
+	defer func(f func(WebCommand, io.Writer) error) { Web = f }(Web)
+	Web = func(c WebCommand, _ io.Writer) error { got = append(got, c); return nil }
+
+	tests := []struct {
+		args []string
+		env  string
+		want WebCommand
+	}{
+		{[]string{"web"}, "", WebCommand{Action: "run", Port: 0, Open: true}},
+		{[]string{"web", "--port", "9000", "--no-open"}, "", WebCommand{Action: "run", Port: 9000}},
+		{[]string{"web", "start"}, "9100", WebCommand{Action: "start", Port: 9100, Open: true}},
+		{[]string{"web", "start", "--port", "9200"}, "9100", WebCommand{Action: "start", Port: 9200, Open: true}},
+		{[]string{"web", "stop"}, "", WebCommand{Action: "stop", Port: 8765}},
+		{[]string{"web", "stop", "--force", "--port", "9300"}, "", WebCommand{Action: "stop", Port: 9300, Force: true}},
+		{[]string{"web", "status"}, "9100", WebCommand{Action: "status", Port: 9100}},
+	}
+	for _, tt := range tests {
+		got = nil
+		t.Setenv(webPortEnv, tt.env)
+		if code, _, errOut := run_(t, tt.args...); code != 0 || len(got) != 1 {
+			t.Errorf("%v: code=%d err=%q", tt.args, code, errOut)
+			continue
+		}
+		c := got[0]
+		if c.Action != tt.want.Action || c.Port != tt.want.Port || c.Open != tt.want.Open || c.Force != tt.want.Force ||
+			(c.Config != nil) != (tt.want.Action == "run" || tt.want.Action == "start") {
+			t.Errorf("%v: got %+v", tt.args, c)
+		}
+		if c.ConfigPath != filepath.Join(home, "config.yaml") {
+			t.Errorf("%v: config path %q", tt.args, c.ConfigPath)
+		}
+	}
+
+	t.Setenv(webPortEnv, "")
+	for _, args := range [][]string{{"web", "restart"}, {"web", "stop", "--no-open"}, {"web", "status", "--force"}, {"web", "start", "--force"}, {"web", "x", "y"}} {
+		if code, _, _ := run_(t, args...); code != 2 {
+			t.Errorf("%v: code = %d, want 2", args, code)
+		}
+	}
+	t.Setenv(webPortEnv, "abc")
+	if code, _, errOut := run_(t, "web"); code != 1 || !strings.Contains(errOut, "není platný port") {
+		t.Errorf("bad env port: code=%d err=%q", code, errOut)
+	}
+}
+
+func TestWebWithoutConfig(t *testing.T) {
+	home := setHome(t)
+	var got []WebCommand
+	defer func(f func(WebCommand, io.Writer) error) { Web = f }(Web)
+	Web = func(c WebCommand, _ io.Writer) error { got = append(got, c); return nil }
+
+	code, out, _ := run_(t, "web", "--no-open")
+	if code != 0 || !strings.Contains(out, "Vytvořen vzorový config") || len(got) != 1 || got[0].Config == nil {
+		t.Fatalf("missing config: code=%d out=%q got=%+v", code, out, got)
+	}
+	if _, err := os.Stat(filepath.Join(home, "config.yaml")); err != nil {
+		t.Error("config not created")
+	}
+
+	os.WriteFile(filepath.Join(home, "config.yaml"), []byte("gitlab_hosts: [\n"), 0o644)
+	code, out, _ = run_(t, "web")
+	if code != 0 || !strings.Contains(out, "oprav je v prohlížeči") || got[1].Config != nil || !got[1].Open {
+		t.Errorf("broken config: code=%d out=%q got=%+v", code, out, got[1])
 	}
 }

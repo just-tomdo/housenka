@@ -31,6 +31,12 @@ ui:
   date_format: d. m. yyyy  # zobrazení data: d/dd den, m/mm měsíc, yy/yyyy rok (např. dd.mm.yyyy, yyyy-mm-dd)
   background: true         # pozadí podle theme; false = ponechat pozadí terminálu (např. průhledné)
 
+web:                       # webové rozhraní (housenka web)
+  port: 8765               # lze přebít proměnnou HOUSENKA_WEB_PORT nebo --port
+  hostnames: [housenka.localhost]  # další názvy pro adresu v prohlížeči, např. housenka.local (nastavit v hosts)
+  open_browser: true       # po spuštění otevřít prohlížeč
+  theme: auto              # auto = světlé/tmavé podle systému, nebo název tématu (viz README)
+
 time:                      # hodiny po čtvrthodinách (8, 7.5, "7:30")
   daily_goal_hours: 8      # denní cíl pro progress bar
   daily_warning_hours: 8   # nad tímto součtem za den se zobrazí varování

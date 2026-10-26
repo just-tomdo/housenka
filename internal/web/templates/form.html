@@ -1,0 +1,72 @@
+{{define "form"}}<dialog class="modal modal-form" aria-labelledby="form-title">
+<form class="entry-form" hx-post="{{.Action}}" hx-target="#modal" hx-disabled-elt="find button[type=submit]" hx-disinherit="hx-disabled-elt">
+  <header class="modal-head">
+    <h2 id="form-title">{{.Title}}</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
+  </header>
+  <input type="hidden" name="title" value="{{.Title}}">
+  {{with .Version}}<input type="hidden" name="version" value="{{.}}">{{end}}
+  {{with .Notice}}<p class="note warn" role="alert">{{.}}</p>{{end}}
+  {{if .Sent}}<p class="note warn">Záznam je už odeslaný do BM. Když změníš vykazované údaje, označí se jako neodeslaný a bude potřeba ho upravit i v BM.</p>{{end}}
+  <div class="fields" hx-get="/form/refresh" hx-include="closest form" hx-target="#choices" hx-swap="outerHTML"
+    hx-trigger="input[target.matches('[data-live]')] delay:300ms, change[target.type==='radio']" hx-sync="this:replace">
+    <div class="field">
+      <label for="f-date">Datum</label>
+      <div class="date-row">
+        <input id="f-date" name="date" value="{{.In.Date}}" placeholder="{{.Example}}" autocomplete="off" data-live>
+        <input class="picker" type="date" value="{{.DateISO}}" aria-label="Vybrat v kalendáři" tabindex="-1">
+      </div>
+      {{template "hint" (.Hint "date").WithID "hint-date"}}
+    </div>
+    <div class="field">
+      <label for="f-issue">Issue</label>
+      <input id="f-issue" name="issue" value="{{.In.Issue}}" placeholder="https://gitlab.example.com/skupina/repo/-/issues/123" autocomplete="off" data-live{{if not .In.Issue}} autofocus{{end}}>
+      {{template "hint" (.Hint "issue").WithID "hint-issue"}}
+    </div>
+    {{template "choices" .Choices}}
+    <div class="field">
+      <label for="f-hours">Hodiny</label>
+      <input id="f-hours" name="hours" value="{{.In.Hours}}" placeholder="2,75 · 2.5 · 1:45" inputmode="decimal" autocomplete="off" data-live{{if .In.Issue}} autofocus{{end}}>
+      {{template "hint" (.Hint "hours").WithID "hint-hours"}}
+    </div>
+    <div class="field">
+      <label for="f-desc">Popis</label>
+      <textarea id="f-desc" name="description" rows="4" placeholder="co jsem dělal">
+{{.In.Description}}</textarea>
+      {{template "hint" (.Hint "description").WithID "hint-description"}}
+    </div>
+  </div>
+  <footer class="modal-foot">
+    <button class="btn primary" type="submit">Uložit <kbd>Ctrl+Enter</kbd></button>
+    <button class="btn" type="button" data-close>Zrušit <kbd>Esc</kbd></button>
+  </footer>
+</form>
+</dialog>{{end}}
+
+{{define "hint"}}<small id="{{.ID}}" class="hint {{.Class}}"{{if .OOB}} hx-swap-oob="true"{{end}}>{{.Text}}</small>{{end}}
+
+{{define "choices"}}<div id="choices" class="choices">
+  <fieldset class="field">
+    <legend>Projekt</legend>
+    <div class="chips">
+      {{range .Projects}}<label class="chip proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}} title="{{.Name}}">
+        <input type="radio" name="project" id="p-{{.Code}}" value="{{.Code}}"{{if .Selected}} checked{{end}}><span>{{.Code}}</span></label>{{end}}
+      {{if not .Projects}}<span class="muted">{{.NoProjects}}</span>{{end}}
+    </div>
+    {{template "hint" (.Hint "project").WithID "hint-project"}}
+  </fieldset>
+  <fieldset class="field">
+    <legend>Činnost</legend>
+    <div class="chips">
+      {{range .Activities}}<label class="chip act {{.Kind}}" title="{{.Name}}">
+        <input type="radio" name="activity" id="a-{{.Code}}" value="{{.Code}}"{{if .Selected}} checked{{end}}><span>{{.Code}}</span></label>{{end}}
+      {{if not .Activities}}<span class="muted">nejdřív vyber projekt</span>{{end}}
+    </div>
+    {{template "hint" (.Hint "activity").WithID "hint-activity"}}
+  </fieldset>
+</div>{{end}}
+
+{{define "form-live"}}{{template "choices" .Choices}}
+{{template "hint" ((.Hint "date").WithID "hint-date").AsOOB}}
+{{template "hint" ((.Hint "issue").WithID "hint-issue").AsOOB}}
+{{template "hint" ((.Hint "hours").WithID "hint-hours").AsOOB}}{{end}}

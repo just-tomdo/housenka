@@ -14,10 +14,12 @@ import (
 
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/entry"
+	"github.com/just-tomdo/housenka/internal/entryedit"
 	"github.com/just-tomdo/housenka/internal/gitlaburl"
 	"github.com/just-tomdo/housenka/internal/hours"
 	"github.com/just-tomdo/housenka/internal/period"
 	"github.com/just-tomdo/housenka/internal/rules"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 type field int
@@ -312,61 +314,31 @@ func (f *form) cycleOption(delta int) {
 
 // refreshProjects recomputes allowed project codes from the issue link.
 func (f *form) refreshProjects() {
-	codes, ref, err := f.rules.AllowedProjects(f.inputs[fieldIssue].Value())
-	f.projects, f.issueRef, f.issueErr = codes, ref, err
-	switch {
-	case slices.Contains(codes, f.project):
-	case len(codes) == 1:
-		f.project = codes[0]
-	default:
-		f.project = ""
-	}
-	f.refreshActivities()
+	c := entryedit.Options(f.rules, f.inputs[fieldIssue].Value(), f.project, f.activity)
+	f.projects, f.project, f.issueRef, f.issueErr = c.Projects, c.Project, c.IssueRef, c.IssueErr
+	f.activities, f.activity = c.Activities, c.Activity
 }
 
 // refreshActivities recomputes allowed activities for the selected project.
 func (f *form) refreshActivities() {
-	if f.project == "" {
-		f.activities, f.activity = nil, ""
-		return
-	}
-	f.activities = f.rules.AllowedActivities(f.project)
-	if !slices.Contains(f.activities, f.activity) {
-		f.activity = f.rules.DefaultActivity(f.project)
-	}
+	f.activities, f.activity = entryedit.Activities(f.rules, f.project, f.activity)
 }
 
 // submit validates the form; on success the entry is in f.result.
 func (f *form) submit() (formOutcome, tea.Cmd) {
+	in := entryedit.Input{
+		Date: f.inputs[fieldDate].Value(), Issue: f.inputs[fieldIssue].Value(),
+		Project: f.project, Activity: f.activity,
+		Hours: f.inputs[fieldHours].Value(), Description: f.desc.Value(),
+	}
+	e, errs, warns := entryedit.Parse(f.rules, f.base, in, f.today)
 	clear(f.errs)
 	clear(f.warns)
-	e := f.base
-	e.IssueURL = strings.TrimSpace(f.inputs[fieldIssue].Value())
-	e.ProjectCode = f.project
-	e.Activity = f.activity
-	e.Description = cleanDescription(f.desc.Value())
-
-	d, err := civil.ParseHuman(f.inputs[fieldDate].Value(), f.today, f.layout)
-	if err != nil {
-		f.errs[fieldDate] = err.Error()
+	for fd, msg := range errs {
+		f.errs[fieldOf[fd]] = msg
 	}
-	e.Date = d
-	q, err := hours.Parse(f.inputs[fieldHours].Value())
-	if err != nil {
-		f.errs[fieldHours] = err.Error()
-	}
-	e.Quarters = q
-
-	for _, fd := range f.rules.Validate(e, f.today).Findings {
-		fl := fieldOf[fd.Field]
-		if _, taken := f.errs[fl]; taken {
-			continue
-		}
-		if fd.Warning {
-			f.warns[fl] = fd.Message
-		} else {
-			f.errs[fl] = fd.Message
-		}
+	for fd, msg := range warns {
+		f.warns[fieldOf[fd]] = msg
 	}
 	if len(f.errs) > 0 {
 		for fl := range fieldCount {
@@ -504,7 +476,7 @@ func (f *form) options(opts []string, selected string, focused, projects bool) s
 func (f *form) hint(fl field) string {
 	st := f.st
 	if msg, ok := f.errs[fl]; ok {
-		return st.Err.Render("✗ " + oneLine(msg))
+		return st.Err.Render("✗ " + text.OneLine(msg))
 	}
 	if msg, ok := f.warns[fl]; ok {
 		return st.Warn.Render("! " + msg)
@@ -520,7 +492,7 @@ func (f *form) hint(fl field) string {
 		case f.issueRef != nil && f.issueErr == nil:
 			return st.Good.Render("✓ " + f.issueRef.Short())
 		case f.issueErr != nil && strings.TrimSpace(f.inputs[fieldIssue].Value()) != "":
-			return st.Err.Render("✗ " + oneLine(f.issueErr.Error()))
+			return st.Err.Render("✗ " + text.OneLine(f.issueErr.Error()))
 		case f.issueErr == nil:
 			return st.Muted.Render("bez issue – jen projekty s issue: optional")
 		}
@@ -544,20 +516,6 @@ func (f *form) hint(fl field) string {
 		}
 	}
 	return ""
-}
-
-// cleanDescription trims trailing spaces of every line and surrounding empty lines.
-func cleanDescription(s string) string {
-	lines := strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n")
-	for i, l := range lines {
-		lines[i] = strings.TrimRight(l, " \t")
-	}
-	return strings.Trim(strings.Join(lines, "\n"), "\n ")
-}
-
-// oneLine joins a multi-line message into one line for wrapping.
-func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
 }
 
 func firstLine(s string) string {

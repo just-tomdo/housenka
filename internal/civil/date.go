@@ -60,6 +60,12 @@ func (d Date) Weekday() time.Weekday {
 	return d.Time().Weekday()
 }
 
+// IsWeekend reports whether the date is a Saturday or Sunday.
+func (d Date) IsWeekend() bool {
+	wd := d.Weekday()
+	return wd == time.Saturday || wd == time.Sunday
+}
+
 // Compare returns -1, 0 or +1 when d is before, equal to or after o.
 func (d Date) Compare(o Date) int {
 	return d.Time().Compare(o.Time())

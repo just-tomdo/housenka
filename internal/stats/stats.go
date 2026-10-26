@@ -77,6 +77,18 @@ func (s Summary) AvgHoursPerWorkedDay() float64 {
 	return float64(s.Total) / 4 / float64(s.WorkedDays)
 }
 
+// WeekStrip returns the days shown in a week overview: working days, and
+// weekend days only when there is work on them.
+func (s Summary) WeekStrip() []Day {
+	var out []Day
+	for _, d := range s.Days {
+		if !d.Date.IsWeekend() || d.Total > 0 {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 // Summarize aggregates the entries falling into p, overall and per day.
 func Summarize(p period.Period, entries []entry.Entry, cfg *config.Config) Summary {
 	s := Summary{Period: p}

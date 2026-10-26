@@ -1,0 +1,24 @@
+/* name: Ayu Dark; scheme: dark */
+:root {
+  --base: #0b0e14;
+  --surface: #131721;
+  --overlay: #3d424d;
+  --text: #bfbdb6;
+  --subtext: #acb6bf;
+  --muted: #565b66;
+  --accent: #e6b450;
+  --accent2: #59c2ff;
+  --green: #aad94c;
+  --orange: #ff8f40;
+  --red: #f07178;
+  --yellow: #ffb454;
+  --c-red: #f07178;
+  --c-orange: #ff8f40;
+  --c-yellow: #ffb454;
+  --c-green: #aad94c;
+  --c-teal: #95e6cb;
+  --c-cyan: #39bae6;
+  --c-blue: #59c2ff;
+  --c-purple: #d2a6ff;
+  --c-pink: #f29bc7;
+}

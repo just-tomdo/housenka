@@ -1,0 +1,24 @@
+/* name: Gruvbox světlý; scheme: light */
+:root {
+  --base: #fbf1c7;
+  --surface: #f2e5bc;
+  --overlay: #d5c4a1;
+  --text: #3c3836;
+  --subtext: #504945;
+  --muted: #928374;
+  --accent: #b57614;
+  --accent2: #076678;
+  --green: #79740e;
+  --orange: #af3a03;
+  --red: #9d0006;
+  --yellow: #b57614;
+  --c-red: #9d0006;
+  --c-orange: #af3a03;
+  --c-yellow: #b57614;
+  --c-green: #79740e;
+  --c-teal: #427b58;
+  --c-cyan: #3f7f8c;
+  --c-blue: #076678;
+  --c-purple: #8f3f71;
+  --c-pink: #b16286;
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/just-tomdo/housenka/internal/hours"
 	"github.com/just-tomdo/housenka/internal/period"
 	"github.com/just-tomdo/housenka/internal/stats"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 // issueView is the modal summarizing all work on one issue.
@@ -78,8 +79,8 @@ func (m *Model) issueModal() string {
 	}
 	facts := []string{
 		st.Subtext.Render("celkem ") + st.Bold.Render(hours.Format(s.Total)+" h"),
-		st.Text.Render(czPlural(len(s.Entries), "výkaz", "výkazy", "výkazů")),
-		st.Text.Render(czPlural(s.Days, "den", "dny", "dní")),
+		st.Text.Render(text.Plural(len(s.Entries), "výkaz", "výkazy", "výkazů")),
+		st.Text.Render(text.Plural(s.Days, "den", "dny", "dní")),
 	}
 	if s.Days > 0 {
 		span := m.layout.Format(s.First)
@@ -142,16 +143,4 @@ func (m *Model) issueModal() string {
 		visible = append(visible, st.Muted.Render("… j/k posun"))
 	}
 	return st.Modal.Width(m.modalWidth()).Render(strings.Join(visible, "\n"))
-}
-
-// czPlural picks the Czech form for n: 1 → one, 2–4 → few, otherwise many.
-func czPlural(n int, one, few, many string) string {
-	form := many
-	switch {
-	case n == 1:
-		form = one
-	case n >= 2 && n <= 4:
-		form = few
-	}
-	return fmt.Sprintf("%d %s", n, form)
 }

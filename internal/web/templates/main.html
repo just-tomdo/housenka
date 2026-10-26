@@ -1,0 +1,108 @@
+{{define "main"}}<div id="main" class="main"{{if .OOB}} hx-swap-oob="true"{{end}}>
+<form id="viewstate" hidden>
+  <input type="hidden" name="v_kind" value="{{.View.KindName}}">
+  <input type="hidden" name="v_date" value="{{.View.Date}}">
+  <input type="hidden" name="v_q" value="{{.View.Q}}">
+</form>
+{{with .ConfigErr}}<div class="banner err">Config se po úpravě nepodařilo načíst, platí předchozí verze: {{.}}</div>{{end}}
+{{with .LoadErr}}<div class="banner err">Chyba při načítání dat: {{.}}</div>{{end}}
+
+<section class="toolbar">
+  <nav class="tabs" aria-label="Období">
+    {{range .Tabs}}<a class="tab{{if .Active}} active{{end}}" href="/?{{.View.Query}}" hx-get="/view?{{.View.Query}}" hx-target="#main" hx-swap="outerHTML" hx-push-url="/?{{.View.Query}}" data-key="{{.Key}}">{{.Label}}</a>{{end}}
+  </nav>
+  <div class="period-nav">
+    <a class="btn icon" href="/?{{.Prev.Query}}" hx-get="/view?{{.Prev.Query}}" hx-target="#main" hx-swap="outerHTML" hx-push-url="/?{{.Prev.Query}}" data-key="h" title="Předchozí (h)">‹</a>
+    <span class="period-label">{{.PeriodLabel}}</span>
+    <a class="btn icon" href="/?{{.Next.Query}}" hx-get="/view?{{.Next.Query}}" hx-target="#main" hx-swap="outerHTML" hx-push-url="/?{{.Next.Query}}" data-key="l" title="Další (l)">›</a>
+    {{if .IsCurrent}}<span class="badge today">{{.Current}}</span>{{else}}
+    <a class="btn small" href="/?{{.ToToday.Query}}" hx-get="/view?{{.ToToday.Query}}" hx-target="#main" hx-swap="outerHTML" hx-push-url="/?{{.ToToday.Query}}" data-key="t" title="Dnes (t)">{{if .TowardsPast}}← {{.Current}}{{else}}{{.Current}} →{{end}}</a>{{end}}
+  </div>
+  <div class="toolbar-right">
+    <input id="filter" class="filter" type="search" name="q" value="{{.View.Q}}" placeholder="Filtr  /" autocomplete="off"
+      hx-get="/view?kind={{.View.KindName}}&amp;date={{.View.Date}}" hx-trigger="input changed delay:250ms, search" hx-target="#main" hx-swap="outerHTML" aria-label="Filtr záznamů">
+    <button class="btn" hx-get="/status?date={{.View.Date}}" hx-target="#modal" data-key="S" title="Týdenní souhrn (S)">Souhrn týdne</button>
+    <button class="btn primary" id="add" hx-get="/entries/new?date={{.NewDate}}" hx-target="#modal" data-key="a" title="Přidat záznam (a)">+ Přidat</button>
+  </div>
+</section>
+
+{{with .Header}}<section class="summary card">
+  <div class="totals">
+    <div class="total{{if .Over}} warn{{end}}">
+      <strong>{{hours .Total}}</strong><span class="muted"> / {{hours .Goal}} h</span>
+      {{if .Over}}<span class="warn"> ! nad {{hours .Warning}} h</span>{{end}}
+    </div>
+    <div class="facts">
+      <span class="good">produktivní {{hours .Productive}} h</span>
+      <span class="bad">neproduktivní {{hours .Unproductive}} h</span>
+      {{if .Unknown}}<span class="err">neznámá činnost {{hours .Unknown}} h</span>{{end}}
+      {{if .ShowDays}}<span class="subtext">dní {{.WorkedDays}} · ⌀ {{.Avg}} h/den</span>{{end}}
+    </div>
+  </div>
+  <div class="progress-row">
+    <div class="progress{{if .Reached}} reached{{end}}" role="img" aria-label="{{hours .Total}} z {{hours .Goal}} h">
+      <span class="track"><span class="seg good" style="width: {{pct .Bar.Productive}}"></span><span class="seg bad" style="width: {{pct .Bar.Other}}"></span></span>
+      {{if and $.Caterpillar .Total (not .Reached)}}<span class="head" style="left: {{pct .Bar.Filled}}">🐛</span>{{end}}
+    </div>
+    {{if $.Caterpillar}}<span class="leaf" aria-hidden="true">{{if .Reached}}🦋{{else}}🍃{{end}}</span>{{end}}
+    {{if .Total}}<span class="pct"><span class="good">{{.ProdPct}} %</span><span class="muted"> / </span><span class="bad">{{sub 100 .ProdPct}} %</span></span>{{end}}
+  </div>
+  {{if .WeekDays}}<div class="weekdays">
+    {{range .WeekDays}}<a class="weekday{{if .Today}} today{{end}}" href="/?{{.View.Query}}" hx-get="/view?{{.View.Query}}" hx-target="#main" hx-swap="outerHTML" hx-push-url="/?{{.View.Query}}">
+      <span class="wd">{{.Label}}</span>
+      <span class="mini"><span class="seg good" style="width: {{pct .Bar.Productive}}"></span><span class="seg bad" style="width: {{pct .Bar.Other}}"></span></span>
+      <span class="h">{{hours .Day.Total}}</span>
+    </a>{{end}}
+  </div>{{end}}
+</section>{{end}}
+
+<section class="list" aria-label="Záznamy">
+  {{if not .Groups}}<div class="empty">
+    {{if .View.Q}}Filtru „{{.View.Q}}“ nic neodpovídá.
+    {{else if eq .View.KindName "day"}}Zatím nic vykázáno 🐛 – <button class="link" hx-get="/entries/new?date={{.View.Date}}" hx-target="#modal">vykaž první práci</button>
+    {{else}}V tomto období nejsou žádné záznamy.{{end}}
+  </div>{{end}}
+  {{range .Groups}}
+  {{if .Show}}<div class="day-head{{if .Today}} today{{end}}">
+    <a class="day-label" href="/?{{.NewView.Query}}" hx-get="/view?{{.NewView.Query}}" hx-target="#main" hx-swap="outerHTML" hx-push-url="/?{{.NewView.Query}}">{{.Label}}</a>
+    {{if .Today}}<span class="badge today">dnes</span>{{end}}
+    <span class="mini"><span class="seg good" style="width: {{pct .Bar.Productive}}"></span><span class="seg bad" style="width: {{pct .Bar.Other}}"></span></span>
+    <span class="h">{{hours .Day.Total}} h</span>{{if .Day.Total}}<span class="muted"> · {{.ProdPct}} %</span>{{end}}
+    <button class="btn icon small add-day" hx-get="/entries/new?date={{.Day.Date}}" hx-target="#modal" title="Přidat záznam na tento den">+</button>
+  </div>{{end}}
+  {{range .Entries}}{{template "entry" .}}{{end}}
+  {{end}}
+</section>
+
+<footer class="statusline">
+  <span>{{plural .Count "záznam" "záznamy" "záznamů"}}{{if .View.Q}} · filtr „{{.View.Q}}“{{end}}</span>
+  {{if .Unsent}}<span class="pending">• {{.Unsent}} neodesláno</span>{{end}}
+  {{if .Header.GoalReached}}<span class="good">🦋 cíl splněn</span>{{end}}
+</footer>
+</div>{{end}}
+
+{{define "entry"}}<article class="entry state-{{.State}}" tabindex="-1" data-id="{{.ID}}" data-date="{{.Date}}">
+  <div class="e-state" title="{{if eq .State "sent"}}odesláno do BM{{else if eq .State "invalid"}}neplatný záznam{{else}}čeká na odeslání{{end}}">{{if eq .State "sent"}}✓{{else if eq .State "invalid"}}⚠{{else}}•{{end}}</div>
+  <div class="e-issue">{{if .IssueLabel}}<span class="group">{{.Group}}/</span><span class="repo">{{.Repo}}</span> <a class="iid" href="{{.IssueLink}}" target="_blank" rel="noopener" data-key="i" title="Otevřít issue (i)">{{.IssueLabel}}</a>{{else if .BadLink}}<span class="err">{{.Repo}}</span>{{else}}<span class="muted">bez issue</span>{{end}}</div>
+  <div class="e-project"><span class="badge proj {{.ProjectClass}}"{{with .ProjectStyle}} style="{{.}}"{{end}} title="{{.ProjectName}}">{{.ProjectCode}}</span></div>
+  <div class="e-activity {{.ActivityKind}}" title="{{if .ActivityName}}{{.ActivityName}}{{else}}není v configu{{end}}">{{.Activity}}</div>
+  <div class="e-hours">{{hours .Quarters}}</div>
+  <div class="e-desc"><span class="first">{{first .Description}}</span>{{with rest .Description}}<span class="rest">{{.}}</span>{{end}}
+    {{with .Errors}}<div class="e-errors">{{range .}}<span>⚠ {{.}}</span>{{end}}</div>{{end}}</div>
+  <div class="e-actions">
+    <button class="btn icon small" hx-get="/entries/{{.ID}}/edit" hx-target="#modal" data-key="e" title="Upravit (e)">✎</button>
+    <button class="btn icon small" hx-post="/entries/{{.ID}}/sent" hx-vals='{"version": "{{.Version}}"}' hx-swap="none" data-key="s" title="{{if .Sent}}Označit jako neodeslané (s){{else}}Označit jako odeslané (s){{end}}">{{if .Sent}}↺{{else}}✓{{end}}</button>
+    {{if .BMURL}}<a class="btn small bm" href="{{.BMURL}}" target="_blank" rel="noopener" data-key="b" title="Otevřít v Bílém motýlu (b)">BM ↗</a>
+    <button class="btn icon small" type="button" data-copy="{{.BMURL}}" data-copy-label="Odkaz do BM" data-key="Y" title="Kopírovat odkaz do BM (Y)">⧉</button>
+    {{else}}<span class="btn small bm disabled" title="{{.BMErr}}">BM ↗</span>{{end}}
+    <details class="more">
+      <summary class="btn icon small" title="Další akce">⋯</summary>
+      <div class="menu">
+        <button hx-get="/entries/new?copy={{.ID}}&amp;date={{$.Today}}" hx-target="#modal" data-key="c">Kopie na dnešek <kbd>c</kbd></button>
+        <button type="button" data-yank="{{.ID}}" data-key="y">Zapamatovat pro vložení <kbd>y</kbd></button>
+        {{if .IssueLink}}<button hx-get="/issue?url={{.IssueLink}}" hx-target="#modal" data-key="I">Souhrn issue <kbd>I</kbd></button>{{end}}
+        <button class="danger" hx-delete="/entries/{{.ID}}" hx-swap="none" hx-confirm="Smazat záznam „{{first .Description}}“ ({{hours .Quarters}} h)?" data-key="d">Smazat <kbd>d</kbd></button>
+      </div>
+    </details>
+  </div>
+</article>{{end}}

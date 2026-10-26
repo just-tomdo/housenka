@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/rules"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 const usage = `Housenka – vykazování práce do Bílého motýla
@@ -21,6 +23,13 @@ Použití:
 
 Příkazy:
   (žádný)               spustí TUI
+  web [--port N] [--no-open]
+                        spustí webové rozhraní v prohlížeči (Ctrl+C ho ukončí)
+  web start [--port N] [--no-open]
+                        spustí webové rozhraní na pozadí
+  web stop [--force]    vypne webové rozhraní běžící na pozadí
+                        (--force ukončí i server, který neodpovídá)
+  web status            vypíše, jestli a kde webové rozhraní běží
   config init [--force] vytvoří vzorový config (~/.housenka/config.yaml)
   config edit           otevře config v editoru ($VISUAL, $EDITOR, jinak nano/nvim/vim/vi)
                         a po uložení ho zkontroluje
@@ -33,6 +42,7 @@ Příkazy:
 Volby:
   --config SOUBOR       jiný config než výchozí
   HOUSENKA_HOME=DIR     (proměnná prostředí) jiný adresář místo ~/.housenka
+  HOUSENKA_WEB_PORT=N   (proměnná prostředí) port webového rozhraní místo web.port
 `
 
 // Version is the release version; it is set by the main package.
@@ -45,6 +55,20 @@ var ExampleConfig []byte
 // TUI starts the interactive interface. It is set by the main package so
 // that this package does not depend on the UI.
 var TUI func(cfg *config.Config, cfgPath string) error
+
+// WebCommand is one `housenka web` invocation. Config is nil for stop and
+// status, and when the config file is invalid.
+type WebCommand struct {
+	Action     string // "run", "start", "stop", "status"
+	Config     *config.Config
+	ConfigPath string
+	Port       int  // 0 = web.port from the config; stop and status get it resolved
+	Open       bool // open the browser
+	Force      bool // stop: end a server that does not answer
+}
+
+// Web runs the web interface. It is set by the main package, like TUI.
+var Web func(c WebCommand, stdout io.Writer) error
 
 // errUsage signals a usage error that has already been reported.
 var errUsage = errors.New("usage")
@@ -102,6 +126,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return errUsage
 		}
 		return parse(stdout, *cfgPath, rest[0])
+	case "web":
+		return web(stdout, stderr, *cfgPath, rest)
 	case "config":
 		sub := ""
 		if len(rest) > 0 {
@@ -135,6 +161,82 @@ func runTUI(cfgPath string) error {
 	return TUI(cfg, cfgPath)
 }
 
+const webUsage = "použití: housenka web [start|stop|status] [--port N] [--no-open] [--force]"
+
+func web(stdout, stderr io.Writer, cfgPath string, args []string) error {
+	c := WebCommand{Action: "run", ConfigPath: cfgPath}
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		c.Action, args = args[0], args[1:]
+	}
+	fs := flag.NewFlagSet("web", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	fs.Usage = func() { fmt.Fprintln(stderr, webUsage) }
+	port := fs.Int("port", 0, "port (jinak "+webPortEnv+" nebo web.port z configu)")
+	noOpen := fs.Bool("no-open", false, "neotevírat prohlížeč")
+	force := fs.Bool("force", false, "ukončit i server, který neodpovídá (jen web stop)")
+	if err := fs.Parse(args); err != nil || fs.NArg() > 0 {
+		return errUsage
+	}
+	c.Port = *port
+	if c.Port == 0 {
+		if v := os.Getenv(webPortEnv); v != "" {
+			p, err := strconv.Atoi(v)
+			if err != nil || p < 1 || p > 65535 {
+				return fmt.Errorf("%s=%q není platný port", webPortEnv, v)
+			}
+			c.Port = p
+		}
+	}
+	if c.Port < 0 || c.Port > 65535 {
+		return fmt.Errorf("--port %d není platný port", c.Port)
+	}
+	if *force && c.Action != "stop" {
+		fmt.Fprintln(stderr, webUsage)
+		return errUsage
+	}
+	switch c.Action {
+	case "stop", "status":
+		if *noOpen {
+			fmt.Fprintln(stderr, webUsage)
+			return errUsage
+		}
+		// Where to look for a server whose state file is missing.
+		if c.Port == 0 {
+			c.Port = config.DefaultWebPort
+			if cfg, err := config.Load(cfgPath); err == nil {
+				c.Port = cfg.Web.Port
+			}
+		}
+		c.Force = *force
+	case "run", "start":
+		// The web interface helps with a missing or broken config: a
+		// missing one is created from the example and finished in the
+		// browser, a broken one is fixed in its text editor there.
+		if _, err := os.Stat(cfgPath); errors.Is(err, os.ErrNotExist) {
+			if err := writeExample(cfgPath); err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "Vytvořen vzorový config %s – dokonči nastavení v prohlížeči (Nastavení → Průvodce).\n", cfgPath)
+		}
+		cfg, err := config.Load(cfgPath)
+		if err != nil {
+			fmt.Fprintf(stdout, "Config obsahuje chyby – oprav je v prohlížeči (Nastavení → YAML):\n%v\n", err)
+		}
+		c.Config = cfg
+		c.Open = !*noOpen && (cfg == nil || cfg.Web.OpenBrowser)
+	default:
+		fmt.Fprintln(stderr, webUsage)
+		return errUsage
+	}
+	if Web == nil {
+		return errors.New("webové rozhraní zatím není k dispozici")
+	}
+	return Web(c, stdout)
+}
+
+// webPortEnv overrides web.port (the same name the web package documents).
+const webPortEnv = "HOUSENKA_WEB_PORT"
+
 func configInit(stdout, stderr io.Writer, cfgPath string, args []string) error {
 	fs := flag.NewFlagSet("config init", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -158,9 +260,9 @@ func configCheck(stdout io.Writer, cfgPath string) error {
 		return err
 	}
 	fmt.Fprintf(stdout, "Config %s je v pořádku: %s, %s, %s pro repozitáře.\n", cfgPath,
-		plural(len(cfg.Activities), "činnost", "činnosti", "činností"),
-		plural(len(cfg.Projects), "kód projektu", "kódy projektů", "kódů projektů"),
-		plural(len(cfg.Repos), "pravidlo", "pravidla", "pravidel"))
+		text.Plural(len(cfg.Activities), "činnost", "činnosti", "činností"),
+		text.Plural(len(cfg.Projects), "kód projektu", "kódy projektů", "kódů projektů"),
+		text.Plural(len(cfg.Repos), "pravidlo", "pravidla", "pravidel"))
 	if w := cfg.Warnings(); len(w) > 0 {
 		fmt.Fprintln(stdout, "\nVarování:")
 		for _, line := range w {
@@ -216,16 +318,4 @@ func parse(stdout io.Writer, cfgPath, link string) error {
 		fmt.Fprintf(stdout, "      činnosti: %s\n", strings.Join(acts, ", "))
 	}
 	return nil
-}
-
-// plural picks the Czech form for n: 1 → one, 2–4 → few, otherwise many.
-func plural(n int, one, few, many string) string {
-	form := many
-	switch {
-	case n == 1:
-		form = one
-	case n >= 2 && n <= 4:
-		form = few
-	}
-	return fmt.Sprintf("%d %s", n, form)
 }

@@ -1,0 +1,24 @@
+/* name: Housenka světlá; scheme: light */
+:root {
+  --base: #f6f5f1;
+  --surface: #ffffff;
+  --overlay: #e2dfd6;
+  --text: #26251f;
+  --subtext: #55524a;
+  --muted: #8c887c;
+  --accent: #2f6fb0;
+  --accent2: #7d52b8;
+  --green: #3d8a35;
+  --orange: #c4621a;
+  --red: #c8394b;
+  --yellow: #9a7400;
+  --c-red: #c8394b;
+  --c-orange: #c4621a;
+  --c-yellow: #9a7400;
+  --c-green: #3d8a35;
+  --c-teal: #1f8a7a;
+  --c-cyan: #1a7fa0;
+  --c-blue: #2f6fb0;
+  --c-purple: #7d52b8;
+  --c-pink: #b8457e;
+}

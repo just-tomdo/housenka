@@ -1,0 +1,24 @@
+/* name: Tokyo Night; scheme: dark */
+:root {
+  --base: #1a1b26;
+  --surface: #24283b;
+  --overlay: #414868;
+  --text: #c0caf5;
+  --subtext: #a9b1d6;
+  --muted: #565f89;
+  --accent: #7aa2f7;
+  --accent2: #bb9af7;
+  --green: #9ece6a;
+  --orange: #ff9e64;
+  --red: #f7768e;
+  --yellow: #e0af68;
+  --c-red: #f7768e;
+  --c-orange: #ff9e64;
+  --c-yellow: #e0af68;
+  --c-green: #9ece6a;
+  --c-teal: #1abc9c;
+  --c-cyan: #7dcfff;
+  --c-blue: #7aa2f7;
+  --c-purple: #bb9af7;
+  --c-pink: #ff9ed8;
+}

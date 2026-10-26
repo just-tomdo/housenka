@@ -3,7 +3,6 @@ package tui
 
 import (
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -13,10 +12,10 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/just-tomdo/housenka/internal/bm"
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/entry"
+	"github.com/just-tomdo/housenka/internal/entryedit"
 	"github.com/just-tomdo/housenka/internal/opener"
 	"github.com/just-tomdo/housenka/internal/period"
 	"github.com/just-tomdo/housenka/internal/rules"
@@ -29,6 +28,7 @@ import (
 type Store interface {
 	Range(from, to civil.Date) ([]entry.Entry, error)
 	All() ([]entry.Entry, error)
+	Get(id string) (entry.Entry, error)
 	Save(e entry.Entry) (entry.Entry, error)
 	Delete(id string) error
 }
@@ -324,13 +324,13 @@ func (m *Model) handleListKey(km tea.KeyPressMsg) tea.Cmd {
 		}
 	case key.Matches(km, keys.Copy):
 		if e, ok := m.selected(); ok {
-			return m.openForm(copyOf(e, m.today), "Kopie záznamu na dnešek")
+			return m.openForm(entryedit.CopyOf(e, m.today), "Kopie záznamu na dnešek")
 		}
 	case key.Matches(km, keys.Paste):
 		if m.yanked == nil {
 			return m.notify("Nejdřív si záznam zapamatuj (yy)", true)
 		}
-		return m.openForm(copyOf(*m.yanked, m.focusDate()), "Vložení kopie záznamu")
+		return m.openForm(entryedit.CopyOf(*m.yanked, m.focusDate()), "Vložení kopie záznamu")
 	case key.Matches(km, keys.Delete):
 		return m.confirmDelete()
 	case key.Matches(km, keys.OpenBM):
@@ -365,12 +365,24 @@ func (m *Model) handleFormKey(km tea.KeyPressMsg) tea.Cmd {
 	case formCancelled:
 		m.mode, m.form = modeNormal, nil
 	case formSaved:
-		e := m.form.result
-		resent := e.Sent && reportedChanged(m.form.base, e)
-		if resent {
-			e.Sent = false // BM still holds the old version
-		}
+		e, resent := entryedit.PrepareSave(m.form.base, m.form.result)
 		saved, err := m.store.Save(e)
+		if errors.Is(err, store.ErrConflict) {
+			// Changed meanwhile in the web interface: keep what was typed and
+			// base the form on the new version, so saving again overwrites it
+			// knowingly.
+			m.reload(e.ID)
+			fresh, err := m.store.Get(e.ID)
+			if errors.Is(err, store.ErrNotFound) {
+				m.mode, m.form = modeNormal, nil
+				return m.fail(err)
+			}
+			if err != nil {
+				return m.fail(err) // the form stays open with the typed values
+			}
+			m.form.base = fresh
+			return m.notify("Záznam se mezitím změnil v jiném okně – formulář drží tvoje úpravy, dalším uložením je zapíšeš", true)
+		}
 		if err != nil {
 			return m.fail(err)
 		}
@@ -435,17 +447,6 @@ func (m *Model) handleCommandKey(km tea.KeyPressMsg) tea.Cmd {
 
 // --- actions -------------------------------------------------------------------
 
-// reportedChanged reports whether any value that is sent to BM differs.
-func reportedChanged(a, b entry.Entry) bool {
-	return a.Date != b.Date || a.IssueURL != b.IssueURL || a.ProjectCode != b.ProjectCode ||
-		a.Activity != b.Activity || a.Quarters != b.Quarters || a.Description != b.Description
-}
-
-func copyOf(e entry.Entry, date civil.Date) entry.Entry {
-	return entry.Entry{Date: date, IssueURL: e.IssueURL, ProjectCode: e.ProjectCode,
-		Activity: e.Activity, Quarters: e.Quarters, Description: e.Description}
-}
-
 func (m *Model) openForm(e entry.Entry, title string) tea.Cmd {
 	m.form = newForm(m.rules, m.st, m.today, e, title)
 	m.form.setWidth(m.modalWidth() - 6)
@@ -481,6 +482,10 @@ func (m *Model) toggleSent() tea.Cmd {
 	}
 	e.Sent = !e.Sent
 	if _, err := m.store.Save(e); err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			m.reload(e.ID)
+			return m.notify("Záznam se mezitím změnil v jiném okně – označení neproběhlo, zobrazuje se aktuální stav", true)
+		}
 		return m.fail(err)
 	}
 	m.reload(e.ID)
@@ -491,10 +496,7 @@ func (m *Model) toggleSent() tea.Cmd {
 }
 
 func (m *Model) bmURL(e entry.Entry) (string, error) {
-	if res := m.results[e.ID]; !res.Valid() {
-		return "", fmt.Errorf("záznam je neplatný: %s", res.Errors()[0].Message)
-	}
-	return bm.BuildURL(m.cfg.BM, e)
+	return entryedit.BMURL(m.cfg, m.results[e.ID], e)
 }
 
 func (m *Model) openInBM(e entry.Entry) tea.Cmd {
@@ -555,10 +557,9 @@ func (m *Model) reload(selectID string) {
 	m.summary = stats.Summarize(m.per, all, m.cfg)
 	m.results = map[string]rules.Result{}
 	m.entries = nil
-	q := strings.ToLower(strings.TrimSpace(m.filter.Value()))
 	for _, e := range all {
 		m.results[e.ID] = m.rules.Validate(e, m.today)
-		if q == "" || strings.Contains(strings.ToLower(searchText(e)), q) {
+		if entryedit.Matches(e, m.filter.Value()) {
 			m.entries = append(m.entries, e)
 		}
 	}
@@ -573,10 +574,6 @@ func (m *Model) reload(selectID string) {
 		}
 	}
 	m.ensureVisible()
-}
-
-func searchText(e entry.Entry) string {
-	return strings.Join([]string{e.Description, e.IssueURL, e.ProjectCode, e.Activity}, " ")
 }
 
 func (m *Model) buildRows() {

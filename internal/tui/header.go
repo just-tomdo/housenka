@@ -5,35 +5,15 @@ import (
 	"image/color"
 	"math"
 	"strings"
-	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/just-tomdo/housenka/internal/entryedit"
 	"github.com/just-tomdo/housenka/internal/hours"
 	"github.com/just-tomdo/housenka/internal/period"
 	"github.com/just-tomdo/housenka/internal/stats"
 )
-
-// periodGoal is the expected work in quarters: the daily goal for a day, or
-// the daily goal times the number of working days (Mon–Fri) in the period.
-func (m *Model) periodGoal() int {
-	goal := int(m.cfg.Time.DailyGoal)
-	if m.per.Kind == period.Day {
-		return goal
-	}
-	n := 0
-	for _, d := range m.per.Days() {
-		if wd := d.Weekday(); wd != time.Saturday && wd != time.Sunday {
-			n++
-		}
-	}
-	return goal * n
-}
-
-// currentLabel marks the period containing today; it also names the
-// direction towards it.
-var currentLabel = map[period.Kind]string{period.Day: "dnes", period.Week: "tento týden", period.Month: "tento měsíc"}
 
 // headerView renders the top panel: title, period tabs, totals and the bar.
 func (m *Model) headerView() string {
@@ -43,11 +23,11 @@ func (m *Model) headerView() string {
 	title := st.Title.Render("🐛 Housenka") + "  " + st.Period.Render(m.per.Label(m.layout))
 	switch {
 	case m.per.Contains(m.today):
-		title += " " + st.Today.Render(currentLabel[m.per.Kind])
+		title += " " + st.Today.Render(m.per.Kind.CurrentLabel())
 	case m.per.Start.After(m.today):
-		title += st.Muted.Render("  ← " + currentLabel[m.per.Kind])
+		title += st.Muted.Render("  ← " + m.per.Kind.CurrentLabel())
 	default:
-		title += st.Muted.Render("  " + currentLabel[m.per.Kind] + " →")
+		title += st.Muted.Render("  " + m.per.Kind.CurrentLabel() + " →")
 	}
 	var tabs []string
 	for _, k := range []period.Kind{period.Day, period.Week, period.Month} {
@@ -61,7 +41,7 @@ func (m *Model) headerView() string {
 	line1 := spread(title, strings.Join(tabs, ""), inner)
 
 	s := m.summary
-	goal := m.periodGoal()
+	goal := entryedit.PeriodGoal(m.cfg, m.per)
 	total := st.Bold.Render(hours.Format(s.Total)) + st.Muted.Render(" / "+hours.Format(goal)+" h")
 	if m.per.Kind == period.Day && s.Total > int(m.cfg.Time.DailyWarning) {
 		total = st.Warn.Render(hours.Format(s.Total)+" h "+m.icons.Warning) + st.Muted.Render(" (nad "+hours.Format(int(m.cfg.Time.DailyWarning))+" h)")
@@ -153,11 +133,8 @@ func (m *Model) miniBar(t stats.Totals, width int) string {
 // weekDaysLine shows each working day (and worked weekend days) of the week.
 func (m *Model) weekDaysLine(width int) string {
 	var parts []string
-	for _, d := range m.summary.Days {
+	for _, d := range m.summary.WeekStrip() {
 		wd := d.Date.Weekday()
-		if (wd == time.Saturday || wd == time.Sunday) && d.Total == 0 {
-			continue
-		}
 		label := m.st.Subtext.Render(period.WeekdayShort(wd))
 		if d.Date == m.today {
 			label = m.st.Today.Padding(0).Render(period.WeekdayShort(wd))
