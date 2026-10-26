@@ -2,7 +2,6 @@
 package theme
 
 import (
-	"hash/fnv"
 	"image/color"
 	"strings"
 
@@ -91,9 +90,7 @@ func (p Palette) ProjectColor(code, spec string) color.Color {
 	case p.Colors[spec] != nil:
 		return p.Colors[spec]
 	}
-	h := fnv.New32a()
-	h.Write([]byte(code))
-	return p.Colors[config.ColorNames[h.Sum32()%uint32(len(config.ColorNames))]]
+	return p.Colors[config.DerivedColorName(code)]
 }
 
 // TextOn returns Base or Text, whichever is readable on bg.

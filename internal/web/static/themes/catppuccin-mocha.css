@@ -1,0 +1,24 @@
+/* name: Catppuccin Mocha; scheme: dark */
+:root {
+  --base: #1e1e2e;
+  --surface: #313244;
+  --overlay: #585b70;
+  --text: #cdd6f4;
+  --subtext: #a6adc8;
+  --muted: #6c7086;
+  --accent: #cba6f7;
+  --accent2: #89b4fa;
+  --green: #a6e3a1;
+  --orange: #fab387;
+  --red: #f38ba8;
+  --yellow: #f9e2af;
+  --c-red: #f38ba8;
+  --c-orange: #fab387;
+  --c-yellow: #f9e2af;
+  --c-green: #a6e3a1;
+  --c-teal: #94e2d5;
+  --c-cyan: #89dceb;
+  --c-blue: #89b4fa;
+  --c-purple: #cba6f7;
+  --c-pink: #f5c2e7;
+}

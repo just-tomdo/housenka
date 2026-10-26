@@ -10,7 +10,11 @@ import (
 	"github.com/just-tomdo/housenka/internal/civil"
 )
 
-var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+var (
+	hexColor    = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+	hostnameRe  = regexp.MustCompile(`^(?i)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$`)
+	themeNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+)
 
 // Problems is a list of configuration errors, reported all at once.
 type Problems []string
@@ -53,6 +57,18 @@ func (c *Config) Validate() error {
 
 	if !slices.Contains(Themes, c.UI.Theme) {
 		add("ui.theme: neznámé téma %q (možnosti: %s)", c.UI.Theme, strings.Join(Themes, ", "))
+	}
+
+	if c.Web.Port < 1 || c.Web.Port > 65535 {
+		add("web.port: %d není platný port (1–65535)", c.Web.Port)
+	}
+	for i, h := range c.Web.Hostnames {
+		if !hostnameRe.MatchString(h) {
+			add("web.hostnames[%d]: %q není název hostitele (zadej jen např. housenka.local, bez http:// a portu)", i, h)
+		}
+	}
+	if !themeNameRe.MatchString(c.Web.Theme) {
+		add("web.theme: %q není název tématu (např. auto, housenka-dark)", c.Web.Theme)
 	}
 
 	if _, err := civil.ParseLayout(c.UI.DateFormat); err != nil {

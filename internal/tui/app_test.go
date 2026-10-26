@@ -722,3 +722,62 @@ func TestIssueSummary(t *testing.T) {
 		t.Errorf("entry without issue: mode %v, toast %q", m.mode, m.toast)
 	}
 }
+
+// An entry changed in another process (the web interface) is not
+// overwritten by the TUI's older copy.
+func TestStaleEntryIsNotOverwritten(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	seed(t, s, entry.Entry{Date: m.today, IssueURL: "https://gitlab.example.com/clients/shop-web/-/issues/1",
+		ProjectCode: "SHOPDEV", Activity: "DEV", Quarters: 8, Description: "práce"})
+	m.reload("")
+
+	other, err := store.Open(s.Dir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, _ := other.All()
+	all[0].Quarters = 12
+	if _, err := other.Save(all[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	press(m, "s")
+	got, _ := other.All()
+	if got[0].Quarters != 12 || got[0].Sent {
+		t.Errorf("stored = %+v", got[0])
+	}
+	if !strings.Contains(m.toast, "změnil v jiném okně") || m.entries[0].Quarters != 12 {
+		t.Errorf("toast %q, shown %+v", m.toast, m.entries[0])
+	}
+}
+
+// Saving the form over a version changed elsewhere keeps the typed values
+// and saves on the second try.
+func TestStaleFormKeepsTypedValues(t *testing.T) {
+	m, s, _ := newTestModel(t)
+	seed(t, s, entry.Entry{Date: m.today, IssueURL: "https://gitlab.example.com/clients/shop-web/-/issues/1",
+		ProjectCode: "SHOPDEV", Activity: "DEV", Quarters: 8, Description: "práce"})
+	m.reload("")
+	press(m, "e")
+
+	other, _ := store.Open(s.Dir())
+	all, _ := other.All()
+	all[0].Quarters = 12
+	other.Save(all[0])
+
+	m.form.inputs[fieldHours].SetValue("5")
+	press(m, "<ctrl+s>")
+	if m.mode != modeForm || m.form == nil || m.form.inputs[fieldHours].Value() != "5" {
+		t.Fatalf("form closed or lost input: mode %v, form %v, toast %q", m.mode, m.form != nil, m.toast)
+	}
+	if !strings.Contains(m.toast, "formulář drží tvoje úpravy") {
+		t.Errorf("toast = %q", m.toast)
+	}
+	if got, _ := other.All(); got[0].Quarters != 12 {
+		t.Errorf("stored = %+v", got[0])
+	}
+	press(m, "<ctrl+s>")
+	if got, _ := other.All(); got[0].Quarters != 20 {
+		t.Errorf("second save stored %+v", got[0])
+	}
+}

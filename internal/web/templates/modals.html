@@ -1,0 +1,108 @@
+{{define "issue"}}<dialog class="modal modal-wide" aria-labelledby="issue-title">
+  <header class="modal-head">
+    <h2 id="issue-title">Issue {{.Label}}</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
+  </header>
+  <div class="modal-body">
+    <p class="facts">
+      <a class="btn small" href="{{.URL}}" target="_blank" rel="noopener" data-modal-key="i o" autofocus>Otevřít issue ↗ <kbd>i</kbd></a>
+      <span>celkem <strong>{{hours .Total}} h</strong></span>
+      <span>{{plural (len .Entries) "výkaz" "výkazy" "výkazů"}}</span>
+      <span>{{plural .Days "den" "dny" "dní"}}</span>
+      {{with .Span}}<span class="subtext">{{.}}</span>{{end}}
+      {{if .Unsent}}<span class="warn">• neodesláno {{hours .Unsent}} h</span>{{end}}
+    </p>
+    <h3>Činnosti</h3>
+    <table class="shares">
+      {{range .Activities}}<tr>
+        <td class="{{.Kind}} code">{{.Code}}</td>
+        <td>{{if .Known}}{{.Name}}{{else}}<span class="err">není v configu</span>{{end}}</td>
+        <td class="num"><strong>{{hours .Total}} h</strong></td>
+        <td class="num muted">{{.Pct}} %</td>
+        <td class="share-bar"><span class="seg {{.Kind}}" style="width: {{.Pct}}%"></span></td>
+      </tr>{{end}}
+    </table>
+    {{if gt (len .Projects) 1}}<h3>Kódy projektů</h3>
+    <table class="shares">
+      {{range .Projects}}<tr>
+        <td class="code"><span class="badge proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}}>{{.Code}}</span></td>
+        <td>{{if .Known}}{{.Name}}{{else}}<span class="err">není v configu</span>{{end}}</td>
+        <td class="num"><strong>{{hours .Total}} h</strong></td>
+        <td class="num muted">{{.Pct}} %</td>
+        <td class="share-bar"><span class="seg accent" style="width: {{.Pct}}%"></span></td>
+      </tr>{{end}}
+    </table>{{end}}
+    <h3>Výkazy</h3>
+    <table class="issue-entries">
+      {{range .Entries}}<tr class="state-{{.State}}">
+        <td class="e-state">{{if eq .State "sent"}}✓{{else if eq .State "invalid"}}⚠{{else}}•{{end}}</td>
+        <td class="subtext nowrap">{{.DateLabel}}</td>
+        <td><span class="badge proj {{.ProjectClass}}"{{with .ProjectStyle}} style="{{.}}"{{end}}>{{.ProjectCode}}</span></td>
+        <td class="{{.ActivityKind}}">{{.Activity}}</td>
+        <td class="num"><strong>{{hours .Quarters}}</strong></td>
+        <td class="desc">{{.Description}}</td>
+      </tr>{{end}}
+    </table>
+  </div>
+</dialog>{{end}}
+
+{{define "status"}}<dialog class="modal modal-wide" aria-labelledby="status-title">
+  <header class="modal-head">
+    <h2 id="status-title">Týdenní souhrn <span class="subtext">{{.Label}}</span></h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
+  </header>
+  <div class="modal-body">
+    <div class="status-nav">
+      <button class="btn icon" hx-get="/status?date={{.Prev.Date}}" hx-target="#modal" data-modal-key="h" title="Předchozí týden (h)">‹</button>
+      <span>celkem <strong>{{hours .Total}} h</strong></span>
+      <button class="btn icon" hx-get="/status?date={{.Next.Date}}" hx-target="#modal" data-modal-key="l" title="Další týden (l)">›</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" data-copy="{{.Text}}" data-copy-label="Souhrn" data-modal-key="y" autofocus>Kopírovat text <kbd>y</kbd></button>
+      <button class="btn" type="button" data-copy="{{.MD}}" data-copy-label="Souhrn (Markdown)" data-modal-key="m">Kopírovat Markdown <kbd>m</kbd></button>
+    </div>
+    {{if not .Projects}}<p class="muted">V tomto týdnu nejsou žádné záznamy.</p>{{end}}
+    {{range .Projects}}<section class="status-project">
+      <h3><span class="badge proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}}>{{.Code}}</span> {{.Name}} <span class="muted">{{hours .Total}} h</span></h3>
+      <ul>
+        {{range .Issues}}<li>
+          {{if .Label}}<a href="{{.URL}}" target="_blank" rel="noopener">{{.Label}}</a>{{else}}<span class="muted">bez issue</span>{{end}}
+          <span class="muted">{{hours .Total}} h</span>
+          <span class="descs">{{range $i, $d := .Descriptions}}{{if $i}}; {{end}}{{$d}}{{end}}</span>
+        </li>{{end}}
+      </ul>
+    </section>{{end}}
+  </div>
+</dialog>{{end}}
+
+{{define "help"}}<dialog class="modal" aria-labelledby="help-title">
+  <header class="modal-head">
+    <h2 id="help-title">Klávesové zkratky</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít" autofocus>×</button>
+  </header>
+  <div class="modal-body help">
+    <p class="subtext">Stejné jako v TUI. Fungují, když se nepíše do pole formuláře.</p>
+    <div class="help-cols">
+      <dl>
+        <dt><kbd>j</kbd> <kbd>k</kbd> <kbd>↓</kbd> <kbd>↑</kbd></dt><dd>výběr záznamu</dd>
+        <dt><kbd>g</kbd><kbd>g</kbd> <kbd>G</kbd></dt><dd>na začátek / konec</dd>
+        <dt><kbd>h</kbd> <kbd>l</kbd> <kbd>←</kbd> <kbd>→</kbd></dt><dd>předchozí / další období</dd>
+        <dt><kbd>t</kbd></dt><dd>dnes</dd>
+        <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>Tab</kbd></dt><dd>den / týden / měsíc</dd>
+        <dt><kbd>/</kbd></dt><dd>filtr (<kbd>Esc</kbd> ho zruší)</dd>
+        <dt><kbd>S</kbd></dt><dd>týdenní souhrn</dd>
+        <dt><kbd>?</kbd></dt><dd>tato nápověda</dd>
+      </dl>
+      <dl>
+        <dt><kbd>a</kbd> <kbd>o</kbd></dt><dd>přidat záznam</dd>
+        <dt><kbd>e</kbd> <kbd>Enter</kbd></dt><dd>upravit</dd>
+        <dt><kbd>c</kbd></dt><dd>kopie na dnešek</dd>
+        <dt><kbd>y</kbd><kbd>y</kbd> <kbd>p</kbd></dt><dd>zapamatovat / vložit kopii na vybraný den</dd>
+        <dt><kbd>d</kbd><kbd>d</kbd> <kbd>Delete</kbd></dt><dd>smazat</dd>
+        <dt><kbd>b</kbd> <kbd>Y</kbd></dt><dd>otevřít v BM / kopírovat odkaz</dd>
+        <dt><kbd>i</kbd> <kbd>I</kbd></dt><dd>otevřít issue / souhrn issue</dd>
+        <dt><kbd>s</kbd> <kbd>mezera</kbd></dt><dd>odesláno / neodesláno</dd>
+      </dl>
+    </div>
+    <p class="subtext">Ve formuláři: <kbd>Ctrl+Enter</kbd> uloží, <kbd>Esc</kbd> zavře. Datum přijímá i <em>dnes</em>, <em>včera</em>, <em>-1</em>.</p>
+  </div>
+</dialog>{{end}}

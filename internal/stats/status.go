@@ -65,7 +65,7 @@ func BuildStatus(p period.Period, entries []entry.Entry, cfg *config.Config) Sta
 			issues[e.ProjectCode][key] = si
 		}
 		si.Total += e.Quarters
-		if d := oneLine(e.Description); d != "" && !slices.Contains(si.Descriptions, d) {
+		if d := joinLines(e.Description); d != "" && !slices.Contains(si.Descriptions, d) {
 			si.Descriptions = append(si.Descriptions, d)
 		}
 	}
@@ -91,8 +91,8 @@ func BuildStatus(p period.Period, entries []entry.Entry, cfg *config.Config) Sta
 	return st
 }
 
-// oneLine joins the lines of a multi-line description with "; ".
-func oneLine(s string) string {
+// joinLines joins the lines of a multi-line description with "; ".
+func joinLines(s string) string {
 	var parts []string
 	for _, l := range strings.Split(s, "\n") {
 		if l = strings.TrimSpace(l); l != "" {

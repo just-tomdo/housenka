@@ -72,6 +72,22 @@ func TestProjectsForRepo(t *testing.T) {
 	}
 }
 
+func TestMatchRepo(t *testing.T) {
+	r := newRules(t)
+	for path, want := range map[string]string{
+		"clients/beta-app":     "clients/beta-app",
+		"Interni/Shop/Core":    "interni/shop/*",
+		"interni/shop/special": "interni/shop/special",
+		"interni/cms":          "interni/*",
+		"clients/unknown":      "",
+	} {
+		pattern, codes, ok := r.MatchRepo(path)
+		if pattern != want || ok != (want != "") || ok && len(codes) == 0 {
+			t.Errorf("MatchRepo(%q) = %q %v %v, want %q", path, pattern, codes, ok, want)
+		}
+	}
+}
+
 func TestAllowedProjects(t *testing.T) {
 	r := newRules(t)
 

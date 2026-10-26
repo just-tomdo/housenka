@@ -1,0 +1,24 @@
+/* name: Gruvbox tmavý; scheme: dark */
+:root {
+  --base: #282828;
+  --surface: #3c3836;
+  --overlay: #665c54;
+  --text: #ebdbb2;
+  --subtext: #bdae93;
+  --muted: #928374;
+  --accent: #fabd2f;
+  --accent2: #83a598;
+  --green: #b8bb26;
+  --orange: #fe8019;
+  --red: #fb4934;
+  --yellow: #fabd2f;
+  --c-red: #fb4934;
+  --c-orange: #fe8019;
+  --c-yellow: #fabd2f;
+  --c-green: #b8bb26;
+  --c-teal: #8ec07c;
+  --c-cyan: #7fbbb3;
+  --c-blue: #83a598;
+  --c-purple: #d3869b;
+  --c-pink: #f2a5c0;
+}

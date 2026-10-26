@@ -78,6 +78,25 @@ func TestParseValid(t *testing.T) {
 	}
 }
 
+func TestWebDefaults(t *testing.T) {
+	cfg, err := Parse([]byte(validYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := cfg.Web
+	if w.Port != DefaultWebPort || len(w.Hostnames) != 1 || w.Hostnames[0] != "housenka.localhost" || !w.OpenBrowser || w.Theme != "auto" {
+		t.Errorf("defaults = %+v", w)
+	}
+	cfg, err = Parse([]byte(validYAML + "web:\n  port: 9000\n  hostnames: [housenka.local]\n  open_browser: false\n  theme: gruvbox-light\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w = cfg.Web
+	if w.Port != 9000 || w.Hostnames[0] != "housenka.local" || w.OpenBrowser || w.Theme != "gruvbox-light" {
+		t.Errorf("configured = %+v", w)
+	}
+}
+
 func TestParseErrors(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -185,6 +204,21 @@ func TestParseErrors(t *testing.T) {
 			name:    "duplicate bm field",
 			mutate:  func(s string) string { return strings.Replace(s, "date: date", "date: hours", 1) },
 			wantMsg: `bm.fields.date: název "hours" už používá bm.fields.hours`,
+		},
+		{
+			name:    "bad web port",
+			mutate:  func(s string) string { return s + "web: { port: 70000 }\n" },
+			wantMsg: "web.port: 70000 není platný port",
+		},
+		{
+			name:    "web hostname with scheme",
+			mutate:  func(s string) string { return s + "web: { hostnames: [\"http://housenka.local\"] }\n" },
+			wantMsg: "web.hostnames[0]",
+		},
+		{
+			name:    "bad web theme",
+			mutate:  func(s string) string { return s + "web: { theme: Gruvbox Light }\n" },
+			wantMsg: "web.theme",
 		},
 		{
 			name:    "empty",
