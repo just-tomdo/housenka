@@ -1,6 +1,7 @@
 package web
 
 import (
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"github.com/just-tomdo/housenka/internal/configedit"
 	"github.com/just-tomdo/housenka/internal/entry"
 	"github.com/just-tomdo/housenka/internal/store"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 // post sends a settings change with the hash of the current config file.
@@ -217,6 +219,33 @@ func TestSaveGeneral(t *testing.T) {
 	contains(t, f.get("/settings/date-preview?date_format=yyyy-mm-dd"), "dnes: 2026-10-19")
 }
 
+// The browser command survives the BM form even with spaces in a path or
+// an empty argument (`cmd.exe /c start ""`).
+func TestBMOpenCommandRoundTrip(t *testing.T) {
+	f := newFixture(t)
+	cmd := []string{"/mnt/c/Program Files/Mozilla Firefox/firefox.exe", "--new-tab", ""}
+	d, _ := configedit.Load(f.cfgPath)
+	d.SetBM("https://bm.example.com/editor", f.cfg().BM.Fields, cmd)
+	if err := d.Save(f.cfgPath); err != nil {
+		t.Fatal(err)
+	}
+	body := f.get("/settings/general")
+	shown := text.JoinArgs(cmd)
+	contains(t, body, template.HTMLEscapeString(shown))
+
+	fields := f.cfg().BM.Fields
+	f.post("/settings/general/bm", url.Values{"base_url": {"https://bm.example.com/other"}, "open_command": {shown},
+		"f_project": {fields.Project}, "f_issue": {fields.Issue}, "f_hours": {fields.Hours},
+		"f_activity": {fields.Activity}, "f_date": {fields.Date}, "f_description": {fields.Description}})
+	if got := f.cfg().BM.OpenCommand; !slices.Equal(got, cmd) {
+		t.Errorf("open_command = %q", got)
+	}
+	body, _ = f.post("/settings/general/bm", url.Values{"base_url": {"https://bm.example.com/x"}, "open_command": {`"firefox`},
+		"f_project": {fields.Project}, "f_issue": {fields.Issue}, "f_hours": {fields.Hours},
+		"f_activity": {fields.Activity}, "f_date": {fields.Date}, "f_description": {fields.Description}})
+	contains(t, body, "neukončené uvozovky")
+}
+
 func TestSettingsYAML(t *testing.T) {
 	f := newFixture(t)
 	body, _ := f.post("/settings/yaml", url.Values{"yaml": {"gitlab_hosts: []\n"}, "action": {"save"}})
@@ -242,6 +271,39 @@ func TestYAMLKeepsLeadingNewline(t *testing.T) {
 	f := newFixture(t)
 	os.WriteFile(f.cfgPath, []byte("\n"+testYAML), 0o644)
 	contains(t, f.get("/settings/yaml"), "spellcheck=\"false\">\n\n\ngitlab_hosts")
+}
+
+// Check and failed saves keep the version the text is based on, so a later
+// save still notices a change made elsewhere meanwhile.
+func TestYAMLKeepsBaseVersion(t *testing.T) {
+	f := newFixture(t)
+	orig, _ := os.ReadFile(f.cfgPath)
+	base := configedit.Hash(orig)
+	mine := strings.Replace(string(orig), "Shop rozvoj", "Z webu", 1)
+
+	// Someone edits the file in vim meanwhile.
+	theirs := strings.Replace(string(orig), "Shop podpora", "Z vimu", 1)
+	os.WriteFile(f.cfgPath, []byte(theirs), 0o644)
+
+	body, _ := f.post("/settings/yaml", url.Values{"yaml": {mine}, "action": {"check"}, "hash": {base}})
+	contains(t, body, "Config je v pořádku", `name="hash" value="`+base+`"`)
+	body, _ = f.post("/settings/yaml", url.Values{"yaml": {mine}, "action": {"save"}, "hash": {base}})
+	contains(t, body, "config se mezitím změnil", "Tvůj text zůstal", `name="hash" value="`+base+`"`)
+	body, _ = f.post("/settings/yaml", url.Values{"yaml": {mine}, "action": {"save"}, "hash": {base}})
+	contains(t, body, "config se mezitím změnil")
+	if got, _ := os.ReadFile(f.cfgPath); string(got) != theirs {
+		t.Error("the change made in vim was overwritten")
+	}
+}
+
+func TestYAMLKeepsCRLF(t *testing.T) {
+	f := newFixture(t)
+	crlf := strings.ReplaceAll(testYAML, "\n", "\r\n")
+	os.WriteFile(f.cfgPath, []byte(crlf), 0o644)
+	f.post("/settings/yaml", url.Values{"yaml": {crlf}, "action": {"save"}})
+	if got, _ := os.ReadFile(f.cfgPath); string(got) != crlf {
+		t.Errorf("line endings changed: %q", got[:40])
+	}
 }
 
 func TestBrokenConfig(t *testing.T) {

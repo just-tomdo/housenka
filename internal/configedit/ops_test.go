@@ -383,3 +383,14 @@ func TestExampleLeftovers(t *testing.T) {
 		t.Errorf("after cleanup: %+v %v", cfg.Projects["MUJ"], cfg.Repos)
 	}
 }
+
+func TestWhitespaceOnlyChangeIsSaved(t *testing.T) {
+	d, _ := Parse([]byte(strings.Replace(testYAML, "name: Shop podpora", "name: Shop  podpora", 1)))
+	if _, err := d.SetProject("SHOPSUP", "SHOPSUP", Project{Name: "Shop podpora", Activities: []string{"REZIE"}, Repos: []string{"clients/shop-web"}}); err != nil {
+		t.Fatal(err)
+	}
+	out, cfg := render(t, d)
+	if cfg.Projects["SHOPSUP"].Name != "Shop podpora" || strings.Contains(out, "Shop  podpora") {
+		t.Errorf("rename not saved:\n%s", out)
+	}
+}

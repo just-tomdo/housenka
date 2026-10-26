@@ -53,12 +53,14 @@ var settingsTabs = []struct{ ID, Label string }{
 	{"activities", "Činnosti"}, {"general", "Obecné"}, {"yaml", "YAML"},
 }
 
+// exampleConfig is ExampleConfig parsed once per server.
 func (s *Server) exampleConfig() *config.Config {
-	cfg, err := config.Parse(ExampleConfig)
-	if err != nil {
-		return nil
-	}
-	return cfg
+	s.exampleOnce.Do(func() {
+		if cfg, err := config.Parse(ExampleConfig); err == nil {
+			s.example = cfg
+		}
+	})
+	return s.example
 }
 
 func (s *Server) setupSteps(cfg *config.Config) []configedit.Step {
@@ -358,13 +360,22 @@ func problems(err error) []string {
 
 func (s *Server) saveYAML(w http.ResponseWriter, r *http.Request) {
 	q := s.req(w, r)
-	text := strings.ReplaceAll(r.FormValue("yaml"), "\r\n", "\n")
-	if !strings.HasSuffix(text, "\n") {
-		text += "\n"
+	// Browsers send text areas with CRLF; keep the line endings of the file.
+	body := strings.ReplaceAll(r.FormValue("yaml"), "\r\n", "\n")
+	if !strings.HasSuffix(body, "\n") {
+		body += "\n"
 	}
+	if cur, err := os.ReadFile(s.cfgPath); err == nil && strings.Contains(string(cur), "\r\n") {
+		body = strings.ReplaceAll(body, "\n", "\r\n")
+	}
+	// The text stays based on the version the page was loaded with: a save
+	// after Check or after an error must still notice changes made
+	// elsewhere meanwhile.
+	based := r.FormValue("hash")
 	d := s.buildSettings(q, "yaml")
-	d.YAML = yamlView{Text: text}
-	if _, err := config.Parse([]byte(text)); err != nil {
+	d.Hash = based
+	d.YAML = yamlView{Text: body}
+	if _, err := config.Parse([]byte(body)); err != nil {
 		d.YAML.Problems = problems(err)
 		s.render(w, "settings-content", d)
 		return
@@ -374,8 +385,11 @@ func (s *Server) saveYAML(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "settings-content", d)
 		return
 	}
-	if err := configedit.WriteFile(s.cfgPath, []byte(text), r.FormValue("hash")); err != nil {
+	if err := configedit.WriteFile(s.cfgPath, []byte(body), based); err != nil {
 		d.YAML.Problems = []string{err.Error()}
+		if errors.Is(err, configedit.ErrConflict) {
+			d.YAML.Problems = append(d.YAML.Problems, "Tvůj text zůstal v poli níže – zkopíruj si úpravy a načti stránku znovu, ať upravuješ aktuální verzi.")
+		}
 		s.render(w, "settings-content", d)
 		return
 	}
@@ -803,7 +817,7 @@ func (s *Server) webThemes() []themeOption {
 func newGeneralView(cfg *config.Config, today civil.Date) generalView {
 	return generalView{
 		Hosts: strings.Join(cfg.GitLabHosts, "\n"), BaseURL: cfg.BM.BaseURL, Fields: cfg.BM.Fields,
-		OpenCommand: strings.Join(cfg.BM.OpenCommand, " "),
+		OpenCommand: text.JoinArgs(cfg.BM.OpenCommand),
 		Goal:        hoursText(int(cfg.Time.DailyGoal)), Warning: hoursText(int(cfg.Time.DailyWarning)), Max: hoursText(int(cfg.Time.MaxEntry)),
 		UI: cfg.UI, TUIThemes: config.Themes, DatePreview: cfg.UI.DateLayout().Format(today),
 		Web: cfg.Web, WebHosts: strings.Join(cfg.Web.Hostnames, "\n"),
@@ -838,7 +852,11 @@ func (s *Server) saveGeneral(w http.ResponseWriter, r *http.Request) {
 	case "bm":
 		f := config.BMFields{Project: r.FormValue("f_project"), Issue: r.FormValue("f_issue"), Hours: r.FormValue("f_hours"),
 			Activity: r.FormValue("f_activity"), Date: r.FormValue("f_date"), Description: r.FormValue("f_description")}
-		base, open := strings.TrimSpace(r.FormValue("base_url")), strings.Fields(r.FormValue("open_command"))
+		base := strings.TrimSpace(r.FormValue("base_url"))
+		open, err := text.SplitArgs(r.FormValue("open_command"))
+		if err != nil {
+			bad = append(bad, "příkaz prohlížeče: "+err.Error())
+		}
 		op = func(d *configedit.Doc) error { d.SetBM(base, f, open); return nil }
 		msg = "Nastavení Bílého motýla uloženo"
 	case "time":

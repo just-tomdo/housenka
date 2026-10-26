@@ -46,9 +46,12 @@ type Server struct {
 	port    int
 	hosts   []string // allowed Host names, fixed at start like the port
 	home    string   // homeID of the Housenka home the server belongs to
-	tmpl    *template.Template
-	themes  *themeSet
-	static  http.Handler
+
+	exampleOnce sync.Once
+	example     *config.Config // ExampleConfig parsed, nil when unavailable
+	tmpl        *template.Template
+	themes      *themeSet
+	static      http.Handler
 
 	// token authorizes POST /_/shutdown; it is kept in the state file.
 	token    string

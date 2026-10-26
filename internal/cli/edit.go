@@ -8,10 +8,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 
+	"github.com/just-tomdo/housenka/internal/atomicfile"
 	"github.com/just-tomdo/housenka/internal/config"
 )
 
@@ -102,8 +102,5 @@ func writeExample(path string) error {
 	if len(ExampleConfig) == 0 {
 		return errors.New("vzorový config není k dispozici")
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, ExampleConfig, 0o644)
+	return atomicfile.Write(path, ExampleConfig, 0o644)
 }

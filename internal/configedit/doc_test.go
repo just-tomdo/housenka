@@ -86,3 +86,21 @@ func TestRoundTripKeepsHandLayout(t *testing.T) {
 		}
 	}
 }
+
+func TestRoundTripKeepsUnusualLayouts(t *testing.T) {
+	for name, src := range map[string]string{
+		"banners":                   "# ------\n# A\n# ------\ngitlab_hosts: [a.example.com]\n\n# ------\n# B\n# ------\nweb: { port: 1 }\n",
+		"compact":                   "gitlab_hosts: [a.example.com]\nbm:\n  base_url: x\nui:\n  theme: y\n",
+		"commented key at column 0": "bm:\n  base_url: x\n#  open_command: [wslview]\nui:\n  theme: y\n",
+		"repeated lines":            "projects:\n  A:\n    name: A\n    issue: optional\n\n  B:\n    name: B\n    issue: optional\n",
+	} {
+		d, err := Parse([]byte(src))
+		if err != nil {
+			t.Fatal(name, err)
+		}
+		out, _ := d.Bytes()
+		if string(out) != src {
+			t.Errorf("%s: round trip changed the file:\n%q\nwant\n%q", name, out, src)
+		}
+	}
+}

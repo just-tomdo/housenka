@@ -136,7 +136,7 @@
           hx-get="/settings/bm/from-link" hx-trigger="input changed delay:300ms" hx-target="#bm-fields" hx-swap="outerHTML" hx-include="closest form"></label>
     </div>
     {{template "bm-fields" .}}
-    <label class="field"><span>Příkaz pro otevření prohlížeče (prázdné = automaticky)</span>
+    <label class="field"><span>Příkaz pro otevření prohlížeče (prázdné = automaticky; argument s mezerou dej do uvozovek)</span>
       <input name="open_command" value="{{.OpenCommand}}" placeholder="wslview" autocomplete="off"></label>
     <button class="btn primary" type="submit">Uložit</button>
   </form>

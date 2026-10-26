@@ -18,26 +18,23 @@ func pretty(data, source []byte) []byte {
 	lines = alignFlowMaps(lines, blockScalars(lines))
 	lines = alignFlowSeqs(lines, blockScalars(lines), valueColumns(source))
 
-	blank := blankBefore(source)
+	gaps := sourceGaps(source)
 	spaced := make([]string, 0, len(lines)+16)
 	verbatim := blockScalars(lines)
+	prevLine := "" // the previous non-empty output line
 	for i, l := range lines {
 		if i == 0 || verbatim[i] || l == "" || spaced[len(spaced)-1] == "" {
 			spaced = append(spaced, l)
+			if l != "" {
+				prevLine = l
+			}
 			continue
 		}
-		prev := lines[i-1]
-		switch {
-		case blank[normalize(l)]:
-			// An empty line the source had before this line (also inside a section).
-			spaced = append(spaced, "")
-		case !startsIndented(l) && !strings.HasPrefix(l, "---") &&
-			strings.TrimSpace(prev) != "" && (startsIndented(prev) || !strings.HasPrefix(prev, "#")):
-			// A top-level line after the previous section's content (or its
-			// indented trailing comment) starts a new section.
+		if gaps.before(prevLine, l, startsIndented(lines[i-1])) {
 			spaced = append(spaced, "")
 		}
 		spaced = append(spaced, l)
+		prevLine = l
 	}
 	end := "\n"
 	if strings.HasSuffix(string(source), "\n\n") {
@@ -82,19 +79,54 @@ func pretty(data, source []byte) []byte {
 	return []byte(out)
 }
 
-// normalize compares lines regardless of alignment spaces.
-func normalize(l string) string { return strings.Join(strings.Fields(l), " ") }
+var aroundPunct = regexp.MustCompile(`\s*([:,{}\[\]])\s*|\s+(#)`)
 
-// blankBefore lists the source lines that follow an empty line.
-func blankBefore(source []byte) map[string]bool {
-	lines := strings.Split(string(source), "\n")
-	out := map[string]bool{}
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i-1]) == "" && strings.TrimSpace(lines[i]) != "" {
-			out[normalize(lines[i])] = true
+// normalize compares lines regardless of indentation and alignment spaces
+// (around ":", ",", brackets and before a comment), but keeps spaces inside
+// values, so changing "a  b" to "a b" is a change.
+func normalize(l string) string {
+	return aroundPunct.ReplaceAllString(strings.TrimSpace(l), "$1$2")
+}
+
+// gaps remembers where the source had empty lines.
+type gaps struct {
+	pairs map[string]bool // previous line + line → empty line between them
+	lines map[string]bool // line → some occurrence follows an empty line
+}
+
+func sourceGaps(source []byte) gaps {
+	g := gaps{pairs: map[string]bool{}, lines: map[string]bool{}}
+	prev, gap := "", false
+	for _, l := range strings.Split(string(source), "\n") {
+		if strings.TrimSpace(l) == "" {
+			gap = prev != ""
+			continue
 		}
+		key := normalize(prev) + "\x00" + normalize(l)
+		if _, seen := g.pairs[key]; !seen {
+			g.pairs[key] = gap
+		}
+		if gap {
+			g.lines[normalize(l)] = true
+		}
+		prev, gap = l, false
 	}
-	return out
+	return g
+}
+
+// before decides whether an empty line goes before l, which follows prev:
+// as in the source when the two lines were neighbours there; for a line
+// whose neighbour changed, as before that line in the source; and for a
+// new top-level line after a section's content, a section break.
+func (g gaps) before(prev, l string, prevIndented bool) bool {
+	if gap, ok := g.pairs[normalize(prev)+"\x00"+normalize(l)]; ok {
+		return gap
+	}
+	if g.lines[normalize(l)] {
+		return true
+	}
+	return !startsIndented(l) && !strings.HasPrefix(l, "---") &&
+		(prevIndented || !strings.HasPrefix(strings.TrimSpace(prev), "#"))
 }
 
 var flowSeqRe = regexp.MustCompile(`^(\s*)([^\s#\[\]][^\[\]]*?):(\s+)(\[.*\])$`)
