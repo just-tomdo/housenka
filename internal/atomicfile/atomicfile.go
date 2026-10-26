@@ -18,6 +18,12 @@ import (
 func Write(path string, data []byte, perm os.FileMode) error {
 	if target, err := filepath.EvalSymlinks(path); err == nil {
 		path = target
+	} else if link, err := os.Readlink(path); err == nil {
+		// A symlink to a file that does not exist yet: create the target.
+		if !filepath.IsAbs(link) {
+			link = filepath.Join(filepath.Dir(path), link)
+		}
+		path = link
 	}
 	if fi, err := os.Stat(path); err == nil {
 		perm = fi.Mode().Perm()

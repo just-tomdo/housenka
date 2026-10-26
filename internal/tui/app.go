@@ -28,6 +28,7 @@ import (
 type Store interface {
 	Range(from, to civil.Date) ([]entry.Entry, error)
 	All() ([]entry.Entry, error)
+	Get(id string) (entry.Entry, error)
 	Save(e entry.Entry) (entry.Entry, error)
 	Delete(id string) error
 }
@@ -371,10 +372,13 @@ func (m *Model) handleFormKey(km tea.KeyPressMsg) tea.Cmd {
 			// base the form on the new version, so saving again overwrites it
 			// knowingly.
 			m.reload(e.ID)
-			fresh, ok := m.findEntry(e.ID)
-			if !ok {
+			fresh, err := m.store.Get(e.ID)
+			if errors.Is(err, store.ErrNotFound) {
 				m.mode, m.form = modeNormal, nil
-				return m.notify("Záznam mezitím v jiném okně někdo smazal", true)
+				return m.fail(err)
+			}
+			if err != nil {
+				return m.fail(err) // the form stays open with the typed values
 			}
 			m.form.base = fresh
 			return m.notify("Záznam se mezitím změnil v jiném okně – formulář drží tvoje úpravy, dalším uložením je zapíšeš", true)
@@ -471,20 +475,6 @@ func (m *Model) deleteSelected() tea.Cmd {
 	return m.notify("Záznam smazán", false)
 }
 
-// findEntry returns the stored entry with id, wherever its date is.
-func (m *Model) findEntry(id string) (entry.Entry, bool) {
-	all, err := m.store.All()
-	if err != nil {
-		return entry.Entry{}, false
-	}
-	for _, e := range all {
-		if e.ID == id {
-			return e, true
-		}
-	}
-	return entry.Entry{}, false
-}
-
 func (m *Model) toggleSent() tea.Cmd {
 	e, ok := m.selected()
 	if !ok {
@@ -494,6 +484,7 @@ func (m *Model) toggleSent() tea.Cmd {
 	if _, err := m.store.Save(e); err != nil {
 		if errors.Is(err, store.ErrConflict) {
 			m.reload(e.ID)
+			return m.notify("Záznam se mezitím změnil v jiném okně – označení neproběhlo, zobrazuje se aktuální stav", true)
 		}
 		return m.fail(err)
 	}

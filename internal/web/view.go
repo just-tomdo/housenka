@@ -284,7 +284,11 @@ func newEntryView(cfg *config.Config, r *rules.Rules, e entry.Entry, today civil
 }
 
 // Version identifies the shown version of the entry (see store.Save).
-func (ev entryView) Version() string { return ev.UpdatedAt.Format(time.RFC3339Nano) }
+func (ev entryView) Version() string { return version(ev.Entry) }
+
+// version identifies a stored version of an entry in pages and forms (UTC,
+// so it carries no "+" that templates escape).
+func version(e entry.Entry) string { return e.UpdatedAt.UTC().Format(time.RFC3339Nano) }
 
 func issuePrefix(ref gitlaburl.Ref) string {
 	if ref.Kind == gitlaburl.MergeRequest {

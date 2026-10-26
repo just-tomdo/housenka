@@ -336,3 +336,15 @@ func TestNewYearFileIsPrivate(t *testing.T) {
 		t.Errorf("existing file: %v", fi.Mode().Perm())
 	}
 }
+
+func TestGet(t *testing.T) {
+	s, dir := newStore(t)
+	saved, _ := s.Save(entry.Entry{Date: day(2025, 3, 1), Description: "a"})
+	fresh, _ := Open(dir) // nothing loaded yet
+	if got, err := fresh.Get(saved.ID); err != nil || got.Description != "a" {
+		t.Errorf("Get = %+v, %v", got, err)
+	}
+	if _, err := fresh.Get("nope"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("missing: %v", err)
+	}
+}

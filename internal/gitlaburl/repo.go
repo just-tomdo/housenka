@@ -4,11 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"regexp"
+	"slices"
 	"strings"
 )
-
-var domainRe = regexp.MustCompile(`^(?i)[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$`)
 
 // RepoRef is a GitLab repository (or a whole group) entered by the user.
 type RepoRef struct {
@@ -45,16 +43,11 @@ func (r RepoRef) Patterns() []string {
 
 // ParseRepo accepts a repository the way people copy it: a web link
 // (https://gitlab.example.com/clients/acme-web, also with /-/issues/… or
-// .git, or without https://), an SSH clone address
-// (git@gitlab.example.com:clients/acme-web.git), a plain path
-// (clients/acme-web) or a whole group (interni/*).
-func ParseRepo(raw string) (RepoRef, error) { return parseRepo(raw, true) }
-
-// ParsePath is ParseRepo for input that is known to be a plain path: a
-// first segment with dots ("group.with.dots/project") stays a group.
-func ParsePath(raw string) (RepoRef, error) { return parseRepo(raw, false) }
-
-func parseRepo(raw string, hostless bool) (RepoRef, error) {
+// .git), an SSH clone address (git@gitlab.example.com:clients/acme-web.git),
+// a plain path (clients/acme-web) or a whole group (interni/*). Copied
+// without https://, a first segment that is one of knownHosts is the host;
+// any other first segment is a group, even with dots in its name.
+func ParseRepo(raw string, knownHosts []string) (RepoRef, error) {
 	s := strings.TrimSpace(raw)
 	if s == "" {
 		return RepoRef{}, errors.New("zadej odkaz na repozitář nebo cestu skupina/projekt")
@@ -76,12 +69,10 @@ func parseRepo(raw string, hostless bool) (RepoRef, error) {
 			return RepoRef{}, errors.New("nerozpoznaná SSH adresa (očekáváno git@doména:skupina/projekt.git)")
 		}
 		ref.Host, s = strings.ToLower(host), path
-	}
-	// "gitlab.example.com/group/project" copied without https://: a first
-	// segment that is a domain name is the host (group names have no TLD).
-	if ref.Host == "" && hostless {
-		if host, rest, ok := strings.Cut(strings.TrimPrefix(s, "/"), "/"); ok && domainRe.MatchString(host) && strings.Contains(rest, "/") {
-			ref.Host, s = strings.ToLower(host), rest
+	default:
+		first, rest, _ := strings.Cut(strings.TrimPrefix(s, "/"), "/")
+		if slices.ContainsFunc(knownHosts, func(h string) bool { return strings.EqualFold(h, first) }) {
+			ref.Host, s = strings.ToLower(first), rest
 		}
 	}
 	s, _, _ = strings.Cut(s, "/-/")

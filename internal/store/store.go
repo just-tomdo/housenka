@@ -96,6 +96,23 @@ func (s *Store) All() ([]entry.Entry, error) {
 	return out, nil
 }
 
+// ErrNotFound means there is no entry with the ID (it was deleted).
+var ErrNotFound = errors.New("záznam už neexistuje – mezitím ho někdo smazal")
+
+// Get returns the stored entry with id, whatever its date.
+func (s *Store) Get(id string) (entry.Entry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	y, i, ok, err := s.find(id)
+	if err != nil {
+		return entry.Entry{}, err
+	}
+	if !ok {
+		return entry.Entry{}, ErrNotFound
+	}
+	return s.years[y].entries[i], nil
+}
+
 // ErrConflict means the entry was changed by someone else (another window
 // or process) since the caller read it.
 var ErrConflict = errors.New("záznam se mezitím změnil v jiném okně")

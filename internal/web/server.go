@@ -34,6 +34,7 @@ var assets embed.FS
 type Store interface {
 	Range(from, to civil.Date) ([]entry.Entry, error)
 	All() ([]entry.Entry, error)
+	Get(id string) (entry.Entry, error)
 	Save(e entry.Entry) (entry.Entry, error)
 	Delete(id string) error
 }

@@ -48,3 +48,23 @@ func TestStampSeesSameSizeRewrite(t *testing.T) {
 		t.Error("same-size rewrite not detected")
 	}
 }
+
+func TestWriteCreatesTargetOfDanglingSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	dir := t.TempDir()
+	link := filepath.Join(dir, "config.yaml")
+	if err := os.Symlink(filepath.Join("dotfiles", "config.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+	if err := Write(link, []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Lstat(link); fi.Mode()&os.ModeSymlink == 0 {
+		t.Error("symlink replaced by a file")
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "dotfiles", "config.yaml")); string(data) != "new" {
+		t.Errorf("target = %q", data)
+	}
+}

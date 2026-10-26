@@ -26,7 +26,7 @@ func TestParseRepo(t *testing.T) {
 		{"https://gitlab.example.com/interni/*", RepoRef{Host: "gitlab.example.com", Path: "interni", Wildcard: true}},
 	}
 	for _, tt := range tests {
-		got, err := ParseRepo(tt.in)
+		got, err := ParseRepo(tt.in, []string{"gitlab.example.com"})
 		if err != nil {
 			t.Errorf("ParseRepo(%q): %v", tt.in, err)
 			continue
@@ -47,7 +47,7 @@ func TestParseRepoErrors(t *testing.T) {
 		"https:///clients/acme":           "chybí doména",
 		"git@:clients/acme":               "SSH adresa",
 	} {
-		_, err := ParseRepo(in)
+		_, err := ParseRepo(in, nil)
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("ParseRepo(%q) error = %v, want %q", in, err, want)
 		}
@@ -68,9 +68,19 @@ func TestRepoPatterns(t *testing.T) {
 	}
 }
 
-func TestParsePathKeepsDottedGroup(t *testing.T) {
-	got, err := ParsePath("group.with.dots/sub/project")
-	if err != nil || got != (RepoRef{Path: "group.with.dots/sub/project"}) {
-		t.Errorf("ParsePath = %+v, %v", got, err)
+func TestParseRepoKnownHostsOnly(t *testing.T) {
+	known := []string{"GitLab.Example.com"}
+	for in, want := range map[string]RepoRef{
+		"group.with.dots/sub/project":   {Path: "group.with.dots/sub/project"},
+		"gitlab.example.com/clients/*":  {Host: "gitlab.example.com", Path: "clients", Wildcard: true},
+		"other.example.org/clients/web": {Path: "other.example.org/clients/web"},
+	} {
+		if got, err := ParseRepo(in, known); err != nil || got != want {
+			t.Errorf("ParseRepo(%q) = %+v, %v", in, got, err)
+		}
+	}
+	// A known host followed by a group only is a group, like with https://.
+	if _, err := ParseRepo("gitlab.example.com/clients", known); err == nil || !strings.Contains(err.Error(), "je jen skupina") {
+		t.Errorf("group after a host: %v", err)
 	}
 }

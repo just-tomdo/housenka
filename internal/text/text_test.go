@@ -25,6 +25,8 @@ func TestArgsRoundTrip(t *testing.T) {
 		{"/mnt/c/Program Files/Mozilla Firefox/firefox.exe", "--new-tab"},
 		{"cmd.exe", "/c", "start", ""},
 		{`say "hi"`, `back\slash`, "it's"},
+		{"a\nb", "tab\there"},
+		{`C:\Program Files\x\`, `it's "quoted" \ here`},
 	} {
 		line := JoinArgs(args)
 		got, err := SplitArgs(line)
@@ -34,6 +36,9 @@ func TestArgsRoundTrip(t *testing.T) {
 	}
 	if got, _ := SplitArgs(`  firefox   'a b'  "" `); !slices.Equal(got, []string{"firefox", "a b", ""}) {
 		t.Errorf("typed = %q", got)
+	}
+	if got, _ := SplitArgs(`C:\Users\me\firefox.exe 'C:\Program Files\x\'`); !slices.Equal(got, []string{`C:\Users\me\firefox.exe`, `C:\Program Files\x\`}) {
+		t.Errorf("windows paths = %q", got)
 	}
 	if _, err := SplitArgs(`"open`); err == nil {
 		t.Error("unterminated quote accepted")

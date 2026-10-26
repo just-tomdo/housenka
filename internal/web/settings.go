@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -436,25 +437,23 @@ type patternOption struct {
 	Exists  bool
 }
 
+// domainLike matches a first path segment that may be a GitLab host typed
+// without https:// (only a hint: groups may have dots in their names too).
+var domainLike = regexp.MustCompile(`^(?i)[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$`)
+
 // analyzeRepo explains what the typed repository means for the config.
 func analyzeRepo(cfg *config.Config, r *rules.Rules, input, chosen, old string) repoAnalysis {
 	var a repoAnalysis
 	if strings.TrimSpace(input) == "" {
 		return a
 	}
-	ref, err := gitlaburl.ParseRepo(input)
+	ref, err := gitlaburl.ParseRepo(input, cfg.GitLabHosts)
 	if err != nil {
 		a.Err = err.Error()
 		return a
 	}
-	// Without https:// a first segment with dots is the GitLab host only
-	// when it is a configured one; otherwise it is a group name.
-	typedHost := strings.Contains(input, "://") || strings.HasPrefix(strings.TrimSpace(input), "git@")
-	if ref.Host != "" && !typedHost && !slices.ContainsFunc(cfg.GitLabHosts, func(h string) bool { return strings.EqualFold(h, ref.Host) }) {
-		if p, err := gitlaburl.ParsePath(input); err == nil {
-			ref = p
-			a.Hint = "Je-li začátek adresy doména GitLabu, vlož celý odkaz i s https://."
-		}
+	if first, _, _ := strings.Cut(ref.Path, "/"); ref.Host == "" && domainLike.MatchString(first) {
+		a.Hint = "Je-li " + first + " doména GitLabu, vlož celý odkaz i s https:// – doména se přidá mezi GitLab domény."
 	}
 	if ref.Host != "" {
 		a.Host = ref.Host

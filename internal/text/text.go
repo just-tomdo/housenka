@@ -25,12 +25,18 @@ func OneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// JoinArgs writes a command as one line, quoting arguments that are empty
-// or contain spaces or quotes, so SplitArgs gives them back unchanged.
+// JoinArgs writes a command as one line that SplitArgs reads back
+// unchanged: an argument that is empty or contains spaces, line breaks or
+// quotes is quoted, in single quotes when it has none (nothing is escaped
+// there, so Windows paths stay readable), otherwise in double quotes.
 func JoinArgs(args []string) string {
 	out := make([]string, len(args))
 	for i, a := range args {
-		if a == "" || strings.ContainsAny(a, " \t\"'\\") {
+		switch {
+		case a != "" && !strings.ContainsAny(a, " \t\r\n\"'"):
+		case !strings.Contains(a, "'"):
+			a = "'" + a + "'"
+		default:
 			a = `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(a) + `"`
 		}
 		out[i] = a
@@ -38,9 +44,10 @@ func JoinArgs(args []string) string {
 	return strings.Join(out, " ")
 }
 
-// SplitArgs splits a command line into arguments like a shell does for
-// spaces and quotes: "a b" and 'a b' are one argument, "" is an empty one,
-// and \" or \\ escape inside double quotes.
+// SplitArgs splits a command line into arguments at spaces. 'a b' and
+// "a b" are one argument, and a pair of empty quotes is an empty argument.
+// Inside single quotes nothing is special; inside double quotes \" and \\
+// stand for " and \. Outside quotes a backslash is an ordinary character (C:\Users\…).
 func SplitArgs(s string) ([]string, error) {
 	var args []string
 	var cur strings.Builder

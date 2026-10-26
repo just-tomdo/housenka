@@ -246,8 +246,8 @@ func TestSaveRefusesStaleForm(t *testing.T) {
 	f := newFixture(t)
 	e := f.save(sample(today, "Práce"))
 	form := url.Values{"date": {"dnes"}, "issue": {issue}, "project": {"SHOPDEV"}, "activity": {"DEV"},
-		"hours": {"1"}, "description": {"Z webu"}, "version": {e.UpdatedAt.Format(time.RFC3339Nano)}}
-	contains(t, f.get("/entries/"+e.ID+"/edit"), `name="version" value="`+e.UpdatedAt.Format(time.RFC3339Nano)+`"`)
+		"hours": {"1"}, "description": {"Z webu"}, "version": {version(e)}}
+	contains(t, f.get("/entries/"+e.ID+"/edit"), `name="version" value="`+version(e)+`"`)
 
 	// The TUI changes the entry while the form is open.
 	e.Quarters = 4
@@ -258,13 +258,13 @@ func TestSaveRefusesStaleForm(t *testing.T) {
 	all, _ := f.store.All()
 	fresh := all[0]
 	contains(t, body, "<dialog", "Záznam se mezitím změnil v jiném okně", "Z webu",
-		`name="version" value="`+fresh.UpdatedAt.Format(time.RFC3339Nano)+`"`)
+		`name="version" value="`+version(fresh)+`"`)
 	if fresh.Quarters != 4 || fresh.Description != "Práce" {
 		t.Errorf("stored = %+v", fresh)
 	}
 
 	// Saving again overwrites the newer version knowingly.
-	form.Set("version", fresh.UpdatedAt.Format(time.RFC3339Nano))
+	form.Set("version", version(fresh))
 	f.do(http.MethodPost, "/entries/"+e.ID, form)
 	all, _ = f.store.All()
 	if all[0].Description != "Z webu" {
@@ -276,7 +276,7 @@ func TestToggleSentFromStalePage(t *testing.T) {
 	f := newFixture(t)
 	e := f.save(sample(today, "Práce"))
 	page := f.get("/")
-	version := e.UpdatedAt.Format(time.RFC3339Nano)
+	version := version(e)
 	contains(t, page, `hx-vals='{"version": "`+version+`"}'`)
 
 	// The TUI marks it sent while the page still shows it unsent.

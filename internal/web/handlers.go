@@ -121,16 +121,7 @@ func (s *Server) view(w http.ResponseWriter, r *http.Request) {
 
 // find returns the entry with the given ID.
 func (s *Server) find(id string) (entry.Entry, error) {
-	all, err := s.store.All()
-	if err != nil {
-		return entry.Entry{}, err
-	}
-	for _, e := range all {
-		if e.ID == id {
-			return e, nil
-		}
-	}
-	return entry.Entry{}, errors.New("záznam už neexistuje – načti stránku znovu")
+	return s.store.Get(id)
 }
 
 // newEntry opens the form for a new entry on ?date=, or for a copy of ?copy=.
@@ -163,7 +154,7 @@ func (s *Server) editEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	f := buildForm(q.cfg, q.rules, inputOf(e, q.cfg.UI.DateLayout()), q.today, nil, nil)
 	f.Title, f.Action, f.Sent = "Úprava záznamu", "/entries/"+e.ID, e.Sent
-	f.Version = e.UpdatedAt.Format(time.RFC3339Nano)
+	f.Version = version(e)
 	s.render(w, "form", f)
 }
 
@@ -210,12 +201,12 @@ func (s *Server) saveEntry(w http.ResponseWriter, r *http.Request) {
 		// saving again overwrites it knowingly.
 		fresh, ferr := s.find(base.ID)
 		if ferr != nil {
-			s.fail(w, errors.New("záznam mezitím v jiném okně někdo smazal"))
+			s.fail(w, ferr)
 			return
 		}
 		f := buildForm(q.cfg, q.rules, in, q.today, nil, warns)
 		f.Title, f.Action, f.Sent = r.FormValue("title"), r.URL.Path, fresh.Sent
-		f.Version = fresh.UpdatedAt.Format(time.RFC3339Nano)
+		f.Version = version(fresh)
 		f.Notice = "Záznam se mezitím změnil v jiném okně. Formulář drží tvoje úpravy – Uložit je zapíše přes novější verzi, Zrušit ji ponechá."
 		s.render(w, "form", f)
 		return
