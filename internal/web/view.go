@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
@@ -282,6 +283,9 @@ func newEntryView(cfg *config.Config, r *rules.Rules, e entry.Entry, today civil
 	return ev
 }
 
+// Version identifies the shown version of the entry (see store.Save).
+func (ev entryView) Version() string { return ev.UpdatedAt.Format(time.RFC3339Nano) }
+
 func issuePrefix(ref gitlaburl.Ref) string {
 	if ref.Kind == gitlaburl.MergeRequest {
 		return "!"
@@ -319,6 +323,7 @@ type formView struct {
 	Example  string // date placeholder
 	Sent     bool
 	Version  string // UpdatedAt of the edited entry, to detect changes made meanwhile
+	Notice   string // shown above the fields
 	Resubmit bool   // editing a sent entry
 }
 

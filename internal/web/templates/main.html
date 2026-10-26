@@ -91,7 +91,7 @@
     {{with .Errors}}<div class="e-errors">{{range .}}<span>⚠ {{.}}</span>{{end}}</div>{{end}}</div>
   <div class="e-actions">
     <button class="btn icon small" hx-get="/entries/{{.ID}}/edit" hx-target="#modal" data-key="e" title="Upravit (e)">✎</button>
-    <button class="btn icon small" hx-post="/entries/{{.ID}}/sent" hx-swap="none" data-key="s" title="{{if .Sent}}Označit jako neodeslané (s){{else}}Označit jako odeslané (s){{end}}">{{if .Sent}}↺{{else}}✓{{end}}</button>
+    <button class="btn icon small" hx-post="/entries/{{.ID}}/sent" hx-vals='{"version": "{{.Version}}"}' hx-swap="none" data-key="s" title="{{if .Sent}}Označit jako neodeslané (s){{else}}Označit jako odeslané (s){{end}}">{{if .Sent}}↺{{else}}✓{{end}}</button>
     {{if .BMURL}}<a class="btn small bm" href="{{.BMURL}}" target="_blank" rel="noopener" data-key="b" title="Otevřít v Bílém motýlu (b)">BM ↗</a>
     <button class="btn icon small" type="button" data-copy="{{.BMURL}}" data-copy-label="Odkaz do BM" data-key="Y" title="Kopírovat odkaz do BM (Y)">⧉</button>
     {{else}}<span class="btn small bm disabled" title="{{.BMErr}}">BM ↗</span>{{end}}

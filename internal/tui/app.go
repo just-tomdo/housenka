@@ -367,10 +367,17 @@ func (m *Model) handleFormKey(km tea.KeyPressMsg) tea.Cmd {
 		e, resent := entryedit.PrepareSave(m.form.base, m.form.result)
 		saved, err := m.store.Save(e)
 		if errors.Is(err, store.ErrConflict) {
-			// Changed meanwhile in the web interface: show the new version.
-			m.mode, m.form = modeNormal, nil
+			// Changed meanwhile in the web interface: keep what was typed and
+			// base the form on the new version, so saving again overwrites it
+			// knowingly.
 			m.reload(e.ID)
-			return m.fail(err)
+			fresh, ok := m.findEntry(e.ID)
+			if !ok {
+				m.mode, m.form = modeNormal, nil
+				return m.notify("Záznam mezitím v jiném okně někdo smazal", true)
+			}
+			m.form.base = fresh
+			return m.notify("Záznam se mezitím změnil v jiném okně – formulář drží tvoje úpravy, dalším uložením je zapíšeš", true)
 		}
 		if err != nil {
 			return m.fail(err)
@@ -462,6 +469,20 @@ func (m *Model) deleteSelected() tea.Cmd {
 	m.reload("")
 	m.moveTo(pos) // stay where the deleted entry was
 	return m.notify("Záznam smazán", false)
+}
+
+// findEntry returns the stored entry with id, wherever its date is.
+func (m *Model) findEntry(id string) (entry.Entry, bool) {
+	all, err := m.store.All()
+	if err != nil {
+		return entry.Entry{}, false
+	}
+	for _, e := range all {
+		if e.ID == id {
+			return e, true
+		}
+	}
+	return entry.Entry{}, false
 }
 
 func (m *Model) toggleSent() tea.Cmd {

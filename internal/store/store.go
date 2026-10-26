@@ -98,7 +98,7 @@ func (s *Store) All() ([]entry.Entry, error) {
 
 // ErrConflict means the entry was changed by someone else (another window
 // or process) since the caller read it.
-var ErrConflict = errors.New("záznam se mezitím změnil v jiném okně – zobrazuje se znovu načtený, uprav ho ještě jednou")
+var ErrConflict = errors.New("záznam se mezitím změnil v jiném okně")
 
 // Save inserts e (when e.ID is empty) or replaces the entry with the same ID.
 // If the date moved to another year, the entry is moved between files.
@@ -254,7 +254,9 @@ func (s *Store) write(year int, entries []entry.Entry) error {
 	if err != nil {
 		return err
 	}
-	if err := atomicfile.Write(s.path(year), append(data, '\n'), 0o644); err != nil {
+	// Entries hold work descriptions: a new year file is private (an
+	// existing one keeps its permissions).
+	if err := atomicfile.Write(s.path(year), append(data, '\n'), 0o600); err != nil {
 		return err
 	}
 	st, err := s.stamp(year)

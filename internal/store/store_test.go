@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sync"
 	"testing"
@@ -317,4 +318,21 @@ func TestSameSizeChangeIsSeen(t *testing.T) {
 		}
 	}
 	_ = saved
+}
+
+func TestNewYearFileIsPrivate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no Unix permissions")
+	}
+	s, dir := newStore(t)
+	s.Save(entry.Entry{Date: day(2027, 1, 4), Description: "a"})
+	if fi, err := os.Stat(filepath.Join(dir, "2027.json")); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Errorf("new year file: %v %v", fi.Mode().Perm(), err)
+	}
+	// An existing file keeps the permissions it has.
+	os.Chmod(filepath.Join(dir, "2027.json"), 0o640)
+	s.Save(entry.Entry{Date: day(2027, 1, 5), Description: "b"})
+	if fi, _ := os.Stat(filepath.Join(dir, "2027.json")); fi.Mode().Perm() != 0o640 {
+		t.Errorf("existing file: %v", fi.Mode().Perm())
+	}
 }

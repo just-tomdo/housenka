@@ -17,6 +17,7 @@ import (
 	"github.com/just-tomdo/housenka/internal/period"
 	"github.com/just-tomdo/housenka/internal/rules"
 	"github.com/just-tomdo/housenka/internal/stats"
+	"github.com/just-tomdo/housenka/internal/store"
 	"github.com/just-tomdo/housenka/internal/text"
 )
 
@@ -204,6 +205,21 @@ func (s *Server) saveEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	e, resent := entryedit.PrepareSave(base, e)
 	saved, err := s.store.Save(e)
+	if errors.Is(err, store.ErrConflict) {
+		// Keep what was typed and base the form on the new version, so
+		// saving again overwrites it knowingly.
+		fresh, ferr := s.find(base.ID)
+		if ferr != nil {
+			s.fail(w, errors.New("záznam mezitím v jiném okně někdo smazal"))
+			return
+		}
+		f := buildForm(q.cfg, q.rules, in, q.today, nil, warns)
+		f.Title, f.Action, f.Sent = r.FormValue("title"), r.URL.Path, fresh.Sent
+		f.Version = fresh.UpdatedAt.Format(time.RFC3339Nano)
+		f.Notice = "Záznam se mezitím změnil v jiném okně. Formulář drží tvoje úpravy – Uložit je zapíše přes novější verzi, Zrušit ji ponechá."
+		s.render(w, "form", f)
+		return
+	}
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -229,8 +245,16 @@ func (s *Server) toggleSent(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	// The page's version: a stale page must not undo a change made in
+	// another window.
+	if v, err := time.Parse(time.RFC3339Nano, r.FormValue("version")); err == nil {
+		e.UpdatedAt = v
+	}
 	e.Sent = !e.Sent
-	if _, err := s.store.Save(e); err != nil {
+	if _, err := s.store.Save(e); errors.Is(err, store.ErrConflict) {
+		s.update(w, q, q.viewFromState(), toastData{Text: "Záznam se mezitím změnil v jiném okně – zobrazuje se aktuální stav", Err: true}, e.ID)
+		return
+	} else if err != nil {
 		s.fail(w, err)
 		return
 	}
