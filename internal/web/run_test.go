@@ -135,7 +135,9 @@ func TestMain(m *testing.M) {
 	case "deaf":
 		// Answers health like Housenka but ignores the shutdown request.
 		mux := http.NewServeMux()
-		mux.HandleFunc("/_/health", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprintf(w, "housenka %d\n", os.Getpid()) })
+		mux.HandleFunc("/_/health", func(w http.ResponseWriter, _ *http.Request) {
+			fmt.Fprintf(w, "housenka %d %s\n", os.Getpid(), homeID())
+		})
 		mux.HandleFunc("/_/shutdown", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok\n")) })
 		http.ListenAndServe("127.0.0.1:"+os.Getenv("HELPER_PORT"), mux)
 		os.Exit(0)
@@ -173,7 +175,7 @@ func startHelper(t *testing.T, mode string) (*exec.Cmd, int) {
 	go func() { cmd.Wait(); close(exited) }()
 	t.Cleanup(func() { cmd.Process.Kill(); <-exited })
 	waitFor(t, "helper listening", func() bool { return !portFree(port) })
-	writeState(state{PID: cmd.Process.Pid, Port: port, URL: fmt.Sprintf("http://localhost:%d/", port), Token: "secret"})
+	writeState(state{PID: cmd.Process.Pid, Start: processStart(cmd.Process.Pid), Port: port, URL: fmt.Sprintf("http://localhost:%d/", port), Token: "secret"})
 	return cmd, port
 }
 
@@ -272,16 +274,25 @@ func TestReusedPIDIsNeverHit(t *testing.T) {
 			defer func(c *http.Client) { client = c }(client)
 			client = &http.Client{Timeout: 200 * time.Millisecond}
 			_, port := startHelper(t, mode)
-			sleeper := startSleeper(t)
-			// The state file is stale: its PID now belongs to sleep, and the
-			// port is held by another server.
-			writeState(state{PID: sleeper.Process.Pid, Port: port, URL: "http://localhost/", Token: "old"})
+			// The state file is stale: its PID now belongs to a later
+			// process (another start time), and the port is held by
+			// another server. Even another housenka process (the TUI) must
+			// not be hit.
+			other := startSleeper(t)
+			writeState(state{PID: other.Process.Pid, Start: "earlier", Port: port, URL: "http://localhost/", Token: "old"})
 
+			// hung: nothing of this home answers, so nothing runs. deaf: the
+			// server answering on the port belongs to this home and is
+			// stopped by its own PID, which /_/health confirms.
 			var out bytes.Buffer
-			if err := Stop(port, true, &out); err != nil || !strings.Contains(out.String(), "neběží") {
+			want := map[string]string{"hung": "neběží", "deaf": "byla ukončena"}[mode]
+			if err := Stop(port, true, &out); err != nil || !strings.Contains(out.String(), want) {
 				t.Errorf("stop: %v %q", err, out.String())
 			}
-			if !processAlive(sleeper.Process.Pid) {
+			if strings.Contains(out.String(), fmt.Sprint(other.Process.Pid)) {
+				t.Errorf("stop reports the stale PID: %q", out.String())
+			}
+			if !processAlive(other.Process.Pid) {
 				t.Error("an unrelated process was killed")
 			}
 			if _, ok := readState(); ok {
@@ -289,4 +300,64 @@ func TestReusedPIDIsNeverHit(t *testing.T) {
 			}
 		})
 	}
+}
+
+// When the system cannot tell whether the PID is still the server, the
+// state stays and nothing is killed; the user gets the PID to check.
+func TestUnverifiedServerIsNotKilled(t *testing.T) {
+	t.Setenv(config.HomeEnv, t.TempDir())
+	defer func(c *http.Client) { client = c }(client)
+	client = &http.Client{Timeout: 200 * time.Millisecond}
+	_, port := startHelper(t, "hung")
+	other := startSleeper(t)
+	writeState(state{PID: other.Process.Pid, Port: port, URL: "http://localhost/", Token: "old"}) // no start time
+
+	var out bytes.Buffer
+	Status(port, &out)
+	if !strings.Contains(out.String(), fmt.Sprintf("kill %d", other.Process.Pid)) {
+		t.Errorf("status = %q", out.String())
+	}
+	if err := Stop(port, true, &out); err == nil || !strings.Contains(err.Error(), "neukončím") {
+		t.Errorf("stop --force: %v", err)
+	}
+	if !processAlive(other.Process.Pid) {
+		t.Error("an unverified process was killed")
+	}
+	if _, ok := readState(); !ok {
+		t.Error("state file removed")
+	}
+}
+
+// The same home reached through a symlink is the same home.
+func TestHomeThroughSymlink(t *testing.T) {
+	real := t.TempDir()
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skip("symlinks not available:", err)
+	}
+	t.Setenv(config.HomeEnv, link)
+	cfgPath := filepath.Join(link, "config.yaml")
+	os.WriteFile(cfgPath, []byte(testYAML), 0o644)
+	cfg, _ := config.Load(cfgPath)
+	port := freePort(t)
+	done := make(chan error, 1)
+	go func() { done <- Serve(Options{Config: cfg, ConfigPath: cfgPath, Port: port}, &bytes.Buffer{}) }()
+	waitFor(t, "server up", func() bool { _, ok := running(); return ok })
+
+	t.Setenv(config.HomeEnv, real)
+	var out bytes.Buffer
+	Status(port, &out)
+	if !strings.Contains(out.String(), "běží na") {
+		t.Errorf("status through the real path = %q", out.String())
+	}
+	os.Remove(filepath.Join(real, "web.json")) // found by port: the home ID must match too
+	out.Reset()
+	Status(port, &out)
+	if !strings.Contains(out.String(), "běží na") {
+		t.Errorf("status by port through the real path = %q", out.String())
+	}
+	if err := Stop(port, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	<-done
 }

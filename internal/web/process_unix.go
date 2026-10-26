@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -42,19 +41,24 @@ func terminate(pid int) error {
 	return p.Kill()
 }
 
-// processProgram returns the file name of the program pid runs, or "".
-func processProgram(pid int) string {
+// processStart identifies when pid started, or "" when it cannot be told.
+// With the PID it tells a process apart from a later one with the same PID.
+func processStart(pid int) string {
 	if runtime.GOOS == "linux" {
-		exe, err := os.Readlink("/proc/" + strconv.Itoa(pid) + "/exe")
+		data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
 		if err != nil {
 			return ""
 		}
-		// An upgraded binary shows as "/path/housenka (deleted)".
-		return filepath.Base(strings.TrimSuffix(exe, " (deleted)"))
+		// The command name may contain spaces: fields start after ")".
+		_, rest, ok := strings.Cut(string(data), ") ")
+		if f := strings.Fields(rest); ok && len(f) > 19 {
+			return f[19] // starttime, field 22 of the whole line
+		}
+		return ""
 	}
-	out, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "comm=").Output()
+	out, err := exec.Command("ps", "-o", "lstart=", "-p", strconv.Itoa(pid)).Output()
 	if err != nil {
 		return ""
 	}
-	return filepath.Base(strings.TrimSpace(string(out)))
+	return strings.Join(strings.Fields(string(out)), " ")
 }

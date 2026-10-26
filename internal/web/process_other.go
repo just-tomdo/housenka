@@ -15,4 +15,4 @@ func terminate(pid int) error {
 	return p.Kill()
 }
 
-func processProgram(int) string { return "" }
+func processStart(int) string { return "" }

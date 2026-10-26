@@ -5,7 +5,7 @@ package web
 import (
 	"errors"
 	"os"
-	"path/filepath"
+	"strconv"
 
 	"golang.org/x/sys/windows"
 )
@@ -39,17 +39,17 @@ func terminate(pid int) error {
 	return p.Kill()
 }
 
-// processProgram returns the file name of the program pid runs, or "".
-func processProgram(pid int) string {
+// processStart identifies when pid started, or "" when it cannot be told.
+// With the PID it tells a process apart from a later one with the same PID.
+func processStart(pid int) string {
 	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 	if err != nil {
 		return ""
 	}
 	defer windows.CloseHandle(h)
-	buf := make([]uint16, windows.MAX_LONG_PATH)
-	n := uint32(len(buf))
-	if err := windows.QueryFullProcessImageName(h, 0, &buf[0], &n); err != nil {
+	var created, exited, kernel, user windows.Filetime
+	if err := windows.GetProcessTimes(h, &created, &exited, &kernel, &user); err != nil {
 		return ""
 	}
-	return filepath.Base(windows.UTF16ToString(buf[:n]))
+	return strconv.FormatInt(created.Nanoseconds(), 10)
 }

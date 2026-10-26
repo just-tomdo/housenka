@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -31,9 +32,20 @@ const PortEnv = "HOUSENKA_WEB_PORT"
 // that `housenka web stop` and `status` can find it.
 type state struct {
 	PID   int    `json:"pid"`
+	Start string `json:"start,omitempty"` // processStart of PID: tells it from a later process with the same PID
 	Port  int    `json:"port"`
 	URL   string `json:"url"`
 	Token string `json:"token"`
+}
+
+// identity reports whether st.PID is still the process that wrote st;
+// known is false when the system cannot tell.
+func (st state) identity() (same, known bool) {
+	start := processStart(st.PID)
+	if start == "" || st.Start == "" {
+		return false, false
+	}
+	return start == st.Start, true
 }
 
 func statePath() (string, error) {
@@ -102,6 +114,12 @@ func homeID() string {
 		if abs, err := filepath.Abs(dir); err == nil {
 			dir = abs
 		}
+		if real, err := filepath.EvalSymlinks(dir); err == nil {
+			dir = real // the same home through a symlink
+		}
+		if runtime.GOOS == "windows" {
+			dir = strings.ToLower(dir)
+		}
 	}
 	sum := sha256.Sum256([]byte(dir))
 	return hex.EncodeToString(sum[:6])
@@ -138,7 +156,7 @@ func answers(port int) bool {
 // is reports whether the server on port is the process pid of this home.
 func is(port, pid int) bool {
 	id, ok := whoIs(port)
-	return ok && id.PID == pid && (id.Home == "" || id.Home == homeID())
+	return ok && id.PID == pid && id.Home == homeID()
 }
 
 // portFree reports whether nothing listens on port.
@@ -157,25 +175,32 @@ const (
 	stopped      serverStatus = iota
 	up                        // answers
 	unresponsive              // its process lives and holds the port, but it does not answer
+	unverified                // like unresponsive, but the system cannot confirm the PID is still the server
 )
 
-// lookup finds the server of this Housenka home. A state file is removed
-// only when its server is certainly gone: the process does not exist or
-// the port is free. port is where to look for a server whose state file
-// is missing (0 = do not look).
+// lookup finds the server of this Housenka home. port is where to look
+// for a server whose state file is missing (0 = do not look).
+//
+// A state file is kept while its server answers as its PID, or while that
+// PID still runs (and is, by its start time, the very process that wrote
+// the file) and someone holds the port without answering. It is removed
+// when the process ended, the port is free, another server answers on it,
+// or the PID now belongs to a later process.
 func lookup(port int) (state, serverStatus) {
 	st, ok := readState()
 	if ok {
 		id, answering := whoIs(st.Port)
 		switch {
-		case answering && id.PID == st.PID && (id.Home == "" || id.Home == homeID()):
-			return st, up
-		case !answering && processAlive(st.PID) && sameProgram(st.PID) && !portFree(st.Port):
-			// Our process still holds the port but does not answer.
-			return st, unresponsive
+		case answering && id.PID == st.PID:
+			return st, up // the state file is in this home, so is the server
+		case !answering && processAlive(st.PID) && !portFree(st.Port):
+			switch same, known := st.identity(); {
+			case known && same:
+				return st, unresponsive
+			case !known:
+				return st, unverified
+			}
 		}
-		// Gone: the process ended, the port is free or held by another
-		// server, or the PID now belongs to another program.
 		removeState(st.Token)
 	}
 	// No state file (deleted meanwhile?): a running server rewrites it
@@ -245,8 +270,8 @@ func Serve(o Options, out io.Writer) error {
 	switch st, status := lookup(o.port()); status {
 	case up:
 		return fmt.Errorf("Housenka už běží na %s (PID %d) – vypneš ji příkazem housenka web stop", st.URL, st.PID)
-	case unresponsive:
-		return fmt.Errorf("Housenka (PID %d) na portu %d neodpovídá – ukonči ji příkazem housenka web stop --force", st.PID, st.Port)
+	case unresponsive, unverified:
+		return notAnswering(st, status)
 	}
 	dataDir, err := config.DataDir()
 	if err != nil {
@@ -283,7 +308,7 @@ func Serve(o Options, out io.Writer) error {
 		hs.Shutdown(sctx)
 	}()
 
-	st := state{PID: os.Getpid(), Port: port, URL: srv.URL(), Token: srv.token}
+	st := state{PID: os.Getpid(), Start: processStart(os.Getpid()), Port: port, URL: srv.URL(), Token: srv.token}
 	if err := writeState(st); err != nil {
 		return err
 	}
@@ -316,8 +341,8 @@ func Start(o Options, out io.Writer) error {
 			o.Open(st.URL)
 		}
 		return nil
-	case unresponsive:
-		return fmt.Errorf("Housenka (PID %d) na portu %d neodpovídá – ukonči ji příkazem housenka web stop --force", st.PID, st.Port)
+	case unresponsive, unverified:
+		return notAnswering(st, status)
 	}
 	exe, err := os.Executable()
 	if err != nil {
@@ -395,10 +420,12 @@ func Stop(port int, force bool, out io.Writer) error {
 		return nil
 	case unresponsive:
 		if !force {
-			return fmt.Errorf("Housenka (PID %d) na portu %d neodpovídá – ukonči ji příkazem housenka web stop --force", st.PID, st.Port)
+			return notAnswering(st, status)
 		}
-		// lookup checked that the PID is still this program holding the port.
+		// lookup checked by its start time that the PID is still the server.
 		return kill(st, out)
+	case unverified:
+		return notAnswering(st, status)
 	}
 	if st.Token == "" {
 		// Found by its port only: the server rewrites its state file soon.
@@ -436,6 +463,18 @@ func Stop(port int, force bool, out io.Writer) error {
 	return fmt.Errorf("server na portu %d se nepodařilo vypnout (PID %d)", st.Port, st.PID)
 }
 
+// notAnswering explains a server that does not answer and how to end it.
+func notAnswering(st state, status serverStatus) error {
+	if status == unresponsive {
+		return fmt.Errorf("Housenka (PID %d) na portu %d běží, ale neodpovídá – ukončíš ji příkazem housenka web stop --force", st.PID, st.Port)
+	}
+	how := fmt.Sprintf("kill %d", st.PID)
+	if runtime.GOOS == "windows" {
+		how = fmt.Sprintf("taskkill /PID %d /F", st.PID)
+	}
+	return fmt.Errorf("na portu %d nic neodpovídá a proces %d ze stavového souboru pořád běží; systém neumí ověřit, že je to Housenka, proto ho sám neukončím – zkontroluj ho a případně ukonči ručně (%s)", st.Port, st.PID, how)
+}
+
 func kill(st state, out io.Writer) error {
 	if err := terminate(st.PID); err != nil {
 		return fmt.Errorf("proces %d se nepodařilo ukončit: %v", st.PID, err)
@@ -451,8 +490,8 @@ func Status(port int, out io.Writer) error {
 	switch st, status := lookup(port); status {
 	case up:
 		fmt.Fprintf(out, "Housenka běží na %s (PID %d)\n", st.URL, st.PID)
-	case unresponsive:
-		fmt.Fprintf(out, "Housenka (PID %d) na portu %d běží, ale neodpovídá – ukončíš ji příkazem housenka web stop --force\n", st.PID, st.Port)
+	case unresponsive, unverified:
+		fmt.Fprintln(out, notAnswering(st, status))
 	default:
 		fmt.Fprintln(out, "Housenka na pozadí neběží.")
 	}
