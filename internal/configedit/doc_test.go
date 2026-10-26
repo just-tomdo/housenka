@@ -1,6 +1,7 @@
 package configedit
 
 import (
+	"github.com/just-tomdo/housenka/internal/config"
 	"os"
 	"strings"
 	"testing"
@@ -102,5 +103,32 @@ func TestRoundTripKeepsUnusualLayouts(t *testing.T) {
 		if string(out) != src {
 			t.Errorf("%s: round trip changed the file:\n%q\nwant\n%q", name, out, src)
 		}
+	}
+}
+
+func TestLayoutReviewCases(t *testing.T) {
+	// Values that differ only in spaces around a comma are different lines.
+	src := "projects:\n  A:\n    name: Foo, Bar\n  B:\n    name: Foo,Bar\n"
+	d, _ := Parse([]byte(src))
+	if out, _ := d.Bytes(); string(out) != src {
+		t.Errorf("unchanged values rewritten:\n%s", out)
+	}
+
+	// The same pair of lines, once with an empty line between and once not.
+	src = "projects:\n  A:\n    name: A\n    activities: [DEV]\n\n    issue: optional\n  B:\n    name: B\n    activities: [DEV]\n    issue: optional\n"
+	d, _ = Parse([]byte(src))
+	if out, _ := d.Bytes(); string(out) != src {
+		t.Errorf("repeated pair:\n%q\nwant\n%q", out, src)
+	}
+
+	// Changing one value of a compact config adds no empty lines.
+	src = "gitlab_hosts: [a.example.com]\nbm:\n  base_url: https://bm.example.com/a\n  fields: { project: p }\nui:\n  theme: y\n"
+	d, _ = Parse([]byte(src))
+	d.SetBM("https://bm.example.com/b", config.BMFields{Project: "p"}, nil)
+	out, _ := d.Bytes()
+	want := strings.Replace(src, "/a\n", "/b\n", 1)
+	// SetBM writes all six field names; compare without the fields line.
+	if !strings.Contains(string(out), "  base_url: https://bm.example.com/b\n") || strings.Contains(string(out), "\n\n") {
+		t.Errorf("compact config changed:\n%q\nwant like\n%q", out, want)
 	}
 }

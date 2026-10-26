@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // pretty restores the layout yaml.v3 drops, so the file stays pleasant to
@@ -79,39 +81,63 @@ func pretty(data, source []byte) []byte {
 	return []byte(out)
 }
 
-var aroundPunct = regexp.MustCompile(`\s*([:,{}\[\]])\s*|\s+(#)`)
-
-// normalize compares lines regardless of indentation and alignment spaces
-// (around ":", ",", brackets and before a comment), but keeps spaces inside
-// values, so changing "a  b" to "a b" is a change.
+// normalize identifies a line by what it means, not how it is aligned:
+// the YAML value of its code (so "a: { x: 1 }" equals "a:   {x: 1}", and
+// "Foo,Bar" differs from "Foo, Bar") and the text of its comment.
 func normalize(l string) string {
-	return aroundPunct.ReplaceAllString(strings.TrimSpace(l), "$1$2")
+	if t := strings.TrimSpace(l); strings.HasPrefix(t, "#") {
+		return t // a comment line is its text
+	}
+	code, comment := splitComment(strings.TrimSpace(l))
+	code = strings.TrimSpace(code)
+	comment = strings.TrimSpace(comment)
+	if code == "" {
+		return comment
+	}
+	var v any
+	if err := yaml.Unmarshal([]byte(code), &v); err == nil {
+		if out, err := yaml.Marshal(v); err == nil {
+			return string(out) + "\x00" + comment
+		}
+	}
+	return "\x01" + strings.Join(strings.Fields(code), " ") + "\x00" + comment
 }
 
-// gaps remembers where the source had empty lines.
+// gaps remembers where the source had empty lines, per occurrence: the
+// n-th time a line (or a pair of neighbouring lines) comes, it gets what
+// its n-th occurrence in the source had.
 type gaps struct {
-	pairs map[string]bool // previous line + line → empty line between them
-	lines map[string]bool // line → some occurrence follows an empty line
+	pairs map[string][]bool // previous line + line → empty line between them
+	lines map[string][]bool // line → empty line before it
 }
 
 func sourceGaps(source []byte) gaps {
-	g := gaps{pairs: map[string]bool{}, lines: map[string]bool{}}
+	g := gaps{pairs: map[string][]bool{}, lines: map[string][]bool{}}
 	prev, gap := "", false
 	for _, l := range strings.Split(string(source), "\n") {
 		if strings.TrimSpace(l) == "" {
 			gap = prev != ""
 			continue
 		}
-		key := normalize(prev) + "\x00" + normalize(l)
-		if _, seen := g.pairs[key]; !seen {
-			g.pairs[key] = gap
-		}
-		if gap {
-			g.lines[normalize(l)] = true
-		}
+		key := normalize(prev) + "\x02" + normalize(l)
+		g.pairs[key] = append(g.pairs[key], gap)
+		g.lines[normalize(l)] = append(g.lines[normalize(l)], gap)
 		prev, gap = l, false
 	}
 	return g
+}
+
+// take returns the next remembered value for key (the last one again
+// when the source had fewer occurrences).
+func take(m map[string][]bool, key string) (bool, bool) {
+	q, ok := m[key]
+	if !ok || len(q) == 0 {
+		return false, false
+	}
+	if len(q) > 1 {
+		m[key] = q[1:]
+	}
+	return q[0], true
 }
 
 // before decides whether an empty line goes before l, which follows prev:
@@ -119,11 +145,12 @@ func sourceGaps(source []byte) gaps {
 // whose neighbour changed, as before that line in the source; and for a
 // new top-level line after a section's content, a section break.
 func (g gaps) before(prev, l string, prevIndented bool) bool {
-	if gap, ok := g.pairs[normalize(prev)+"\x00"+normalize(l)]; ok {
+	if gap, ok := take(g.pairs, normalize(prev)+"\x02"+normalize(l)); ok {
+		take(g.lines, normalize(l))
 		return gap
 	}
-	if g.lines[normalize(l)] {
-		return true
+	if gap, ok := take(g.lines, normalize(l)); ok {
+		return gap
 	}
 	return !startsIndented(l) && !strings.HasPrefix(l, "---") &&
 		(prevIndented || !strings.HasPrefix(strings.TrimSpace(prev), "#"))
