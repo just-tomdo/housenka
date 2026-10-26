@@ -426,6 +426,7 @@ type repoAnalysis struct {
 	AddHost   bool
 	Patterns  []patternOption
 	Covered   string // existing rule that already applies
+	Hint      string
 }
 
 type patternOption struct {
@@ -445,6 +446,15 @@ func analyzeRepo(cfg *config.Config, r *rules.Rules, input, chosen, old string) 
 	if err != nil {
 		a.Err = err.Error()
 		return a
+	}
+	// Without https:// a first segment with dots is the GitLab host only
+	// when it is a configured one; otherwise it is a group name.
+	typedHost := strings.Contains(input, "://") || strings.HasPrefix(strings.TrimSpace(input), "git@")
+	if ref.Host != "" && !typedHost && !slices.ContainsFunc(cfg.GitLabHosts, func(h string) bool { return strings.EqualFold(h, ref.Host) }) {
+		if p, err := gitlaburl.ParsePath(input); err == nil {
+			ref = p
+			a.Hint = "Je-li začátek adresy doména GitLabu, vlož celý odkaz i s https://."
+		}
 	}
 	if ref.Host != "" {
 		a.Host = ref.Host

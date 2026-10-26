@@ -81,6 +81,14 @@ func TestRepoParse(t *testing.T) {
 	lacks(t, body, "už existuje")
 
 	contains(t, f.get("/settings/repos/parse?repo=jen-skupina"), "je jen skupina")
+
+	// Copied without https://: a configured host is recognized, dots in an
+	// unknown first segment make it a group.
+	body = f.get("/settings/repos/parse?" + url.Values{"repo": {"gitlab.example.com/clients/shop-web"}}.Encode())
+	contains(t, body, "✓ doména gitlab.example.com", `value="clients/shop-web" checked`)
+	body = f.get("/settings/repos/parse?" + url.Values{"repo": {"group.with.dots/sub/web"}}.Encode())
+	contains(t, body, `value="group.with.dots/sub/web" checked`, "vlož celý odkaz i s https://")
+	lacks(t, body, "není mezi GitLab doménami")
 }
 
 func TestSaveRepo(t *testing.T) {

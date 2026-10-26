@@ -18,6 +18,9 @@ func TestParseRepo(t *testing.T) {
 		{"https://gitlab.example.com/clients/acme-web/-/tree/main?ref_type=heads", RepoRef{Host: "gitlab.example.com", Path: "clients/acme-web"}},
 		{"git@gitlab.example.com:clients/acme-web.git", RepoRef{Host: "gitlab.example.com", Path: "clients/acme-web"}},
 		{"clients/acme-web", RepoRef{Path: "clients/acme-web"}},
+		{"gitlab.example.com/clients/acme-web", RepoRef{Host: "gitlab.example.com", Path: "clients/acme-web"}},
+		{"GitLab.Example.com/interni/*", RepoRef{Host: "gitlab.example.com", Path: "interni", Wildcard: true}},
+		{"clients/shop.web2023", RepoRef{Path: "clients/shop.web2023"}},
 		{"/clients/acme-web/", RepoRef{Path: "clients/acme-web"}},
 		{"interni/*", RepoRef{Path: "interni", Wildcard: true}},
 		{"https://gitlab.example.com/interni/*", RepoRef{Host: "gitlab.example.com", Path: "interni", Wildcard: true}},
@@ -62,5 +65,12 @@ func TestRepoPatterns(t *testing.T) {
 	}
 	if w.Pattern() != "interni/backend/*" || r.Pattern() != "interni/backend/api" {
 		t.Errorf("Pattern: %q %q", w.Pattern(), r.Pattern())
+	}
+}
+
+func TestParsePathKeepsDottedGroup(t *testing.T) {
+	got, err := ParsePath("group.with.dots/sub/project")
+	if err != nil || got != (RepoRef{Path: "group.with.dots/sub/project"}) {
+		t.Errorf("ParsePath = %+v, %v", got, err)
 	}
 }
