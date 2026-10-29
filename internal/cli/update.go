@@ -51,10 +51,10 @@ func runUpdate(stdout, stderr io.Writer, args []string) error {
 		fmt.Fprintf(stdout, "Je k dispozici %s, máš %s (%s).\nAktualizuješ ji: housenka update\n", rel.Version, Version, exe)
 		return nil
 	case !release && !*force:
-		// A local build (go install, go build) is updated from the sources;
+		// A local build (go build) is updated from the sources;
 		// often it is another copy than the installed release, earlier in PATH.
 		return fmt.Errorf("%s je sestavená ze zdrojových kódů (verze %s).\n"+
-			"Aktualizuj ji přes go install, nebo ji nahraď vydanou verzí %s: housenka update --force", exe, Version, rel.Version)
+			"Aktualizuj ji znovu ze zdrojových kódů, nebo ji nahraď vydanou verzí %s: housenka update --force", exe, Version, rel.Version)
 	}
 	fmt.Fprintf(stdout, "Stahuji %s %s…\n", u.Asset(), rel.Version)
 	if err := u.Install(rel, exe); err != nil {
