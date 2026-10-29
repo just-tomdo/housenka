@@ -25,6 +25,7 @@ type IssueSummary struct {
 // IssueShare is the work of one activity or project code on the issue.
 type IssueShare struct {
 	Code       string
+	Label      string // what to show: the activity label, or the project code
 	Name       string
 	Total      int
 	Productive bool // activities only
@@ -56,7 +57,7 @@ func BuildIssueSummary(issueURL string, entries []entry.Entry, cfg *config.Confi
 		a, ok := activities[e.Activity]
 		if !ok {
 			def, known := cfg.Activities[e.Activity]
-			a = &IssueShare{Code: e.Activity, Name: def.Name, Productive: def.IsProductive(), Known: known}
+			a = &IssueShare{Code: e.Activity, Label: cfg.ActivityLabel(e.Activity), Name: def.Name, Productive: def.IsProductive(), Known: known}
 			activities[e.Activity] = a
 		}
 		a.Total += e.Quarters
@@ -64,7 +65,7 @@ func BuildIssueSummary(issueURL string, entries []entry.Entry, cfg *config.Confi
 		p, ok := projects[e.ProjectCode]
 		if !ok {
 			def, known := cfg.Projects[e.ProjectCode]
-			p = &IssueShare{Code: e.ProjectCode, Name: def.Name, Known: known}
+			p = &IssueShare{Code: e.ProjectCode, Label: e.ProjectCode, Name: def.Name, Known: known}
 			projects[e.ProjectCode] = p
 		}
 		p.Total += e.Quarters

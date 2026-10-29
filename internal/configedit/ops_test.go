@@ -110,6 +110,29 @@ func TestSetActivity(t *testing.T) {
 	}
 }
 
+func TestSetActivityShort(t *testing.T) {
+	d := parse(t)
+	if err := d.SetActivity("DEV", "DEV", Activity{Name: "Vývoj", Short: " Dev ", Productive: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.SetActivity("", "TEST", Activity{Name: "Test", Short: "T", Productive: true}); err != nil {
+		t.Fatal(err)
+	}
+	out, cfg := render(t, d)
+	mustContain(t, out, "# main work",
+		"  DEV:     { name: Vývoj,   short: Dev, productive: true }",
+		"  TEST:    { name: Test,    short: T,   productive: true }")
+	if cfg.ActivityLabel("DEV") != "Dev" || cfg.ActivityLabel("ANALYZA") != "ANALYZA" {
+		t.Errorf("labels = %s", cfg.ActivityLabels(cfg.ActivityCodes()))
+	}
+
+	if err := d.SetActivity("DEV", "DEV", Activity{Name: "Vývoj", Productive: true}); err != nil {
+		t.Fatal(err)
+	}
+	out, _ = render(t, d)
+	mustContain(t, out, "  DEV:     { name: Vývoj,   productive: true }  # main work")
+}
+
 func TestDeleteActivity(t *testing.T) {
 	d := parse(t)
 	if err := d.DeleteActivity("REZIE"); err == nil || !strings.Contains(err.Error(), "jediná povolená u projektu SHOPSUP") {

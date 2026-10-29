@@ -139,13 +139,13 @@ func CopyOf(e entry.Entry, date civil.Date) entry.Entry {
 }
 
 // Matches reports whether e contains the filter query (case-insensitive).
-// An empty query matches everything.
-func Matches(e entry.Entry, query string) bool {
+// The activity matches by its code and its label. An empty query matches everything.
+func Matches(cfg *config.Config, e entry.Entry, query string) bool {
 	q := strings.ToLower(strings.TrimSpace(query))
 	if q == "" {
 		return true
 	}
-	text := strings.Join([]string{e.Description, e.IssueURL, e.ProjectCode, e.Activity}, " ")
+	text := strings.Join([]string{e.Description, e.IssueURL, e.ProjectCode, e.Activity, cfg.ActivityLabel(e.Activity)}, " ")
 	return strings.Contains(strings.ToLower(text), q)
 }
 

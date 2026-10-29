@@ -100,6 +100,21 @@ func (c *Config) Validate() error {
 			add("activities.%s.productive: chybí (true = produktivní, false = neproduktivní)", code)
 		}
 	}
+	// Codes shown as they are go first, so a clash is reported on the short label.
+	labels := map[string]string{}
+	for _, short := range []bool{false, true} {
+		for _, code := range c.ActivityCodes() {
+			if (strings.TrimSpace(c.Activities[code].Short) != "") != short {
+				continue
+			}
+			label := c.ActivityLabel(code)
+			if other, ok := labels[label]; ok {
+				add("activities.%s.short: stejný popisek %q má i činnost %s – nešly by rozlišit", code, label, other)
+				continue
+			}
+			labels[label] = code
+		}
+	}
 
 	if len(c.Projects) == 0 {
 		add("projects: chybí alespoň jeden kód projektu")

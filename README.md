@@ -37,6 +37,13 @@ housenka web              # nebo webové rozhraní v prohlížeči
 
 Ve vzorovém configu je potřeba vyplnit hlavně `bm.base_url` (adresa editoru výkazu) a `bm.fields` (názvy polí formuláře, které se předvyplní – zjistíš je z odkazu, který editor sám vytvoří), dále kódy činností a projektů a mapování repozitářů.
 
+Kódy činností z BM bývají nečitelné. Činnost proto může mít nepovinný krátký popisek `short`, který se v seznamu, formuláři i souhrnech zobrazí místo kódu. Do BM se dál posílá kód. Dvě činnosti nesmí mít stejný popisek, to hlídá `housenka config check`.
+
+```yaml
+activities:
+  X7DEV01: { name: Vývoj, short: DEV, productive: true }
+```
+
 `config edit` použije editor z `$VISUAL` nebo `$EDITOR` (třeba `export EDITOR=nvim`), jinak první nalezený z `nano`, `nvim`, `vim`, `vi`. Když config po uložení obsahuje chyby, vypíše je a nabídne ho otevřít znovu.
 
 Vše je v adresáři `~/.housenka/` (config a `entries/<rok>.json`). Jiné umístění nastavíš přes `HOUSENKA_HOME`, jiný config přes `--config`.
@@ -113,7 +120,7 @@ Celý config se dá upravit v sekci **⚙ Nastavení**, bez psaní YAML:
 - **Průvodce** ukáže, které části configu ještě obsahují vzorové hodnoty, a odkáže na jejich úpravu. Vzorové činnosti, projekty a repozitáře pak smaže jedním tlačítkem.
 - **Repozitáře**: stačí vložit odkaz na repozitář z GitLabu (klidně i odkaz na issue, adresu `.git` nebo `git@…`) nebo napsat `skupina/projekt`. Housenka nabídne pravidlo jen pro tento repozitář nebo pro celou skupinu, upozorní na existující pravidlo a neznámou doménu GitLabu přidá. Nový projekt jde založit rovnou ve stejném formuláři.
 - **Projekty**: přehled kódů s barvou, povolenými a výchozí činností, repozitáři a počtem záznamů. Ve formuláři se vybírá barva štítku, povolené činnosti a repozitáře.
-- **Činnosti**: kódy činností z BM a jestli jsou produktivní.
+- **Činnosti**: kódy činností z BM, jejich krátké popisky a jestli jsou produktivní.
 - **Obecné**: domény GitLabu, adresa a pole Bílého motýla (vyplní se samy z odkazu, který vytvoří editor BM), časové limity, web a vzhled TUI.
 - **YAML**: celý soubor jako text pro pokročilé úpravy. Když je config rozbitý, web nabídne jen tuhle záložku, dokud ho neopravíš.
 

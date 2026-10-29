@@ -103,7 +103,7 @@ func (r *Rules) Validate(e entry.Entry, today civil.Date) Result {
 		fail(FieldActivity, "činnost %s není v configu", e.Activity)
 	case projectKnown && !slices.Contains(r.AllowedActivities(e.ProjectCode), e.Activity):
 		fail(FieldActivity, "činnost %s není u projektu %s povolená (povolené: %s)",
-			e.Activity, e.ProjectCode, strings.Join(r.AllowedActivities(e.ProjectCode), ", "))
+			r.cfg.ActivityLabel(e.Activity), e.ProjectCode, strings.Join(r.cfg.ActivityLabels(r.AllowedActivities(e.ProjectCode)), ", "))
 	}
 
 	maxQ := int(r.cfg.Time.MaxEntry)

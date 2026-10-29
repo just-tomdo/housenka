@@ -122,6 +122,7 @@ type tabLink struct {
 
 type badge struct {
 	Code, Name string
+	Label      string // activities: the label shown instead of the code
 	Class      string
 	Style      template.CSS
 	Kind       string // activities: "good", "bad"
@@ -140,6 +141,7 @@ type projectCard struct {
 	IssueOptional bool
 	Activities    []badge // empty = all activities
 	Default       string
+	DefaultLabel  string
 	Repos         []string
 	Entries       int
 	Warning       string
@@ -148,6 +150,7 @@ type projectCard struct {
 
 type activityRow struct {
 	badge
+	Short      string
 	Productive bool
 	Projects   []string
 	Entries    int
@@ -171,7 +174,7 @@ func activityBadge(cfg *config.Config, code string) badge {
 	if !a.IsProductive() {
 		kind = "bad"
 	}
-	return badge{Code: code, Name: a.Name, Kind: kind}
+	return badge{Code: code, Label: cfg.ActivityLabel(code), Name: a.Name, Kind: kind}
 }
 
 // buildSettings prepares the settings page for the current configuration.
@@ -219,7 +222,8 @@ func (s *Server) buildSettings(q *req, tab string) settingsData {
 	warnings := cfg.Warnings()
 	for _, code := range cfg.ProjectCodes() {
 		p := cfg.Projects[code]
-		c := projectCard{badge: s.projectBadge(cfg, code), IssueOptional: p.IssueOptional(), Default: p.DefaultActivity,
+		c := projectCard{badge: s.projectBadge(cfg, code), IssueOptional: p.IssueOptional(),
+			Default: p.DefaultActivity, DefaultLabel: cfg.ActivityLabel(p.DefaultActivity),
 			Repos: configedit.ReposOf(cfg, code), Entries: usage.Projects[code]}
 		for _, a := range p.Activities {
 			c.Activities = append(c.Activities, activityBadge(cfg, a))
@@ -235,7 +239,7 @@ func (s *Server) buildSettings(q *req, tab string) settingsData {
 
 	for _, code := range cfg.ActivityCodes() {
 		a := cfg.Activities[code]
-		row := activityRow{badge: activityBadge(cfg, code), Productive: a.IsProductive(),
+		row := activityRow{badge: activityBadge(cfg, code), Short: a.Short, Productive: a.IsProductive(),
 			Projects: configedit.ProjectsOf(cfg, code), Entries: usage.Activities[code]}
 		row.Confirm = fmt.Sprintf("Smazat činnost %s (%s)?", code, a.Name)
 		if len(row.Projects) > 0 {
@@ -715,6 +719,7 @@ type activityFormView struct {
 	Old        string
 	Code       string
 	Name       string
+	Short      string
 	Productive bool
 	Entries    int
 	Projects   []string
@@ -730,7 +735,7 @@ func (s *Server) activityForm(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, fmt.Errorf("činnost %s neexistuje – načti stránku znovu", f.Old))
 			return
 		}
-		f.Code, f.Name, f.Productive = f.Old, a.Name, a.IsProductive()
+		f.Code, f.Name, f.Short, f.Productive = f.Old, a.Name, a.Short, a.IsProductive()
 		all, _ := s.store.All()
 		f.Entries = configedit.CountUsage(all).Activities[f.Old]
 		f.Projects = configedit.ProjectsOf(q.cfg, f.Old)
@@ -740,9 +745,10 @@ func (s *Server) activityForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) saveActivity(w http.ResponseWriter, r *http.Request) {
 	f := activityFormView{Old: r.FormValue("old"), Code: strings.TrimSpace(r.FormValue("code")),
-		Name: strings.TrimSpace(r.FormValue("name")), Productive: r.FormValue("productive") == "true"}
+		Name: strings.TrimSpace(r.FormValue("name")), Short: strings.TrimSpace(r.FormValue("short")),
+		Productive: r.FormValue("productive") == "true"}
 	f.Errors = s.change(r, func(d *configedit.Doc) error {
-		return d.SetActivity(f.Old, f.Code, configedit.Activity{Name: f.Name, Productive: f.Productive})
+		return d.SetActivity(f.Old, f.Code, configedit.Activity{Name: f.Name, Short: f.Short, Productive: f.Productive})
 	})
 	if f.Errors != nil {
 		s.render(w, "activity-form", f)

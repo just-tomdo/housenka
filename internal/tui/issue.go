@@ -108,12 +108,12 @@ func (m *Model) issueModal() string {
 	}
 	lines = append(lines, st.DayHeader.Render("Činnosti"))
 	for _, a := range s.Activities {
-		label := st.Good.Render(a.Code)
+		label := st.Good.Render(a.Label)
 		switch {
 		case !a.Known:
-			label = st.Err.Render(a.Code)
+			label = st.Err.Render(a.Label)
 		case !a.Productive:
-			label = st.Bad.Render(a.Code)
+			label = st.Bad.Render(a.Label)
 		}
 		lines = append(lines, share(a, label, 12))
 	}
@@ -132,7 +132,7 @@ func (m *Model) issueModal() string {
 		}
 		date := period.WeekdayShort(e.Date.Weekday()) + " " + m.layout.Format(e.Date)
 		head := "  " + icon + " " + cell(st.Subtext.Render(date), 17) + cell(st.badge(e.ProjectCode), 12) +
-			cell(st.Text.Render(e.Activity), 10) + st.Bold.Render(fmt.Sprintf("%6s", hours.Format(e.Quarters))) + "   "
+			cell(st.Text.Render(m.cfg.ActivityLabel(e.Activity)), 10) + st.Bold.Render(fmt.Sprintf("%6s", hours.Format(e.Quarters))) + "   "
 		lines = append(lines, head+st.Text.Render(ansi.Truncate(flat(e.Description), max(width-ansi.StringWidth(head), 10), "…")))
 	}
 

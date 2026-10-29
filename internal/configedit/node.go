@@ -39,6 +39,16 @@ func set(m *yaml.Node, key string, val *yaml.Node) {
 	m.Content = append(m.Content, scalar(key), val)
 }
 
+// setAfter is set, but a new key goes right after the key after (or last).
+func setAfter(m *yaml.Node, key, after string, val *yaml.Node) {
+	_, i := lookup(m, after)
+	if _, j := lookup(m, key); j >= 0 || i < 0 {
+		set(m, key, val)
+		return
+	}
+	m.Content = slices.Insert(m.Content, i+2, scalar(key), val)
+}
+
 func orStr(a, b string) string {
 	if a != "" {
 		return a

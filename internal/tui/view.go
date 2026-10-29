@@ -196,11 +196,12 @@ func (m *Model) rowView(r row, selected bool, c columns) string {
 		repo = st.Err.Render("neplatný odkaz")
 	}
 
-	activity := st.Good.Render(e.Activity)
+	label := m.cfg.ActivityLabel(e.Activity)
+	activity := st.Good.Render(label)
 	if a, ok := m.cfg.Activities[e.Activity]; !ok {
-		activity = st.Err.Render(e.Activity)
+		activity = st.Err.Render(label)
 	} else if !a.IsProductive() {
-		activity = st.Bad.Render(e.Activity)
+		activity = st.Bad.Render(label)
 	}
 
 	desc := st.Subtext.Render(flat(e.Description))
@@ -265,7 +266,10 @@ func (m *Model) detailView() string {
 			if !a.IsProductive() {
 				kind, word = st.Bad, "neproduktivní"
 			}
-			activity = kind.Render(e.Activity) + " " + st.Text.Render(a.Name) + st.Muted.Render(" · ") + kind.Render(word)
+			activity = kind.Render(cfg.ActivityLabel(e.Activity)) + " " + st.Text.Render(a.Name) + st.Muted.Render(" · ") + kind.Render(word)
+			if cfg.ActivityLabel(e.Activity) != e.Activity {
+				activity += st.Muted.Render(" · v BM " + e.Activity)
+			}
 		}
 		state := st.Subtext.Render(m.icons.Pending + " čeká na odeslání")
 		switch {

@@ -559,7 +559,7 @@ func (m *Model) reload(selectID string) {
 	m.entries = nil
 	for _, e := range all {
 		m.results[e.ID] = m.rules.Validate(e, m.today)
-		if entryedit.Matches(e, m.filter.Value()) {
+		if entryedit.Matches(m.cfg, e, m.filter.Value()) {
 			m.entries = append(m.entries, e)
 		}
 	}

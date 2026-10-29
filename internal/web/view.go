@@ -143,21 +143,22 @@ type dayGroup struct {
 
 type entryView struct {
 	entry.Entry
-	State        string // "sent", "pending", "invalid"
-	Group, Repo  string
-	IssueLabel   string
-	IssueLink    string // the link without the #note fragment
-	BadLink      bool
-	ProjectName  string
-	ProjectClass string
-	ProjectStyle template.CSS
-	ActivityName string
-	ActivityKind string // "good", "bad", "err"
-	Errors       []string
-	BMURL        string
-	BMErr        string
-	DateLabel    string
-	Today        civil.Date
+	State         string // "sent", "pending", "invalid"
+	Group, Repo   string
+	IssueLabel    string
+	IssueLink     string // the link without the #note fragment
+	BadLink       bool
+	ProjectName   string
+	ProjectClass  string
+	ProjectStyle  template.CSS
+	ActivityLabel string // short label, or the code
+	ActivityName  string
+	ActivityKind  string // "good", "bad", "err"
+	Errors        []string
+	BMURL         string
+	BMErr         string
+	DateLabel     string
+	Today         civil.Date
 }
 
 func barOf(t stats.Totals, goal int) bar {
@@ -225,7 +226,7 @@ func (s *Server) buildMain(cfg *config.Config, r *rules.Rules, cfgErr error, v v
 		if !e.Sent {
 			m.Unsent++
 		}
-		if !entryedit.Matches(e, v.Q) {
+		if !entryedit.Matches(cfg, e, v.Q) {
 			continue
 		}
 		m.Count++
@@ -264,7 +265,7 @@ func newEntryView(cfg *config.Config, r *rules.Rules, e entry.Entry, today civil
 	if p, ok := cfg.Projects[e.ProjectCode]; ok {
 		ev.ProjectName = p.Name
 	}
-	ev.ActivityKind = "err"
+	ev.ActivityLabel, ev.ActivityKind = cfg.ActivityLabel(e.Activity), "err"
 	if a, ok := cfg.Activities[e.Activity]; ok {
 		ev.ActivityName = a.Name
 		ev.ActivityKind = "good"
@@ -333,6 +334,7 @@ type formView struct {
 
 type option struct {
 	Code, Name string
+	Label      string // activities: the label shown instead of the code
 	Class      string
 	Style      template.CSS
 	Kind       string // activities: "good" / "bad"
@@ -441,12 +443,15 @@ func buildChoices(cfg *config.Config, c entryedit.Choices, errs, warns map[strin
 		if !a.IsProductive() {
 			kind = "bad"
 		}
-		v.Activities = append(v.Activities, option{Code: code, Name: a.Name, Kind: kind, Selected: code == c.Activity})
+		v.Activities = append(v.Activities, option{Code: code, Label: cfg.ActivityLabel(code), Name: a.Name, Kind: kind, Selected: code == c.Activity})
 	}
 	if a, ok := cfg.Activities[c.Activity]; ok {
 		v.ActivityHint = hint{a.Name + " · produktivní", "good"}
 		if !a.IsProductive() {
 			v.ActivityHint = hint{a.Name + " · neproduktivní", "bad"}
+		}
+		if cfg.ActivityLabel(c.Activity) != c.Activity {
+			v.ActivityHint.Text += " · v BM " + c.Activity
 		}
 	}
 	return v
