@@ -36,6 +36,10 @@ Příkazy:
   config check          zkontroluje config a vypíše chyby a varování
   config path           vypíše, kde jsou config a data
   parse ODKAZ           rozebere odkaz na issue a vypíše povolené kódy a činnosti
+  update [--check] [--force]
+                        stáhne a nainstaluje poslední vydanou verzi
+                        (--check jen zjistí, jestli je nová verze;
+                        --force nahradí i binárku sestavenou ze zdrojových kódů)
   version               vypíše verzi
   help                  tato nápověda
 
@@ -69,6 +73,10 @@ type WebCommand struct {
 
 // Web runs the web interface. It is set by the main package, like TUI.
 var Web func(c WebCommand, stdout io.Writer) error
+
+// WebRunning returns the address of the web interface running in the
+// background, if any. It is set by the main package, like TUI.
+var WebRunning func() (url string, ok bool)
 
 // errUsage signals a usage error that has already been reported.
 var errUsage = errors.New("usage")
@@ -128,6 +136,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return parse(stdout, *cfgPath, rest[0])
 	case "web":
 		return web(stdout, stderr, *cfgPath, rest)
+	case "update":
+		return runUpdate(stdout, stderr, rest)
 	case "config":
 		sub := ""
 		if len(rest) > 0 {

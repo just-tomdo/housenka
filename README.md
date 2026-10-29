@@ -16,7 +16,9 @@ Na Linuxu, macOS a ve WSL stačí jeden příkaz:
 curl -fsSL https://raw.githubusercontent.com/just-tomdo/housenka/main/install.sh | sh
 ```
 
-Stáhne poslední vydanou verzi pro tvůj systém, ověří její kontrolní součet a uloží ji do `~/.local/bin` (jiný adresář nastavíš přes `HOUSENKA_INSTALL_DIR`). Když ten adresář nemáš v `PATH`, poradí, jak ho přidat. Na novou verzi aktualizuješ stejným příkazem, nainstalovanou verzi vypíše `housenka version`.
+Stáhne poslední vydanou verzi pro tvůj systém, ověří její kontrolní součet a uloží ji do `~/.local/bin` (jiný adresář nastavíš přes `HOUSENKA_INSTALL_DIR`). Když ten adresář nemáš v `PATH`, poradí, jak ho přidat. Nainstalovanou verzi vypíše `housenka version`.
+
+Na novou verzi aktualizuješ příkazem `housenka update` na všech systémech včetně Windows. Stáhne poslední vydanou verzi, ověří její kontrolní součet a nahradí spuštěnou binárku. `housenka update --check` jen zjistí, jestli je nová verze. Binárku sestavenou ze zdrojových kódů (`go install`, `go build`) `update` nepřepíše, pokud mu to nepovolíš přes `--force`. Vypíše i cestu k ní, takže hned uvidíš, když se spouští jiná kopie, než jakou jsi nainstaloval. Stejně dobře funguje i opakované spuštění instalačního skriptu.
 
 Na Windows stáhni `housenka-windows-amd64.exe` z [Releases](https://github.com/just-tomdo/housenka/releases). Kdo má Go, může i `go install github.com/just-tomdo/housenka@latest` nebo z repozitáře `go build -o housenka .`.
 
