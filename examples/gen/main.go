@@ -40,6 +40,7 @@ type Scenario struct {
 	ActivityWeights map[string]int      `yaml:"activity_weights"`
 	ActivityNotes   map[string][]string `yaml:"activity_notes"` // optional " – note" suffixes per activity
 	VacationBlocks  []int               `yaml:"vacation_blocks"`
+	IssuesPerDay    []int               `yaml:"issues_per_day"` // issue entries per day, one is picked at random
 	Issues          []IssueGroup        `yaml:"issues"`
 	Routine         []Routine           `yaml:"routine"`
 	Occasional      []Occasional        `yaml:"occasional"`
@@ -223,14 +224,20 @@ func (g *gen) day(d civil.Date, today bool, first civil.Date) []entry.Entry {
 		}
 	}
 
-	n := pick(g.rnd, []int{1, 2, 2, 2, 3, 3})
+	perDay := g.sc.IssuesPerDay
+	if len(perDay) == 0 {
+		perDay = []int{1, 2, 2, 2, 3, 3}
+	}
+	n := pick(g.rnd, perDay)
 	for i := range n {
 		if target < 2 {
 			break
 		}
 		q := target
-		if i < n-1 {
-			q = 2 * (1 + g.rnd.IntN(max(1, target/2-1)))
+		if left := n - 1 - i; left > 0 {
+			// At most twice the fair share, leaving half an hour for each remaining entry.
+			upper := min(target-2*left, 2*target/(left+1))
+			q = 2 * (1 + g.rnd.IntN(max(1, upper/2)))
 			q = min(q, target-2)
 		}
 		iss := g.issue(i)
@@ -245,7 +252,7 @@ func (g *gen) day(d civil.Date, today bool, first civil.Date) []entry.Entry {
 
 // issue returns the i-th issue worked on today, opening new ones as needed.
 func (g *gen) issue(i int) *openIssue {
-	for len(g.open) < 4 {
+	for len(g.open) < max(4, i+1) {
 		g.open = append(g.open, g.newIssue())
 	}
 	if i == 0 {
