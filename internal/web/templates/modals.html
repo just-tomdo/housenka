@@ -15,7 +15,7 @@
     <h3>Činnosti</h3>
     <table class="shares">
       {{range .Activities}}<tr>
-        <td class="{{.Kind}} code">{{.Code}}</td>
+        <td class="{{.Kind}} code"{{if ne .Label .Code}} title="v BM {{.Code}}"{{end}}>{{.Label}}</td>
         <td>{{if .Known}}{{.Name}}{{else}}<span class="err">není v configu</span>{{end}}</td>
         <td class="num"><strong>{{hours .Total}} h</strong></td>
         <td class="num muted">{{.Pct}} %</td>
@@ -38,7 +38,7 @@
         <td class="e-state">{{if eq .State "sent"}}✓{{else if eq .State "invalid"}}⚠{{else}}•{{end}}</td>
         <td class="subtext nowrap">{{.DateLabel}}</td>
         <td><span class="badge proj {{.ProjectClass}}"{{with .ProjectStyle}} style="{{.}}"{{end}}>{{.ProjectCode}}</span></td>
-        <td class="{{.ActivityKind}}">{{.Activity}}</td>
+        <td class="{{.ActivityKind}}">{{.ActivityLabel}}</td>
         <td class="num"><strong>{{hours .Quarters}}</strong></td>
         <td class="desc">{{.Description}}</td>
       </tr>{{end}}

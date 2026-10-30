@@ -458,7 +458,11 @@ func (f *form) options(opts []string, selected string, focused, projects bool) s
 		case o == selected:
 			style = f.st.OptionActive
 		}
-		chip := style.Render(o)
+		label := o
+		if !projects {
+			label = f.rules.Config().ActivityLabel(o)
+		}
+		chip := style.Render(label)
 		if line != "" && lipgloss.Width(line)+1+lipgloss.Width(chip) > limit {
 			lines = append(lines, line)
 			line = ""
@@ -506,7 +510,11 @@ func (f *form) hint(fl field) string {
 			if !a.IsProductive() {
 				kind = st.Bad.Render("neproduktivní")
 			}
-			return st.Muted.Render(a.Name+" · ") + kind
+			hint := st.Muted.Render(a.Name+" · ") + kind
+			if cfg.ActivityLabel(f.activity) != f.activity {
+				hint += st.Muted.Render(" · v BM " + f.activity)
+			}
+			return hint
 		}
 	case fieldHours:
 		if q, err := hours.Parse(f.inputs[fieldHours].Value()); err == nil && q > 0 {

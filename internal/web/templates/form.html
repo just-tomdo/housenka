@@ -58,8 +58,8 @@
   <fieldset class="field">
     <legend>Činnost</legend>
     <div class="chips">
-      {{range .Activities}}<label class="chip act {{.Kind}}" title="{{.Name}}">
-        <input type="radio" name="activity" id="a-{{.Code}}" value="{{.Code}}"{{if .Selected}} checked{{end}}><span>{{.Code}}</span></label>{{end}}
+      {{range .Activities}}<label class="chip act {{.Kind}}" title="{{.Name}}{{if ne .Label .Code}} · v BM {{.Code}}{{end}}">
+        <input type="radio" name="activity" id="a-{{.Code}}" value="{{.Code}}"{{if .Selected}} checked{{end}}><span>{{.Label}}</span></label>{{end}}
       {{if not .Activities}}<span class="muted">nejdřív vyber projekt</span>{{end}}
     </div>
     {{template "hint" (.Hint "activity").WithID "hint-activity"}}

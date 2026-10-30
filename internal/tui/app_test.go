@@ -781,3 +781,41 @@ func TestStaleFormKeepsTypedValues(t *testing.T) {
 		t.Errorf("second save stored %+v", got[0])
 	}
 }
+
+// An activity with a short label shows the label everywhere; BM gets the code.
+func TestActivityShortLabel(t *testing.T) {
+	m, s, o := newTestModel(t)
+	a := m.cfg.Activities["ANALYSIS"]
+	a.Short = "Návrh"
+	m.cfg.Activities["ANALYSIS"] = a
+	m = New(m.cfg, s, o, func() civil.Date { return today })
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	seed(t, s, sample(today, "SHOPDEV", "ANALYSIS", 4, "rozbor košíku"), sample(today, "INTERNI", "OPS", 4, "porada"))
+	m.reload("")
+
+	sc := screen(m)
+	for _, want := range []string{"SHOPDEV    Návrh       1,00", "Návrh Analýza a návrh · produktivní · v BM ANALYSIS"} {
+		if !strings.Contains(sc, want) {
+			t.Errorf("list or detail lacks %q:\n%s", want, sc)
+		}
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'b', Text: "b"})
+	m.Update(cmd())
+	if len(o.opened) != 1 || !strings.Contains(o.opened[0], "activity=ANALYSIS") {
+		t.Errorf("opened = %v", o.opened)
+	}
+
+	press(m, "I")
+	if sc := screen(m); !strings.Contains(sc, "Návrh       Analýza a návrh") || !strings.Contains(sc, "SHOPDEV    Návrh       1,00   rozbor") {
+		t.Errorf("issue summary:\n%s", sc)
+	}
+	press(m, "<esc>", "e")
+	if sc := screen(m); !strings.Contains(sc, "Návrh") || !strings.Contains(sc, "Analýza a návrh · produktivní · v BM ANALYSIS") {
+		t.Errorf("form:\n%s", sc)
+	}
+	press(m, "<esc>", "/", "návrh")
+	if len(m.entries) != 1 || m.entries[0].Activity != "ANALYSIS" {
+		t.Errorf("filter by label: %d entries", len(m.entries))
+	}
+}

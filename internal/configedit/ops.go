@@ -33,6 +33,7 @@ func hasKey(m *yaml.Node, key string) bool {
 // Activity is the editable part of an activity.
 type Activity struct {
 	Name       string
+	Short      string // label shown instead of the code, "" = the code
 	Productive bool
 }
 
@@ -65,6 +66,11 @@ func (d *Doc) SetActivity(old, code string, a Activity) error {
 		set(acts, code, node)
 	}
 	set(node, "name", scalar(strings.TrimSpace(a.Name)))
+	if short := strings.TrimSpace(a.Short); short == "" {
+		del(node, "short")
+	} else {
+		setAfter(node, "short", "name", scalar(short))
+	}
 	set(node, "productive", boolean(a.Productive))
 	return nil
 }

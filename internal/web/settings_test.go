@@ -179,6 +179,29 @@ func TestSaveActivity(t *testing.T) {
 	contains(t, body, "Činnost TEST smazána")
 }
 
+func TestActivityShortLabel(t *testing.T) {
+	f := newFixture(t)
+	body, _ := f.post("/settings/activities", url.Values{"old": {"DEV"}, "code": {"DEV"}, "name": {"Vývoj"}, "short": {" Vyv "}, "productive": {"true"}})
+	contains(t, body, "Činnost DEV uložena")
+	if got := f.cfg().Activities["DEV"].Short; got != "Vyv" {
+		t.Fatalf("short = %q", got)
+	}
+	body, _ = f.post("/settings/activities", url.Values{"old": {"ANALYZA"}, "code": {"ANALYZA"}, "name": {"Analýza"}, "short": {"Vyv"}, "productive": {"true"}})
+	contains(t, body, "Neuloženo", "stejný popisek &#34;Vyv&#34; má i činnost", `name="short" value="Vyv"`)
+
+	f.save(sample(today, "Košík"))
+	contains(t, f.get("/"), `title="Vyv · Vývoj · v BM DEV">Vyv</div>`, "a=DEV")
+	contains(t, f.get("/form/refresh?"+url.Values{"issue": {issue}, "project": {"SHOPDEV"}}.Encode()),
+		`value="DEV" checked><span>Vyv</span>`, "Vývoj · produktivní · v BM DEV")
+	contains(t, f.get("/issue?url="+url.QueryEscape(issue)), `title="v BM DEV">Vyv</td>`)
+	contains(t, f.get("/settings/activities"), "<td>Vyv</td>")
+	contains(t, f.get("/settings/projects"), `title="Vývoj · v BM DEV">Vyv</span>`, `<span class="act">Vyv</span>`)
+	contains(t, f.get("/settings/activities/form?code=DEV"), `name="short" value="Vyv"`)
+	f.post("/settings/activities", url.Values{"old": {"DEV"}, "code": {"DEV"}, "name": {"Vývoj"}, "short": {""}, "productive": {"true"}})
+	data, _ := os.ReadFile(f.cfgPath)
+	lacks(t, string(data), "short")
+}
+
 func withHash(f *fixture, v url.Values) url.Values {
 	data, _ := os.ReadFile(f.cfgPath)
 	v.Set("hash", configedit.Hash(data))

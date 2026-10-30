@@ -85,7 +85,7 @@
   <div class="e-state" title="{{if eq .State "sent"}}odesláno do BM{{else if eq .State "invalid"}}neplatný záznam{{else}}čeká na odeslání{{end}}">{{if eq .State "sent"}}✓{{else if eq .State "invalid"}}⚠{{else}}•{{end}}</div>
   <div class="e-issue">{{if .IssueLabel}}<span class="group">{{.Group}}/</span><span class="repo">{{.Repo}}</span> <a class="iid" href="{{.IssueLink}}" target="_blank" rel="noopener" data-key="i" title="Otevřít issue (i)">{{.IssueLabel}}</a>{{else if .BadLink}}<span class="err">{{.Repo}}</span>{{else}}<span class="muted">bez issue</span>{{end}}</div>
   <div class="e-project"><span class="badge proj {{.ProjectClass}}"{{with .ProjectStyle}} style="{{.}}"{{end}} title="{{.ProjectName}}">{{.ProjectCode}}</span></div>
-  <div class="e-activity {{.ActivityKind}}" title="{{if .ActivityName}}{{.ActivityName}}{{else}}není v configu{{end}}">{{.Activity}}</div>
+  <div class="e-activity {{.ActivityKind}}" title="{{if .ActivityName}}{{if ne .ActivityLabel .Activity}}{{.ActivityLabel}} · {{end}}{{.ActivityName}}{{if ne .ActivityLabel .Activity}} · v BM {{.Activity}}{{end}}{{else}}není v configu{{end}}">{{.ActivityLabel}}</div>
   <div class="e-hours">{{hours .Quarters}}</div>
   <div class="e-desc"><span class="first">{{first .Description}}</span>{{with rest .Description}}<span class="rest">{{.}}</span>{{end}}
     {{with .Errors}}<div class="e-errors">{{range .}}<span>⚠ {{.}}</span>{{end}}</div>{{end}}</div>

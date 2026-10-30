@@ -77,8 +77,8 @@
       </header>
       <dl>
         <dt>Issue</dt><dd>{{if .IssueOptional}}volitelné{{else}}povinné{{end}}</dd>
-        {{$def := .Default}}<dt>Činnosti</dt><dd class="badges">{{range .Activities}}<span class="act {{.Kind}}{{if eq .Code $def}} default{{end}}" title="{{.Name}}">{{.Code}}</span>{{else}}<span class="muted">všechny</span>{{end}}</dd>
-        <dt>Výchozí</dt><dd>{{with .Default}}<span class="act">{{.}}</span>{{else}}<span class="muted">–</span>{{end}}</dd>
+        {{$def := .Default}}<dt>Činnosti</dt><dd class="badges">{{range .Activities}}<span class="act {{.Kind}}{{if eq .Code $def}} default{{end}}" title="{{.Name}}{{if ne .Label .Code}} · v BM {{.Code}}{{end}}">{{.Label}}</span>{{else}}<span class="muted">všechny</span>{{end}}</dd>
+        <dt>Výchozí</dt><dd>{{if .Default}}<span class="act">{{.DefaultLabel}}</span>{{else}}<span class="muted">–</span>{{end}}</dd>
         <dt>Repozitáře</dt><dd>{{range .Repos}}<code>{{.}}</code> {{else}}<span class="muted">žádné</span>{{end}}</dd>
         <dt>Záznamy</dt><dd>{{.Entries}}</dd>
       </dl>
@@ -100,9 +100,10 @@
     <button class="btn primary" hx-get="/settings/activities/form" hx-target="#modal">+ Nová činnost</button>
   </div>
   <div class="card table-wrap"><table class="settings-table">
-    <thead><tr><th>Kód</th><th>Název</th><th>Druh</th><th>Povolená u projektů</th><th class="num">Záznamy</th><th></th></tr></thead>
+    <thead><tr><th>Kód</th><th>Popisek</th><th>Název</th><th>Druh</th><th>Povolená u projektů</th><th class="num">Záznamy</th><th></th></tr></thead>
     <tbody>{{range .Activities}}<tr>
       <td><span class="act {{.Kind}}">{{.Code}}</span></td>
+      <td>{{with .Short}}{{.}}{{else}}<span class="muted">–</span>{{end}}</td>
       <td>{{.Name}}</td>
       <td class="{{.Kind}}">{{if .Productive}}produktivní{{else}}neproduktivní{{end}}</td>
       <td>{{range .Projects}}<code>{{.}}</code> {{else}}<span class="muted">jen u projektů bez omezení</span>{{end}}</td>
@@ -293,13 +294,13 @@
     <fieldset class="field">
       <legend>Povolené činnosti <span class="subtext">(žádná vybraná = všechny)</span></legend>
       <div class="chips">
-        {{range .Activities}}<label class="chip act {{.Kind}}" title="{{.Name}}"><input type="checkbox" name="activities" value="{{.Value}}"{{if .Checked}} checked{{end}}><span>{{.Code}}</span></label>{{end}}
+        {{range .Activities}}<label class="chip act {{.Kind}}" title="{{.Name}}{{if ne .Label .Code}} · v BM {{.Code}}{{end}}"><input type="checkbox" name="activities" value="{{.Value}}"{{if .Checked}} checked{{end}}><span>{{.Label}}</span></label>{{end}}
       </div>
     </fieldset>
     <label class="field"><span>Výchozí činnost</span>
       <select name="default_activity">
         <option value="">– žádná –</option>
-        {{range .Defaults}}<option value="{{.Code}}"{{if eq .Code $.Default}} selected{{end}}>{{.Code}} · {{.Name}}</option>{{end}}
+        {{range .Defaults}}<option value="{{.Code}}"{{if eq .Code $.Default}} selected{{end}}>{{.Label}}{{if ne .Label .Code}} ({{.Code}}){{end}} · {{.Name}}</option>{{end}}
       </select></label>
     {{if .Repos}}<fieldset class="field">
       <legend>Repozitáře, ze kterých se na projekt vykazuje</legend>
@@ -329,6 +330,8 @@
       <label class="field"><span>Kód z BM</span><input name="code" value="{{.Code}}" placeholder="DEV" autocomplete="off" required{{if not .Old}} autofocus{{end}}></label>
       <label class="field"><span>Název</span><input name="name" value="{{.Name}}" placeholder="Vývoj" autocomplete="off" required></label>
     </div>
+    <label class="field"><span>Krátký popisek <span class="subtext">(nepovinný)</span></span><input name="short" value="{{.Short}}" placeholder="{{if .Code}}{{.Code}}{{else}}DEV{{end}}" autocomplete="off"></label>
+    <p class="hint">Zobrazuje se místo kódu v seznamu, formuláři i souhrnech. Do BM se dál posílá kód. Bez popisku se zobrazuje kód.</p>
     <fieldset class="field">
       <legend>Druh práce</legend>
       <div class="chips">

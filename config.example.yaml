@@ -45,6 +45,8 @@ time:                      # hodiny po čtvrthodinách (8, 7.5, "7:30")
 # Číselník činností: KÓD: { name, productive }. Kódy musí odpovídat kódům
 # v Bílém motýlu – níže jsou jen PŘÍKLADY.
 # productive je povinné – rozhoduje o poměru produktivní / neproduktivní práce.
+# short je nepovinný krátký popisek, který se zobrazí místo nečitelného kódu
+# (do BM jde dál kód), např.  X7DEV01: { name: Vývoj, short: DEV, productive: true }
 activities:
   DEV:      { name: Vývoj,             productive: true }
   ANALYSIS: { name: Analýza a návrh,   productive: true }

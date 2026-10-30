@@ -220,6 +220,13 @@ func running() (state, bool) {
 	return st, s == up
 }
 
+// Running returns the address of this home's server running in the
+// background, if it answers.
+func Running() (url string, ok bool) {
+	st, ok := running()
+	return st.URL, ok
+}
+
 // stateCheckEvery is how often a running server makes sure its state file
 // exists and is its own, so `web stop` can always find it.
 var stateCheckEvery = 5 * time.Second

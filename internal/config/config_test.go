@@ -78,6 +78,16 @@ func TestParseValid(t *testing.T) {
 	}
 }
 
+func TestActivityLabel(t *testing.T) {
+	cfg, err := Parse([]byte(strings.Replace(validYAML, "{ name: Analýza, productive: true }", "{ name: Analýza, short: AN, productive: true }", 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(cfg.ActivityLabels([]string{"ANALYZA", "DEV", "UNKNOWN"}), ","); got != "AN,DEV,UNKNOWN" {
+		t.Errorf("ActivityLabels = %s", got)
+	}
+}
+
 func TestWebDefaults(t *testing.T) {
 	cfg, err := Parse([]byte(validYAML))
 	if err != nil {
@@ -119,6 +129,21 @@ func TestParseErrors(t *testing.T) {
 				return strings.Replace(s, "{ name: Režie, productive: false }", "{ name: Režie }", 1)
 			},
 			wantMsg: "activities.REZIE.productive: chybí",
+		},
+		{
+			name: "short label used twice",
+			mutate: func(s string) string {
+				s = strings.Replace(s, "{ name: Analýza, productive: true }", "{ name: Analýza, short: Návrh, productive: true }", 1)
+				return strings.Replace(s, "{ name: Režie, productive: false }", "{ name: Režie, short: Návrh, productive: false }", 1)
+			},
+			wantMsg: `activities.REZIE.short: stejný popisek "Návrh" má i činnost ANALYZA`,
+		},
+		{
+			name: "short label equal to another code",
+			mutate: func(s string) string {
+				return strings.Replace(s, "{ name: Analýza, productive: true }", "{ name: Analýza, short: DEV, productive: true }", 1)
+			},
+			wantMsg: `activities.ANALYZA.short: stejný popisek "DEV" má i činnost DEV`,
 		},
 		{
 			name:    "unknown activity in project",

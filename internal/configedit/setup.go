@@ -32,7 +32,7 @@ func SetupDone(steps []Step) bool {
 }
 
 func sameActivity(a, b config.Activity) bool {
-	return a.Name == b.Name && a.IsProductive() == b.IsProductive()
+	return a.Name == b.Name && a.Short == b.Short && a.IsProductive() == b.IsProductive()
 }
 
 func sameProject(a, b config.Project) bool {

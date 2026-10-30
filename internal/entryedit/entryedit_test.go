@@ -16,7 +16,7 @@ const testYAML = `
 gitlab_hosts: [gitlab.example.com]
 bm: { base_url: https://bm.example.com/editor, fields: { project: p, issue: i, hours: h, activity: a, date: d, description: t } }
 activities:
-  DEV:     { name: Vývoj, productive: true }
+  DEV:     { name: Vývoj, short: Kód, productive: true }
   ANALYZA: { name: Analýza, productive: true }
   REZIE:   { name: Režie, productive: false }
 projects:
@@ -121,9 +121,13 @@ func TestCopyOf(t *testing.T) {
 }
 
 func TestMatches(t *testing.T) {
-	e := entry.Entry{Description: "Oprava košíku", ProjectCode: "SHOPDEV"}
-	for q, want := range map[string]bool{"": true, "  ": true, "KOŠÍK": true, "shopdev": true, "faktura": false} {
-		if got := Matches(e, q); got != want {
+	cfg, err := config.Parse([]byte(testYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := entry.Entry{Description: "Oprava košíku", ProjectCode: "SHOPDEV", Activity: "DEV"}
+	for q, want := range map[string]bool{"": true, "  ": true, "KOŠÍK": true, "shopdev": true, "dev": true, "kód": true, "faktura": false} {
+		if got := Matches(cfg, e, q); got != want {
 			t.Errorf("Matches(%q) = %v", q, got)
 		}
 	}

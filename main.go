@@ -31,6 +31,7 @@ func main() {
 	web.ExampleConfig = exampleConfig
 	cli.TUI = func(cfg *config.Config, _ string) error { return tui.Run(cfg) }
 	cli.Web = runWeb
+	cli.WebRunning = web.Running
 	os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr))
 }
 

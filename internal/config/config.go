@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -110,6 +111,7 @@ type Time struct {
 // Activity is a BM activity type ("činnost").
 type Activity struct {
 	Name       string `yaml:"name"`
+	Short      string `yaml:"short"`      // optional label shown instead of the code
 	Productive *bool  `yaml:"productive"` // required; pointer detects omission
 }
 
@@ -233,6 +235,24 @@ func translateYAMLError(err error) error {
 // ActivityCodes returns all activity codes, sorted.
 func (c *Config) ActivityCodes() []string {
 	return sortedKeys(c.Activities)
+}
+
+// ActivityLabel returns how an activity is shown: its short label, or the
+// code when it has none. BM always gets the code.
+func (c *Config) ActivityLabel(code string) string {
+	if s := strings.TrimSpace(c.Activities[code].Short); s != "" {
+		return s
+	}
+	return code
+}
+
+// ActivityLabels returns the labels of codes, in the same order.
+func (c *Config) ActivityLabels(codes []string) []string {
+	out := make([]string, len(codes))
+	for i, code := range codes {
+		out[i] = c.ActivityLabel(code)
+	}
+	return out
 }
 
 // ProjectCodes returns all project codes, sorted.
