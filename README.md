@@ -63,7 +63,7 @@ Demo má zapnutý i přehled issues z GitLabu (v TUI klávesa `T`, ve webu odkaz
 
 ## Přehled issues z GitLabu
 
-Volitelné rozšíření pro ty, kdo mají na sobě hromadu issues. Issue přiřazená tobě se načítají z GitLabu a čekají jako **nová**, dokud je nezařadíš na vlastní **nástěnku**. Ta má sloupce podle tvých stavů s vlastními barvami. U issue si píšeš poznámky, vidíš, kdy ti bylo přiřazeno a kolik je na něm vykázáno, a `v` otevře formulář výkazu s vyplněným issue. Zapomenutá issue se obarví, mrtvá skryješ.
+Volitelné rozšíření pro ty, kdo mají na sobě hromadu issues. Issue přiřazená tobě se načítají z GitLabu a čekají jako **nová**, dokud je nezařadíš na vlastní **nástěnku**. Ta má sloupce podle tvých stavů s vlastními barvami. U issue si píšeš poznámky, vidíš, kdy ti bylo přiřazeno a kolik je na něm vykázáno, a `v` otevře formulář výkazu s vyplněným issue. Zapomenutá issue se obarví, méně podstatná odložíš (zašednou na konec sloupce), mrtvá skryješ. Načítání z GitLabu běží samo v TUI i ve webu, ručně ho spustí `r`.
 
 ```sh
 housenka issues init      # zapne rozšíření (~/.housenka/issues.yaml)

@@ -64,7 +64,7 @@ func (m *Model) issuesHeader() string {
 	case v.data.SyncedAt.IsZero():
 		line2 = st.Muted.Render("Z GitLabu se zatím nic nenačetlo – r načte.")
 	default:
-		line2 = st.Muted.Render("Z GitLabu načteno " + issues.SyncedLabel(v.data, m.today))
+		line2 = st.Muted.Render("Z GitLabu načteno " + issues.SyncedLabel(v.data, m.today) + " · r načte znovu")
 	}
 	line2 = spread(line2, st.Muted.Render("řazení: "+v.sort.Label()+map[bool]string{true: " · podle repozitáře"}[v.byRepo]), inner)
 	return m.surfaceBlock([]string{line1, line2})

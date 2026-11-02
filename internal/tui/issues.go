@@ -590,12 +590,17 @@ func (m *Model) handleIssueDetailKey(km tea.KeyPressMsg) tea.Cmd {
 // --- sync -------------------------------------------------------------------------
 
 type issuesSyncedMsg struct {
-	res issues.SyncResult
-	err error
+	res   issues.SyncResult
+	err   error
+	quiet bool // the periodic sync
 }
 
 // syncIssues reads GitLab in the background.
-func (m *Model) syncIssues() tea.Cmd {
+func (m *Model) syncIssues() tea.Cmd { return m.startSync(false) }
+
+// startSync reads GitLab in the background. A quiet sync (the periodic one)
+// reports failures only in the overview, and new issues with a toast.
+func (m *Model) startSync(quiet bool) tea.Cmd {
 	v := m.iss
 	if v.syncing || v.cfg == nil {
 		return nil
@@ -603,26 +608,72 @@ func (m *Model) syncIssues() tea.Cmd {
 	v.lastTry = time.Now()
 	st, err := m.issueStore()
 	if err != nil {
-		return m.fail(err)
+		return m.syncFailed(err, quiet)
 	}
 	src, err := issues.Connect(v.cfg, m.cfg)
 	if err != nil {
-		return m.fail(issues.RecordSyncError(st, err))
+		return m.syncFailed(issues.RecordSyncError(st, err), quiet)
 	}
 	v.syncing = true
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), issues.SyncTimeout)
 		defer cancel()
 		res, err := issues.Sync(ctx, src, st)
-		return issuesSyncedMsg{res, err}
+		return issuesSyncedMsg{res, err, quiet}
 	}
+}
+
+func (m *Model) syncFailed(err error, quiet bool) tea.Cmd {
+	if quiet && !m.issuesOpen {
+		return nil // shown in the overview's header
+	}
+	return m.fail(err)
+}
+
+// issuesTickEvery is how often the TUI checks whether GitLab should be read
+// (every sync_minutes, like the web server).
+var issuesTickEvery = time.Minute
+
+type issuesTickMsg struct{}
+
+func issuesTick() tea.Cmd {
+	return tea.Tick(issuesTickEvery, func(time.Time) tea.Msg { return issuesTickMsg{} })
+}
+
+// issuesTicked reads GitLab when it is due, also while the entries are shown.
+func (m *Model) issuesTicked() tea.Cmd {
+	v := m.iss
+	cfg, err := v.file.Get()
+	if cfg == nil || err != nil || v.syncing {
+		return issuesTick()
+	}
+	st, err := m.issueStore()
+	if err != nil {
+		return issuesTick()
+	}
+	f, err := st.Load()
+	if err != nil || !issues.SyncDue(f, cfg, v.lastTry, time.Now()) {
+		return issuesTick()
+	}
+	v.cfg = cfg
+	return tea.Batch(issuesTick(), m.startSync(true))
 }
 
 func (m *Model) issuesSynced(msg issuesSyncedMsg) tea.Cmd {
 	m.iss.syncing = false
-	m.loadIssues()
-	if msg.err != nil {
-		return m.fail(errors.New("GitLab: " + msg.err.Error()))
+	if m.issuesOpen {
+		m.loadIssues()
+	}
+	switch {
+	case msg.err != nil && errors.Is(msg.err, issues.ErrSyncRunning) && msg.quiet:
+		return nil // the web server is reading GitLab right now
+	case msg.err != nil:
+		return m.syncFailed(errors.New("GitLab: "+msg.err.Error()), msg.quiet)
+	case msg.quiet && !m.issuesOpen:
+		if msg.res.New+msg.res.Returned == 0 {
+			return nil
+		}
+		return m.notify("GitLab: "+msg.res.String()+" – T je ukáže", false)
 	}
 	return m.notify("Načteno z GitLabu: "+msg.res.String(), false)
 }

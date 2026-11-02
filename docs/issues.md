@@ -6,7 +6,7 @@ Volitelné rozšíření Housenky pro ty, kdo mají na sobě hodně issues a ztr
 - **Nástěnka** má sloupce podle tvých vlastních stavů (např. Na řadě, Rozpracováno, Čeká, Hotovo) s vlastními barvami. Issue mezi nimi přesouváš klávesami nebo myší a v rámci sloupce si je seřadíš.
 - Každé issue má **poznámky**, datum přiřazení, termín z GitLabu, štítky a součet vykázaných hodin. Karta zežloutne, když na issue dlouho nesáhneš.
 - **Vykázat** otevře formulář výkazu s vyplněným issue. Detail issue ukazuje všechnu práci na něm.
-- Mrtvá issue **skryješ**; issue zavřené v GitLabu nebo přeřazené na někoho jiného zůstane se značkou, dokud ho neskryješ.
+- Méně podstatná issue **odložíš**: zašednou a půjdou na konec sloupce. Mrtvá issue **skryješ**; issue zavřené v GitLabu nebo přeřazené na někoho jiného zůstane se značkou, dokud ho neskryješ.
 
 Rozšíření funguje v TUI i v prohlížeči se stejnými klávesami. Bez něj se Housenka chová jako dřív.
 
@@ -33,6 +33,7 @@ Rozšíření má vlastní soubor vedle `config.yaml`, aby config výkazů zůst
 host: gitlab.example.com  # GitLab, ze kterého se načítají issue; vynech = první z gitlab_hosts
 sync_minutes: 15          # jak často webové rozhraní GitLab načítá
 stale_days: 14            # karta se obarví, když na issue tolik dní nesáhneš
+move_to: end              # issue přesunuté do jiného stavu dát na konec sloupce (end), nebo na začátek (start)
 
 statuses:                 # tvoje stavy = sloupce nástěnky v tomto pořadí
   - { code: todo,    name: Na řadě,      color: blue }
@@ -52,7 +53,7 @@ Housenka se ptá GitLabu na **otevřená issue přiřazená tobě** (vlastníku 
 
 - při `housenka issues sync` nebo klávese `r`,
 - webový server každých `sync_minutes`,
-- TUI při otevření přehledu, když je poslední načtení starší než `sync_minutes`.
+- běžící TUI také každých `sync_minutes` (i když máš otevřené výkazy; o nových issue dá vědět hláškou a počtem „N nová issue (T)“ ve stavovém řádku), a při otevření přehledu.
 
 U nového issue zjistí, **kdy ti bylo přiřazeno** (ze systémové poznámky „assigned to @ty“). Když ji nenajde, platí čas, kdy issue poprvé uviděla.
 
@@ -68,9 +69,17 @@ Repozitář issue má barvu svého **kódu projektu** z configu výkazů. Repozi
 
 Z GitLabu můžou přijít issue i z repozitářů, které Housenka nezná (nejsou v `repos` configu výkazů), nebo z GitLabu, který není v `gitlab_hosts`. Takové issue se normálně zobrazí se značkou **repozitář není v housence** (filtr `is:unknown`), jen na něj zatím nejde vykázat. V prohlížeči ho detail issue nabídne rovnou přidat (**Přidat repozitář do housenky**); v terminálu ho doplň do `repos` přes `housenka config edit`.
 
+## Odložená issue
+
+Když máš issue hodně, méně podstatná nebo zatím odložená si odlož klávesou `z` (ve webu i tlačítkem ◐ na kartě nebo v detailu). Odložené issue zašedne, ve svém sloupci jde za ostatní (v každém řazení) a nehlídá se jako zapomenuté. `z` ho zase vrátí, filtr `is:muted` najde všechna odložená. Na rozdíl od skrytí zůstává na nástěnce.
+
+## Kam ve sloupci přijde přesunuté issue
+
+Při přesunu do jiného stavu (`H`/`L`, výběr stavu v detailu, zařazení nového issue) přijde issue na **konec** sloupce. S `move_to: start` v `issues.yaml` (nebo v Nastavení → Issues → Obecné) přijde na **začátek**. Kartu přetaženou myší dá Housenka vždy tam, kam ji pustíš.
+
 ## Zapomenutá issue
 
-Karta zežloutne a dostane značku **beze mě N dní**, když se na issue `stale_days` dní nic nestalo: nezměnil se stav ani poznámka a nic se na něj nevykázalo. Hlídají se nová issue a stavy bez `watch: false`; zavřená, přeřazená a skrytá ne. Řazení **nejdéle beze mě** je dá nahoru.
+Karta zežloutne a dostane značku **beze mě N dní**, když se na issue `stale_days` dní nic nestalo: nezměnil se stav ani poznámka a nic se na něj nevykázalo. Hlídají se nová issue a stavy bez `watch: false`; zavřená, přeřazená, odložená a skrytá ne. Řazení **nejdéle beze mě** je dá nahoru.
 
 ## Ovládání
 
@@ -87,6 +96,7 @@ TUI otevře přehled klávesou `T` (stavový řádek výkazů ukazuje, kolik je 
 | poznámky (v TUI `ctrl+s` uloží, Esc zruší) | `n` |
 | vykázat práci na issue | `v` |
 | otevřít v GitLabu | `o` · `gx` |
+| odložit (zašednout na konec sloupce) / vrátit | `z` |
 | skrýt / vrátit | `x` |
 | filtr | `/` (Esc zruší) |
 | další řazení: vlastní pořadí, přiřazeno nejdřív, nejdéle beze mě, termín, repozitář | `O` |
@@ -109,6 +119,7 @@ Slova se kombinují (musí platit všechna), velikost písmen nehraje roli, `-` 
 | `is:unknown` | repozitář nebo GitLab mimo Housenku |
 | `is:closed`, `is:unassigned` | zavřená, přeřazená |
 | `is:notes`, `is:due` | s poznámkou, s termínem |
+| `is:muted` | odložená |
 | cokoli jiného | název, číslo, cesta, štítky a poznámky |
 
 Příklad: `r:shop -is:closed košík`.

@@ -139,7 +139,7 @@ func Run(cfg *config.Config) error {
 }
 
 // Init implements tea.Model.
-func (m *Model) Init() tea.Cmd { return nil }
+func (m *Model) Init() tea.Cmd { return issuesTick() }
 
 // --- messages ---------------------------------------------------------------
 
@@ -199,6 +199,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.notify(msg.what+" zkopírován do schránky", false)
 	case issuesSyncedMsg:
 		return m, m.issuesSynced(msg)
+	case issuesTickMsg:
+		return m, m.issuesTicked()
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
