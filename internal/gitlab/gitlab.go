@@ -43,14 +43,27 @@ func NewWithURL(baseURL, token string) *Client {
 // would send the PRIVATE-TOKEN header along (it drops only Authorization
 // and cookies), e.g. to an SSO proxy in front of a company GitLab.
 func keepToken(req *http.Request, via []*http.Request) error {
-	first := via[0].URL
-	if !strings.EqualFold(req.URL.Host, first.Host) || first.Scheme == "https" && req.URL.Scheme != "https" {
+	first, to := via[0].URL, req.URL
+	sameServer := strings.EqualFold(to.Hostname(), first.Hostname()) &&
+		(port(to) == port(first) || first.Scheme == "http" && to.Scheme == "https") // also http → https
+	if !sameServer || first.Scheme == "https" && to.Scheme != "https" {
 		return fmt.Errorf("GitLab přesměroval požadavek na %s://%s – token se tam neposílá, zkontroluj host v issues.yaml", req.URL.Scheme, req.URL.Host)
 	}
 	if len(via) >= 10 {
 		return errors.New("GitLab přesměrovává dokola")
 	}
 	return nil
+}
+
+// port returns the port of u, also when it is the scheme's default.
+func port(u *url.URL) string {
+	if p := u.Port(); p != "" {
+		return p
+	}
+	if u.Scheme == "http" {
+		return "80"
+	}
+	return "443"
 }
 
 // Host returns the host name of the GitLab ("gitlab.example.com").

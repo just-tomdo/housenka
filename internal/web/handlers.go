@@ -244,7 +244,10 @@ func (s *Server) saveEntry(w http.ResponseWriter, r *http.Request) {
 			s.issuesChanged(w, r, t)
 			return
 		}
-		w.Header().Set("HX-Redirect", "/?"+v.Query()) // the overview was turned off meanwhile
+		// The overview was turned off meanwhile: the empty answer closes the
+		// form, the toast keeps the BM link and warnings.
+		t.Text += " – přehled issues je mezitím vypnutý, výkazy najdeš na hlavní stránce"
+		s.render(w, "toast", struct{ Toast toastData }{t})
 		return
 	}
 	s.update(w, q, v, t, saved.ID)

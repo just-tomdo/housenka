@@ -41,6 +41,7 @@ type issuesView struct {
 	pending   string // first key of gg / gx
 	syncing   bool
 	lastTry   time.Time // of the last sync, so that a failing one is not retried at every T
+	pickCol   bool      // choose a column with cards at the next load (the board was just shown)
 	detail    *issueDetail
 }
 
@@ -103,7 +104,7 @@ func (m *Model) openIssues() tea.Cmd {
 	if !m.issuesEnabled() {
 		return m.notify("Přehled issues je vypnutý – zapneš ho příkazem housenka issues init (nebo v Nastavení webu)", true)
 	}
-	m.issuesOpen = true
+	m.issuesOpen, m.iss.pickCol = true, true
 	m.loadIssues()
 	v := m.iss
 	if v.cfg != nil && issues.SyncDue(v.data, v.cfg, v.lastTry, time.Now()) {
@@ -142,14 +143,16 @@ func (m *Model) loadIssues() {
 				v.col, found = i, true
 			}
 		}
-		// Nothing selected (another tab before, or the card moved away) and
-		// an empty column: start at the first column with cards.
-		if cols := v.view.Shown.Columns; !found && len(cols[v.col].Cards) == 0 {
+		// The board was just shown with nothing selected in an empty
+		// column: start at the first column with cards. Moving into an
+		// empty column with h/l later stays there.
+		if cols := v.view.Shown.Columns; v.pickCol && !found && len(cols[v.col].Cards) == 0 {
 			if i := slices.IndexFunc(cols, func(c issues.Column) bool { return len(c.Cards) > 0 }); i >= 0 {
 				v.col = i
 			}
 		}
 	}
+	v.pickCol = false
 	if list := m.issueList(); !slices.ContainsFunc(list, func(c issues.Card) bool { return c.Key == v.sel }) {
 		v.sel = ""
 		if len(list) > 0 {
@@ -326,7 +329,7 @@ func (m *Model) handleIssuesKey(km tea.KeyPressMsg) tea.Cmd {
 		m.help.ShowAll = !m.help.ShowAll
 	case "1", "2", "3":
 		v.tab = map[string]string{"1": "new", "2": "board", "3": "hidden"}[k]
-		v.sel = ""
+		v.sel, v.pickCol = "", true
 	case "j", "down":
 		if ok && i+1 < len(list) {
 			v.sel = list[i+1].Key

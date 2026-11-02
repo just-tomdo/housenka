@@ -208,29 +208,49 @@ var ErrEmpty = errors.New("soubor je prázdný")
 // DecodeYAML decodes a configuration file into v, which holds the defaults.
 // Unknown keys and unquoted "#rrggbb" colors are rejected with Czech messages.
 func DecodeYAML(data []byte, v any) error {
-	// YAML reads `color: #abc123` as an empty value with a comment (inside
-	// `{ … }` as a syntax error), so this is checked first.
-	for _, loc := range unquotedHexRe.FindAllIndex(data, -1) {
-		start := bytes.LastIndexByte(data[:loc[0]], '\n') + 1
-		if bytes.HasPrefix(bytes.TrimLeft(data[start:loc[0]+1], " \t"), []byte("#")) {
-			continue // in a comment
-		}
-		line := bytes.Count(data[:loc[0]], []byte("\n")) + 1
-		return fmt.Errorf("řádek %d: barvu zapiš v uvozovkách, např. color: \"#e06c75\" (bez nich ji YAML čte jako komentář)", line)
-	}
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	if err := dec.Decode(v); err != nil {
 		if errors.Is(err, io.EOF) {
 			return ErrEmpty
 		}
+		// Inside { … } an unquoted #rrggbb is a syntax error.
+		if line := unquotedHexLine(data, flowHexRe); line > 0 {
+			return hexColorError(line)
+		}
 		return translateYAMLError(err)
+	}
+	// In block style YAML reads `color: #abc123` as an empty value with a comment.
+	if line := unquotedHexLine(data, blockHexRe); line > 0 {
+		return hexColorError(line)
 	}
 	return nil
 }
 
-// unquotedHexRe finds `color: #…` in block style and inside `{ … }`.
-var unquotedHexRe = regexp.MustCompile(`(?m)(?:^|[{,])\s*color:\s*#`)
+func hexColorError(line int) error {
+	return fmt.Errorf("řádek %d: barvu zapiš v uvozovkách, např. color: \"#e06c75\" (bez nich ji YAML čte jako komentář)", line)
+}
+
+var (
+	blockHexRe = regexp.MustCompile(`^\s*(?:-\s+)?color:\s*#`)
+	flowHexRe  = regexp.MustCompile(`[{,]\s*color:\s*#`)
+)
+
+// unquotedHexLine returns the first line (from 1) where re finds an
+// unquoted color outside comments and strings, or 0.
+func unquotedHexLine(data []byte, re *regexp.Regexp) int {
+	for n, line := range bytes.Split(data, []byte("\n")) {
+		loc := re.FindIndex(line)
+		if loc == nil {
+			continue
+		}
+		if before := line[:loc[0]]; bytes.ContainsAny(before, "#\"'") || bytes.HasSuffix(bytes.TrimRight(before, " \t"), []byte("|")) {
+			continue // in a comment, a string or after a block scalar marker
+		}
+		return n + 1
+	}
+	return 0
+}
 
 var unknownFieldRe = regexp.MustCompile(`^line (\d+): field (\S+) not found in type \S+$`)
 

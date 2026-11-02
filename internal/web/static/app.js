@@ -329,6 +329,10 @@
         }
         break;
       case "s": handled = clickKey(card, "Enter"); break;
+      case "J": case "K":
+        if (sort && sort.value !== "") toast("Pořadí jde měnit jen ve vlastním řazení (O)", true);
+        else handled = clickKey(card, e.key);
+        break;
       default:
         handled = clickKey(card, e.key);
     }
@@ -379,7 +383,7 @@
       return;
     }
     const before = dropTarget(body, e.clientY);
-    const values = { key: dragged.dataset.issue, status, before: before ? before.dataset.issue : "" };
+    const values = { key: dragged.dataset.issue, status, before: before ? before.dataset.issue : "", end: before ? "" : "1" };
     htmx.ajax("POST", "/issues/status", { source: body, values, swap: "none" });
   });
 

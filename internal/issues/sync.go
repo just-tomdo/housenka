@@ -118,7 +118,7 @@ func Sync(ctx context.Context, src Source, st *Store) (SyncResult, error) {
 	switch {
 	case err == nil:
 		return res, nil
-	case ctx.Err() != nil:
+	case errors.Is(ctx.Err(), context.Canceled):
 		return res, err // stopped (e.g. the server shuts down), not a GitLab problem
 	}
 	return res, RecordSyncError(st, err)
@@ -240,8 +240,10 @@ func pull(ctx context.Context, src Source, st *Store) (SyncResult, error) {
 				f.Issues[ni].keepOwn(f.Issues[oi])
 				f.Issues = slices.Delete(f.Issues, oi, oi+1)
 				res.New--
+			default: // both keys known already (e.g. an older sync made a duplicate)
+				f.Issues[ni].adopt(f.Issues[oi])
+				f.Issues = slices.Delete(f.Issues, oi, oi+1)
 			}
-			// Both keys known before: left as they are, the old one is looked up again next time.
 		}
 		f.Me = me.Username
 		f.SyncedAt = now
@@ -256,6 +258,26 @@ func pull(ctx context.Context, src Source, st *Store) (SyncResult, error) {
 func (is *Issue) keepOwn(old Issue) {
 	is.Status, is.Rank, is.Notes, is.NotesAt = old.Status, old.Rank, old.Notes, old.NotesAt
 	is.Hidden, is.TouchedAt, is.AssignedAt, is.FirstSeen = old.Hidden, old.TouchedAt, old.AssignedAt, old.FirstSeen
+}
+
+// adopt merges the record of the same issue under its old key into is,
+// which the user may have changed too: is keeps its own status and notes,
+// the old notes are added below when they differ.
+func (is *Issue) adopt(old Issue) {
+	if is.Status == "" && is.Notes == "" && !is.Hidden {
+		is.keepOwn(old)
+		return
+	}
+	if old.Notes != "" && old.Notes != is.Notes {
+		is.Notes = strings.TrimSpace(is.Notes + "\n\n" + old.Notes)
+		is.NotesAt = old.NotesAt
+		if is.NotesAt.Before(is.TouchedAt) {
+			is.NotesAt = is.TouchedAt
+		}
+	}
+	if old.AssignedAt.Before(is.AssignedAt) {
+		is.AssignedAt, is.FirstSeen = old.AssignedAt, old.FirstSeen
+	}
 }
 
 // merge copies GitLab's view of an issue into is and counts the changes.

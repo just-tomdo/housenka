@@ -26,10 +26,13 @@ func TestReportAfterIssuesTurnedOff(t *testing.T) {
 	os.Remove(filepath.Join(os.Getenv(config.HomeEnv), "issues.yaml"))
 	form := url.Values{"date": {"19. 10. 2026"}, "issue": {issue}, "project": {"SHOPDEV"}, "activity": {"DEV"},
 		"hours": {"1"}, "description": {"oprava"}, "v_tab": {"board"}}
-	code, hdr, _ := f.do(http.MethodPost, "/entries", form)
-	if code != http.StatusOK || hdr.Get("HX-Redirect") == "" {
-		t.Errorf("code %d redirect %q", code, hdr.Get("HX-Redirect"))
+	code, _, body := f.do(http.MethodPost, "/entries", form)
+	if code != http.StatusOK {
+		t.Errorf("code %d", code)
 	}
+	// The form closes (nothing but the toast) and the BM link stays.
+	contains(t, body, `id="toast" hx-swap-oob="true"`, "přehled issues je mezitím vypnutý", "Otevřít v BM")
+	lacks(t, body, "<form", `id="issues"`)
 	if all, _ := f.store.All(); len(all) != 1 {
 		t.Errorf("%d entries saved", len(all))
 	}

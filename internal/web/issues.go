@@ -470,8 +470,13 @@ func (s *Server) issueStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	same := slices.ContainsFunc(f.Issues, func(is issues.Issue) bool { return is.Key == key && is.Status == status && !is.Hidden })
-	if same && !manualOrder(r) {
-		s.fail(w, errReorder) // a drop within the column would scramble the hidden manual order
+	reorder := same && (r.FormValue("before") != "" || r.FormValue("end") != "") // a drop within the column
+	switch {
+	case same && !reorder: // the current status chosen again
+		s.issuesChanged(w, r, toastData{})
+		return
+	case reorder && !manualOrder(r):
+		s.fail(w, errReorder) // it would scramble the manual order hidden behind the sort
 		return
 	}
 	if err := q.store.SetStatus(key, status, r.FormValue("before")); err != nil {

@@ -108,8 +108,11 @@ func TestIssuesPage(t *testing.T) {
 	// Another order refuses reordering, also a drop within the column.
 	sorted := url.Values{"key": {"clients/shop-web#13"}, "next": {"clients/shop-web#12"}, "after": {"1"}, "v_sort": {"due"}}
 	contains(t, f.form("/issues/move", sorted), "jen ve vlastním řazení")
-	drop := url.Values{"key": {"clients/shop-web#13"}, "status": {"todo"}, "before": {""}, "v_sort": {"due"}}
+	drop := url.Values{"key": {"clients/shop-web#13"}, "status": {"todo"}, "end": {"1"}, "v_sort": {"due"}}
 	contains(t, f.form("/issues/status", drop), "jen ve vlastním řazení")
+	// Choosing the current status again (the detail) does nothing, in any order.
+	again := url.Values{"key": {"clients/shop-web#13"}, "status": {"todo"}, "v_sort": {"due"}}
+	lacks(t, f.form("/issues/status", again), "jen ve vlastním řazení")
 
 	f.form("/issues/move", url.Values{"key": {"clients/shop-web#13"}, "next": {"clients/shop-web#12"}, "after": {"1"}})
 	board = f.get("/issues?tab=board")

@@ -17,6 +17,7 @@ func TestDecodeYAMLUnquotedColor(t *testing.T) {
 		"color: #112233\n",
 		"items:\n  - {code: a, color: #112233}\n",
 		"items:\n  - { color: #112233 }\n",
+		"items:\n  - color: #112233\n",
 	}
 	for _, in := range bad {
 		var v colorOnly
@@ -29,6 +30,10 @@ func TestDecodeYAMLUnquotedColor(t *testing.T) {
 		"items:\n  - {color: \"#112233\"}\n",
 		"# example: {color: #112233}\ncolor: red\n",
 		"  # color: #112233\ncolor: red\n",
+		"color: red # like {color: #112233}\n",
+		"items:\n  - {color: red} # or {color: #112233}\n",
+		"color: \"a, color: #1\"\n",
+		"color: |\n  {color: #112233}\n",
 	}
 	for _, in := range ok {
 		var v colorOnly
