@@ -173,14 +173,17 @@ func TestSetStatusAndMove(t *testing.T) {
 		t.Error("TouchedAt not set")
 	}
 
-	must(t, f.Move(k3, 1, now))
+	must(t, f.MoveNextTo(k3, k1, true, now)) // after its neighbour below
 	if got := keys(column(&f, "todo")); !slices.Equal(got, []string{k1, k3, k2}) {
 		t.Errorf("after move down %v", got)
 	}
-	must(t, f.Move(k3, 5, now)) // clamps to the end
-	must(t, f.Move(k1, -1, now))
+	must(t, f.MoveNextTo(k3, k2, true, now))
+	must(t, f.MoveNextTo(k1, k2, false, now))
 	if got := keys(column(&f, "todo")); !slices.Equal(got, []string{k1, k2, k3}) {
-		t.Errorf("after clamped moves %v", got)
+		t.Errorf("after moves %v", got)
+	}
+	if err := f.MoveNextTo(k1, "nope#1", false, now); err == nil {
+		t.Error("a neighbour outside the status was accepted")
 	}
 	must(t, f.SetStatus(k2, "todo", "", now)) // to the end of its own status
 	if got := keys(column(&f, "todo")); !slices.Equal(got, []string{k1, k3, k2}) {

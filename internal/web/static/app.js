@@ -366,9 +366,16 @@
     const body = dragged && e.target.closest && e.target.closest(".col-body");
     if (!body) return;
     e.preventDefault();
-    const before = dropTarget(body, e.clientY);
-    const values = { key: dragged.dataset.issue, status: body.closest(".column").dataset.status, before: before ? before.dataset.issue : "" };
+    const status = body.closest(".column").dataset.status;
+    const sameColumn = dragged.closest(".column") && dragged.closest(".column").dataset.status === status;
+    const sort = $("#viewstate [name=v_sort]");
     clearDrop();
+    if (sameColumn && sort && sort.value !== "") {
+      toast("Pořadí jde měnit jen ve vlastním řazení (O)", true);
+      return;
+    }
+    const before = dropTarget(body, e.clientY);
+    const values = { key: dragged.dataset.issue, status, before: before ? before.dataset.issue : "" };
     htmx.ajax("POST", "/issues/status", { source: body, values, swap: "none" });
   });
 

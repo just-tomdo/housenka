@@ -73,19 +73,19 @@
   </div>
   {{with .Marks}}<div class="ic-marks">{{range .}}<span class="tag {{.Kind}}" title="{{.Title}}">{{.Text}}</span>{{end}}</div>{{end}}
   <div class="ic-actions">
-    {{if .Hidden}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{"key": "{{.Key}}", "hidden": "0"}' hx-swap="none" data-key="x" title="Vrátit (x)">↺ Vrátit</button>
-    {{else if lt .Column 0}}{{range .Statuses}}<button class="btn small chip-status {{.Class}}"{{with .Style}} style="{{.}}"{{end}} hx-post="/issues/status" hx-vals='{"key": "{{$.Key}}", "status": "{{.Code}}"}' hx-swap="none" title="Zařadit do „{{.Label}}“">→ {{.Label}}</button>{{end}}
-    <button class="sr-key" hx-post="/issues/status" hx-vals='{"key": "{{.Key}}", "status": "{{.First}}"}' hx-swap="none" data-key="L" tabindex="-1" aria-hidden="true"></button>
+    {{if .Hidden}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{{vals "key" .Key "hidden" "0"}}' hx-swap="none" data-key="x" title="Vrátit (x)">↺ Vrátit</button>
+    {{else if lt .Column 0}}{{range .Statuses}}<button class="btn small chip-status {{.Class}}"{{with .Style}} style="{{.}}"{{end}} hx-post="/issues/status" hx-vals='{{vals "key" $.Key "status" .Code}}' hx-swap="none" title="Zařadit do „{{.Label}}“">→ {{.Label}}</button>{{end}}
+    <button class="sr-key" hx-post="/issues/status" hx-vals='{{vals "key" .Key "status" .First}}' hx-swap="none" data-key="L" tabindex="-1" aria-hidden="true"></button>
     {{else}}
-    {{if .Prev}}<button class="btn icon small" hx-post="/issues/status" hx-vals='{"key": "{{.Key}}", "status": "{{.Prev}}"}' hx-swap="none" data-key="H" title="Do předchozího stavu (H)">‹</button>{{end}}
-    {{if .Next}}<button class="btn icon small" hx-post="/issues/status" hx-vals='{"key": "{{.Key}}", "status": "{{.Next}}"}' hx-swap="none" data-key="L" title="Do dalšího stavu (L)">›</button>{{end}}
-    <button class="sr-key" hx-post="/issues/move" hx-vals='{"key": "{{.Key}}", "delta": "1"}' hx-swap="none" data-key="J" tabindex="-1" aria-hidden="true"></button>
-    <button class="sr-key" hx-post="/issues/move" hx-vals='{"key": "{{.Key}}", "delta": "-1"}' hx-swap="none" data-key="K" tabindex="-1" aria-hidden="true"></button>
+    {{if .Prev}}<button class="btn icon small" hx-post="/issues/status" hx-vals='{{vals "key" .Key "status" .Prev}}' hx-swap="none" data-key="H" title="Do předchozího stavu (H)">‹</button>{{end}}
+    {{if .Next}}<button class="btn icon small" hx-post="/issues/status" hx-vals='{{vals "key" .Key "status" .Next}}' hx-swap="none" data-key="L" title="Do dalšího stavu (L)">›</button>{{end}}
+    {{with .Below}}<button class="sr-key" hx-post="/issues/move" hx-vals='{{vals "key" $.Key "next" . "after" "1"}}' hx-swap="none" data-key="J" tabindex="-1" aria-hidden="true"></button>{{end}}
+    {{with .Above}}<button class="sr-key" hx-post="/issues/move" hx-vals='{{vals "key" $.Key "next" . "after" "0"}}' hx-swap="none" data-key="K" tabindex="-1" aria-hidden="true"></button>{{end}}
     {{end}}
     <span class="spacer"></span>
     <button class="btn small" hx-get="/entries/new?issue={{qs .URL}}" hx-target="#modal" data-key="v" title="Vykázat práci na issue (v)">+ Vykázat</button>
     <button class="btn icon small" hx-get="/issues/detail?key={{qs .Key}}&amp;notes=1" hx-target="#modal" data-key="n" title="Poznámky (n)">✎</button>
-    {{if not .Hidden}}<button class="btn icon small" hx-post="/issues/hidden" hx-vals='{"key": "{{.Key}}", "hidden": "1"}' hx-swap="none" data-key="x" title="Skrýt (x)">⨯</button>{{end}}
+    {{if not .Hidden}}<button class="btn icon small" hx-post="/issues/hidden" hx-vals='{{vals "key" .Key "hidden" "1"}}' hx-swap="none" data-key="x" title="Skrýt (x)">⨯</button>{{end}}
   </div>
 </article>{{end}}
 
@@ -98,8 +98,8 @@
     <p class="facts">
       <a class="btn small" href="{{.URL}}" target="_blank" rel="noopener" data-modal-key="o i"{{if not .FocusNote}} autofocus{{end}}>Otevřít v GitLabu ↗ <kbd>o</kbd></a>
       <button class="btn small primary" hx-get="/entries/new?issue={{qs .URL}}" hx-target="#modal" data-modal-key="v">+ Vykázat <kbd>v</kbd></button>
-      {{if .Hidden}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{"key": "{{.Key}}", "hidden": "0"}' hx-target="#modal" data-modal-key="x">↺ Vrátit ze skrytých <kbd>x</kbd></button>
-      {{else}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{"key": "{{.Key}}", "hidden": "1"}' hx-target="#modal" data-modal-key="x">Skrýt <kbd>x</kbd></button>{{end}}
+      {{if .Hidden}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{{vals "key" .Key "hidden" "0"}}' hx-target="#modal" data-modal-key="x">↺ Vrátit ze skrytých <kbd>x</kbd></button>
+      {{else}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{{vals "key" .Key "hidden" "1"}}' hx-target="#modal" data-modal-key="x">Skrýt <kbd>x</kbd></button>{{end}}
       <span class="subtext">{{.ProjectPath}}</span>
     </p>
     <p class="facts">
@@ -114,7 +114,7 @@
 
     <h3>Můj stav</h3>
     <div class="status-picks">
-      {{range .Statuses}}<button class="btn small chip-status {{.Class}}{{if .Current}} current{{end}}"{{with .Style}} style="{{.}}"{{end}} hx-post="/issues/status" hx-vals='{"key": "{{$.Key}}", "status": "{{.Code}}"}' hx-target="#modal" data-modal-key="{{.Key}}">{{if .Current}}● {{end}}{{.Label}} <kbd>{{.Key}}</kbd></button>{{end}}
+      {{range .Statuses}}<button class="btn small chip-status {{.Class}}{{if .Current}} current{{end}}"{{with .Style}} style="{{.}}"{{end}} hx-post="/issues/status" hx-vals='{{vals "key" $.Key "status" .Code}}' hx-target="#modal" data-modal-key="{{.Key}}">{{if .Current}}● {{end}}{{.Label}} <kbd>{{.Key}}</kbd></button>{{end}}
     </div>
 
     <h3>Poznámky</h3>

@@ -160,6 +160,22 @@ func Lanes(cards []Card) []Lane {
 	return lanes
 }
 
+// Shift finds where J/K moves the card key among the cards as shown (one
+// status, filtered, in board order): the neighbour to put it next to, and
+// whether after it. With sameRepo (cards grouped by repository) a card does
+// not leave its repository's group. ok is false at the end of the list.
+func Shift(shown []Card, key string, delta int, sameRepo bool) (neighbour string, after, ok bool) {
+	i := slices.IndexFunc(shown, func(c Card) bool { return c.Key == key })
+	j := i + delta
+	if i < 0 || delta == 0 || j < 0 || j >= len(shown) {
+		return "", false, false
+	}
+	if sameRepo && !strings.EqualFold(shown[i].ProjectPath, shown[j].ProjectPath) {
+		return "", false, false
+	}
+	return shown[j].Key, delta > 0, true
+}
+
 // Sort is an order of the cards.
 type Sort string
 

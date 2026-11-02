@@ -361,8 +361,10 @@ func (m *Model) handleIssuesKey(km tea.KeyPressMsg) tea.Cmd {
 		if k == "K" {
 			delta = -1
 		}
-		if err := v.store.Move(card.Key, delta); err != nil {
-			return m.fail(err)
+		if next, after, ok := issues.Shift(list, card.Key, delta, v.byRepo); ok {
+			if err := v.store.MoveNextTo(card.Key, next, after); err != nil {
+				return m.fail(err)
+			}
 		}
 	case "enter", "s":
 		if ok {

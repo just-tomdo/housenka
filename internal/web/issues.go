@@ -224,6 +224,7 @@ type cardView struct {
 	Prev, Next   string            // neighbour statuses for H and L
 	First        string            // the first status (new issues: L puts them there)
 	Statuses     []issueStatusView // new issues: where they can go
+	Above, Below string            // the cards shown next to it, for J/K (manual order only)
 }
 
 // colorOf returns the badge class (named color) or inline style (#rrggbb)
@@ -325,7 +326,16 @@ func (s *Server) buildIssuesMain(q *issueReq, v issuesState) issuesMain {
 	columns := func(b issues.Board) []columnView {
 		var out []columnView
 		for i, col := range b.Columns {
-			out = append(out, columnView{issueStatusView: newIssueStatusView(col.Status, i), Cards: views(col.Cards)})
+			cv := columnView{issueStatusView: newIssueStatusView(col.Status, i), Cards: views(col.Cards)}
+			if v.Sort == issues.SortManual {
+				// J/K put the card next to the card shown above or below it
+				// (a lane shows the cards of one repository only).
+				for j := range cv.Cards {
+					cv.Cards[j].Above, _, _ = issues.Shift(col.Cards, cv.Cards[j].Key, -1, false)
+					cv.Cards[j].Below, _, _ = issues.Shift(col.Cards, cv.Cards[j].Key, 1, false)
+				}
+			}
+			out = append(out, cv)
 		}
 		return out
 	}
@@ -477,20 +487,46 @@ func (s *Server) issueStatus(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, errors.New("neznámý stav "+status+" – načti stránku znovu"))
 		return
 	}
+	f, err := q.store.Load()
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	same := slices.ContainsFunc(f.Issues, func(is issues.Issue) bool { return is.Key == key && is.Status == status && !is.Hidden })
+	if same && !manualOrder(r) {
+		s.fail(w, errReorder) // a drop within the column would scramble the hidden manual order
+		return
+	}
 	if err := q.store.SetStatus(key, status, r.FormValue("before")); err != nil {
 		s.fail(w, err)
 		return
 	}
-	s.issuesChanged(w, r, toastData{Text: issueLabel(key) + " → " + st.Label()})
+	t := toastData{Text: issueLabel(key) + " → " + st.Label()}
+	if same {
+		t = toastData{}
+	}
+	s.issuesChanged(w, r, t)
 }
 
+var errReorder = errors.New("pořadí jde měnit jen ve vlastním řazení (O)")
+
+// manualOrder reports whether the page that sent a change shows the manual order.
+func manualOrder(r *http.Request) bool {
+	return readIssuesState(r.FormValue, "v_").Sort == issues.SortManual
+}
+
+// issueMove puts the issue next to the card shown above (after=0) or below
+// it (after=1).
 func (s *Server) issueMove(w http.ResponseWriter, r *http.Request) {
 	q, ok := s.issueReq(w, r, false)
 	if !ok {
 		return
 	}
-	delta, _ := strconv.Atoi(r.FormValue("delta"))
-	if err := q.store.Move(r.FormValue("key"), delta); err != nil {
+	if !manualOrder(r) {
+		s.fail(w, errReorder)
+		return
+	}
+	if err := q.store.MoveNextTo(r.FormValue("key"), r.FormValue("next"), r.FormValue("after") == "1"); err != nil {
 		s.fail(w, err)
 		return
 	}

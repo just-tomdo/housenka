@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/url"
@@ -581,6 +582,16 @@ var funcs = template.FuncMap{
 	},
 	"plural": text.Plural,
 	"qs":     url.QueryEscape,
-	"sub":    func(a, b int) int { return a - b },
-	"inc":    func(a int) int { return a + 1 },
+	// vals builds the JSON of hx-vals from key, value pairs (escaped properly
+	// whatever the values hold).
+	"vals": func(kv ...string) (string, error) {
+		m := map[string]string{}
+		for i := 0; i+1 < len(kv); i += 2 {
+			m[kv[i]] = kv[i+1]
+		}
+		b, err := json.Marshal(m)
+		return string(b), err
+	},
+	"sub": func(a, b int) int { return a - b },
+	"inc": func(a int) int { return a + 1 },
 }

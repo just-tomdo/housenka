@@ -67,14 +67,14 @@ func (s *Store) Update(change func(f *File, now time.Time) error) error {
 	return s.write(f)
 }
 
-// SetStatus, Move, SetHidden and SetNotes are File's changes, stored.
+// SetStatus, MoveNextTo, SetHidden and SetNotes are File's changes, stored.
 
 func (s *Store) SetStatus(key, status, before string) error {
 	return s.Update(func(f *File, now time.Time) error { return f.SetStatus(key, status, before, now) })
 }
 
-func (s *Store) Move(key string, delta int) error {
-	return s.Update(func(f *File, now time.Time) error { return f.Move(key, delta, now) })
+func (s *Store) MoveNextTo(key, neighbour string, after bool) error {
+	return s.Update(func(f *File, now time.Time) error { return f.MoveNextTo(key, neighbour, after, now) })
 }
 
 func (s *Store) SetHidden(key string, hidden bool) error {

@@ -101,8 +101,17 @@ func TestIssuesPage(t *testing.T) {
 	if strings.Index(board, "Nový filtr") > strings.Index(board, "Košík padá") {
 		t.Error("#13 must be before #12")
 	}
-	contains(t, board, `data-status="todo"`, `data-key="L"`, `data-key="J"`)
-	f.form("/issues/move", url.Values{"key": {"clients/shop-web#13"}, "delta": {"1"}})
+	contains(t, board, `data-status="todo"`, `data-key="L"`, `data-key="J"`,
+		`hx-vals='{&#34;after&#34;:&#34;1&#34;,&#34;key&#34;:&#34;clients/shop-web#13&#34;,&#34;next&#34;:&#34;clients/shop-web#12&#34;}'`)
+	lacks(t, f.get("/issues?tab=board&sort=due"), `data-key="J"`, `data-key="K"`) // reordering only in the manual order
+
+	// Another order refuses reordering, also a drop within the column.
+	sorted := url.Values{"key": {"clients/shop-web#13"}, "next": {"clients/shop-web#12"}, "after": {"1"}, "v_sort": {"due"}}
+	contains(t, f.form("/issues/move", sorted), "jen ve vlastním řazení")
+	drop := url.Values{"key": {"clients/shop-web#13"}, "status": {"todo"}, "before": {""}, "v_sort": {"due"}}
+	contains(t, f.form("/issues/status", drop), "jen ve vlastním řazení")
+
+	f.form("/issues/move", url.Values{"key": {"clients/shop-web#13"}, "next": {"clients/shop-web#12"}, "after": {"1"}})
 	board = f.get("/issues?tab=board")
 	if strings.Index(board, "Nový filtr") < strings.Index(board, "Košík padá") {
 		t.Error("move did not reorder")

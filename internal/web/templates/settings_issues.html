@@ -53,10 +53,10 @@
       <td>{{if .Watched}}ano{{else}}<span class="muted">ne</span>{{end}}</td>
       <td class="num muted">{{.Issues}}</td>
       <td class="row-actions">
-        <button class="btn icon small" hx-post="/settings/issues/status/move" hx-vals='{"code": "{{.Code}}", "delta": "-1", "ihash": "{{$.Hash}}"}' hx-swap="none" title="O sloupec doleva"{{if .First}} disabled{{end}}>←</button>
-        <button class="btn icon small" hx-post="/settings/issues/status/move" hx-vals='{"code": "{{.Code}}", "delta": "1", "ihash": "{{$.Hash}}"}' hx-swap="none" title="O sloupec doprava"{{if .Last}} disabled{{end}}>→</button>
+        <button class="btn icon small" hx-post="/settings/issues/status/move" hx-vals='{{vals "code" .Code "delta" "-1" "ihash" $.Hash}}' hx-swap="none" title="O sloupec doleva"{{if .First}} disabled{{end}}>←</button>
+        <button class="btn icon small" hx-post="/settings/issues/status/move" hx-vals='{{vals "code" .Code "delta" "1" "ihash" $.Hash}}' hx-swap="none" title="O sloupec doprava"{{if .Last}} disabled{{end}}>→</button>
         <button class="btn small" hx-get="/settings/issues/status-form?code={{.Code}}" hx-target="#modal">Upravit</button>
-        <button class="btn small ghost danger-text" hx-post="/settings/issues/status/delete" hx-vals='{"code": "{{.Code}}", "ihash": "{{$.Hash}}"}' hx-swap="none" hx-confirm="{{.Confirm}}">Smazat</button>
+        <button class="btn small ghost danger-text" hx-post="/settings/issues/status/delete" hx-vals='{{vals "code" .Code "ihash" $.Hash}}' hx-swap="none" hx-confirm="{{.Confirm}}">Smazat</button>
       </td>
     </tr>{{end}}</tbody>
   </table></div>

@@ -7,6 +7,7 @@ package issues
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -130,23 +131,26 @@ func (f *File) SetStatus(key, status, before string, now time.Time) error {
 	return nil
 }
 
-// Move shifts an issue by delta places within its status.
-func (f *File) Move(key string, delta int, now time.Time) error {
+// MoveNextTo puts an issue right before (or after) the issue neighbour of
+// the same status. The UIs pass the neighbour the user sees, so issues
+// hidden by a filter or shown in another group do not count.
+func (f *File) MoveNextTo(key, neighbour string, after bool, now time.Time) error {
 	is, err := f.find(key)
 	if err != nil {
 		return err
 	}
-	col := f.column(is.Status)
-	from := slices.IndexFunc(col, func(o *Issue) bool { return o.Key == key })
-	if from < 0 {
+	if key == neighbour {
 		return nil
 	}
-	to := min(max(from+delta, 0), len(col)-1)
-	if to == from {
-		return nil
+	col := slices.DeleteFunc(f.column(is.Status), func(o *Issue) bool { return o.Key == key })
+	at := slices.IndexFunc(col, func(o *Issue) bool { return o.Key == neighbour })
+	if at < 0 || is.Hidden {
+		return fmt.Errorf("%s už není ve stejném stavu – načti přehled znovu", neighbour)
 	}
-	col = slices.Delete(col, from, from+1)
-	renumber(slices.Insert(col, to, is))
+	if after {
+		at++
+	}
+	renumber(slices.Insert(col, at, is))
 	is.TouchedAt = now
 	return nil
 }
