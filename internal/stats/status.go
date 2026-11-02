@@ -112,12 +112,8 @@ func issueKey(raw string) (key, label, link string) {
 	if err != nil {
 		return raw, raw, raw
 	}
-	sep := "#"
-	if ref.Kind == gitlaburl.MergeRequest {
-		sep = "!"
-	}
 	link, _, _ = strings.Cut(raw, "#")
-	return strings.ToLower(ref.ProjectPath) + sep + fmt.Sprint(ref.IID), fmt.Sprintf("%s%s%d", ref.Repo, sep, ref.IID), link
+	return ref.Key(), ref.Label(), link
 }
 
 // Text renders the status as plain text.

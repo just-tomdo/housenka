@@ -38,6 +38,36 @@ func (r Ref) Short() string {
 	return fmt.Sprintf("%s / %s / %s%d", r.Group, r.Repo, prefix, r.IID)
 }
 
+// Key identifies the linked object regardless of letter case, #note
+// fragments and whether an issue is linked as issues or work_items:
+// "clients/acme-web#636" (merge requests use "!").
+func (r Ref) Key() string {
+	return strings.ToLower(r.ProjectPath) + r.sep() + strconv.Itoa(r.IID)
+}
+
+// Label is the short name of the linked object: "acme-web#636".
+func (r Ref) Label() string {
+	return r.Repo + r.sep() + strconv.Itoa(r.IID)
+}
+
+func (r Ref) sep() string {
+	if r.Kind == MergeRequest {
+		return "!"
+	}
+	return "#"
+}
+
+// KeyOf returns Ref.Key of the link raw, or raw itself (trimmed) when it is
+// not a GitLab link, so that equal unparseable links still match.
+func KeyOf(raw string) string {
+	raw = strings.TrimSpace(raw)
+	ref, err := Parse(raw)
+	if err != nil {
+		return raw
+	}
+	return ref.Key()
+}
+
 // Parse parses a GitLab link such as
 // https://gitlab.example.com/clients/acme-web/-/work_items/636#note_1.
 func Parse(raw string) (Ref, error) {

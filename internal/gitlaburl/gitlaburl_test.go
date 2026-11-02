@@ -88,3 +88,30 @@ func TestShort(t *testing.T) {
 		t.Errorf("Short() MR = %q", got)
 	}
 }
+
+func TestKeyOf(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"https://gitlab.example.com/clients/shop-web/-/issues/636", "clients/shop-web#636"},
+		{"https://gitlab.example.com/clients/shop-web/-/work_items/636#note_1", "clients/shop-web#636"},
+		{" https://gitlab.example.com/Clients/Shop-Web/-/issues/636 ", "clients/shop-web#636"},
+		{"https://gitlab.example.com/interni/backend/shop/-/issues/12", "interni/backend/shop#12"},
+		{"https://gitlab.example.com/clients/shop-web/-/merge_requests/7", "clients/shop-web!7"},
+		{" not a link ", "not a link"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		if got := KeyOf(tt.in); got != tt.want {
+			t.Errorf("KeyOf(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestLabel(t *testing.T) {
+	ref, err := Parse("https://gitlab.example.com/clients/shop-web/-/merge_requests/7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := ref.Label(); got != "shop-web!7" {
+		t.Errorf("Label() = %q", got)
+	}
+}
