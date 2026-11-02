@@ -176,6 +176,8 @@ func TestIssuesCSRF(t *testing.T) {
 // fakeSource is a GitLab with one assigned issue.
 type fakeSource struct{}
 
+func (fakeSource) Host() string { return "gitlab.example.com" }
+
 func (fakeSource) CurrentUser(context.Context) (gitlab.User, error) {
 	return gitlab.User{Username: "jnovak"}, nil
 }

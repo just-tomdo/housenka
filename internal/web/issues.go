@@ -560,16 +560,10 @@ func issueLabel(key string) string {
 
 // --- sync -------------------------------------------------------------------------------
 
-// errSyncRunning means a sync is already running.
-var errSyncRunning = errors.New("načítání z GitLabu už běží")
-
-// syncTimeout bounds one sync.
-const syncTimeout = 2 * time.Minute
-
 // runSync reads GitLab once.
 func (s *Server) runSync(ctx context.Context) (issues.SyncResult, error) {
 	if !s.iss.syncing.TryLock() {
-		return issues.SyncResult{}, errSyncRunning
+		return issues.SyncResult{}, issues.ErrSyncRunning
 	}
 	defer s.iss.syncing.Unlock()
 	s.iss.mu.Lock()
@@ -592,7 +586,7 @@ func (s *Server) runSync(ctx context.Context) (issues.SyncResult, error) {
 	if err != nil {
 		return issues.SyncResult{}, issues.RecordSyncError(st, err)
 	}
-	ctx, cancel := context.WithTimeout(ctx, syncTimeout)
+	ctx, cancel := context.WithTimeout(ctx, issues.SyncTimeout)
 	defer cancel()
 	return issues.Sync(ctx, src, st)
 }
@@ -630,11 +624,7 @@ func (s *Server) syncIfDue(ctx context.Context) {
 	s.iss.mu.Lock()
 	last := s.iss.lastTry
 	s.iss.mu.Unlock()
-	if f.SyncedAt.After(last) {
-		last = f.SyncedAt
+	if issues.SyncDue(f, icfg, last, time.Now()) {
+		s.runSync(ctx)
 	}
-	if time.Since(last) < time.Duration(icfg.SyncMinutes)*time.Minute {
-		return
-	}
-	s.runSync(ctx)
 }

@@ -24,6 +24,8 @@ func init() {
 // the token "bad" is refused.
 type fakeGitLab struct{ token string }
 
+func (g fakeGitLab) Host() string { return "gitlab.example.com" }
+
 func (g fakeGitLab) CurrentUser(context.Context) (gitlab.User, error) {
 	if g.token == "bad" {
 		return gitlab.User{}, gitlab.ErrUnauthorized

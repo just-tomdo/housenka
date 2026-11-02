@@ -159,9 +159,6 @@ func openIssueStore() (*issues.Store, error) {
 	return issues.OpenStore(dir)
 }
 
-// syncTimeout bounds one sync from the command line.
-const syncTimeout = 2 * time.Minute
-
 func issuesSync(stdout io.Writer, cfgPath, path string) error {
 	cfg, main, err := loadIssues(cfgPath, path)
 	if err != nil {
@@ -175,7 +172,7 @@ func issuesSync(stdout io.Writer, cfgPath, path string) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), syncTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), issues.SyncTimeout)
 	defer cancel()
 	res, err := issues.Sync(ctx, src, st)
 	if err != nil {
@@ -213,7 +210,7 @@ func issuesToken(stdout, stderr io.Writer, cfgPath, path string) error {
 	defer cancel()
 	user, err := issues.Dial(host, token).CurrentUser(ctx)
 	switch {
-	case errors.Is(err, gitlab.ErrUnauthorized):
+	case errors.Is(err, gitlab.ErrUnauthorized) || errors.Is(err, gitlab.ErrForbidden):
 		return err
 	case err != nil:
 		fmt.Fprintf(stderr, "Token jsem nemohl ověřit (%v), ukládám ho i tak.\n", err)

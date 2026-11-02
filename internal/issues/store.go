@@ -98,7 +98,21 @@ func (s *Store) SetNotes(key, notes string, base time.Time) (Issue, error) {
 func (s *Store) copy() File {
 	f := s.file
 	f.Issues = slices.Clone(f.Issues)
+	for i := range f.Issues {
+		is := &f.Issues[i]
+		is.Labels = slices.Clone(is.Labels)
+		if is.Due != nil {
+			d := *is.Due
+			is.Due = &d
+		}
+	}
 	return f
+}
+
+// trySyncLock takes the lock that lets one sync run at a time (also across
+// processes); ok is false while another sync holds it.
+func (s *Store) trySyncLock() (unlock func(), ok bool, err error) {
+	return atomicfile.TryLock(filepath.Join(s.dir, ".sync.lock"))
 }
 
 func (s *Store) load() error {

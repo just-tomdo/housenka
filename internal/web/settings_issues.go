@@ -326,7 +326,7 @@ func (s *Server) saveToken(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 		u, err := issues.Dial(host, token).CurrentUser(ctx)
 		switch {
-		case errors.Is(err, gitlab.ErrUnauthorized):
+		case errors.Is(err, gitlab.ErrUnauthorized) || errors.Is(err, gitlab.ErrForbidden):
 			s.issueSettingsFailed(w, r, "token", []string{err.Error()})
 			return
 		case err != nil:

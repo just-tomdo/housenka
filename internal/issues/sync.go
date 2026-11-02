@@ -3,6 +3,7 @@ package issues
 import (
 	"context"
 	"errors"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 
 // Source is the GitLab a sync reads (gitlab.Client, or a fake in tests).
 type Source interface {
+	Host() string // "gitlab.example.com"
 	CurrentUser(ctx context.Context) (gitlab.User, error)
 	AssignedIssues(ctx context.Context) ([]gitlab.Issue, error)
 	Issue(ctx context.Context, projectPath string, iid int) (gitlab.Issue, error)
@@ -40,6 +42,23 @@ func Connect(cfg *Config, main *config.Config) (Source, error) {
 		return nil, err
 	}
 	return Dial(host, token), nil
+}
+
+// SyncTimeout bounds one sync.
+const SyncTimeout = 2 * time.Minute
+
+// ErrSyncRunning means another sync (in this or another process) is running.
+var ErrSyncRunning = errors.New("načítání z GitLabu už běží")
+
+// SyncDue reports whether the overview should read GitLab again: the last
+// sync and the last attempt (lastTry, kept by the caller, so that a failing
+// sync is not retried at every occasion) are sync_minutes old.
+func SyncDue(f File, cfg *Config, lastTry, now time.Time) bool {
+	last := f.SyncedAt
+	if lastTry.After(last) {
+		last = lastTry
+	}
+	return now.Sub(last) >= time.Duration(cfg.SyncMinutes)*time.Minute
 }
 
 // SyncResult counts what changed.
@@ -75,20 +94,34 @@ func (r SyncResult) String() string {
 type fetched struct {
 	gl         gitlab.Issue
 	ref        gitlaburl.Ref
-	assigned   bool // assigned to the user
-	gone       bool // deleted, moved away or no longer visible
+	assigned   bool   // assigned to the user
+	gone       bool   // deleted, no longer visible, or unreadable (403)
+	movedTo    string // the issue now lives under this key (project renamed or moved)
 	assignedAt time.Time
 }
 
 // Sync reads the issues assigned to the token's user and merges them into
 // the store: only the fields from GitLab change, the user's own never do.
-// Network requests run without the lock; an error is recorded in the file.
+// One sync runs at a time across processes (ErrSyncRunning otherwise).
+// Network requests run without the data lock; a failure is recorded in the
+// file, a cancelled sync is not.
 func Sync(ctx context.Context, src Source, st *Store) (SyncResult, error) {
-	res, err := pull(ctx, src, st)
+	unlock, ok, err := st.trySyncLock()
 	if err != nil {
-		return res, RecordSyncError(st, err)
+		return SyncResult{}, err
 	}
-	return res, nil
+	if !ok {
+		return SyncResult{}, ErrSyncRunning
+	}
+	defer unlock()
+	res, err := pull(ctx, src, st)
+	switch {
+	case err == nil:
+		return res, nil
+	case ctx.Err() != nil:
+		return res, err // stopped (e.g. the server shuts down), not a GitLab problem
+	}
+	return res, RecordSyncError(st, err)
 }
 
 // RecordSyncError keeps err as the last sync's failure in the file (the
@@ -127,21 +160,29 @@ func pull(ctx context.Context, src Source, st *Store) (SyncResult, error) {
 		got[ref.Key()] = &fetched{gl: gl, ref: ref, assigned: true}
 	}
 
-	// Issues assigned at the last sync but missing now: closed, or assigned
-	// to someone else.
+	// Issues assigned at the last sync but missing now: closed, assigned to
+	// someone else, or moved to another project. Issues of another GitLab
+	// (the host changed in issues.yaml) are left as they are.
 	for _, is := range before.Issues {
-		if _, ok := got[is.Key]; ok || is.Closed || is.Unassigned {
+		if _, ok := got[is.Key]; ok || is.Closed || is.Unassigned || !strings.EqualFold(is.Host, src.Host()) {
 			continue
 		}
 		gl, err := src.Issue(ctx, is.ProjectPath, is.IID)
 		switch {
-		case errors.Is(err, gitlab.ErrNotFound):
+		case errors.Is(err, gitlab.ErrNotFound) || errors.Is(err, gitlab.ErrForbidden):
 			got[is.Key] = &fetched{gone: true}
+			continue
 		case err != nil:
 			return SyncResult{}, err
-		default:
-			got[is.Key] = &fetched{gl: gl, assigned: gl.AssignedTo(me.Username)}
 		}
+		g := &fetched{gl: gl, assigned: gl.AssignedTo(me.Username)}
+		if ref, err := gitlaburl.Parse(gl.WebURL); err == nil {
+			g.ref = ref
+			if ref.Key() != is.Key {
+				g.movedTo = ref.Key()
+			}
+		}
+		got[is.Key] = g
 	}
 
 	// When were new and returning issues assigned to the user? One request
@@ -159,14 +200,22 @@ func pull(ctx context.Context, src Source, st *Store) (SyncResult, error) {
 	var res SyncResult
 	err = st.Update(func(f *File, now time.Time) error {
 		res = SyncResult{}
-		for key, g := range got {
-			i := slices.IndexFunc(f.Issues, func(is Issue) bool { return is.Key == key })
+		index := func(key string) int { return slices.IndexFunc(f.Issues, func(is Issue) bool { return is.Key == key }) }
+		added := map[string]bool{}
+		keys := slices.Sorted(maps.Keys(got))
+		for _, key := range keys {
+			g := got[key]
+			if g.movedTo != "" {
+				continue // below: the new key may come from the list
+			}
+			i := index(key)
 			if i < 0 {
 				if !g.assigned {
 					continue
 				}
 				f.Issues = append(f.Issues, Issue{Key: key, FirstSeen: now, AssignedAt: now})
 				i = len(f.Issues) - 1
+				added[key] = true
 				res.New++
 			}
 			if merge(&f.Issues[i], g, &res) {
@@ -176,12 +225,37 @@ func pull(ctx context.Context, src Source, st *Store) (SyncResult, error) {
 				f.Issues[i].AssignedAt = g.assignedAt
 			}
 		}
+		// A moved issue keeps the user's status, order, notes and dates under its new key.
+		for _, old := range keys {
+			g, oi := got[old], index(old)
+			if g.movedTo == "" || oi < 0 {
+				continue
+			}
+			ni := index(g.movedTo)
+			switch {
+			case ni < 0:
+				f.Issues[oi].Key = g.movedTo
+				merge(&f.Issues[oi], g, &res)
+			case added[g.movedTo]: // just arrived from the list: it is not new
+				f.Issues[ni].keepOwn(f.Issues[oi])
+				f.Issues = slices.Delete(f.Issues, oi, oi+1)
+				res.New--
+			}
+			// Both keys known before: left as they are, the old one is looked up again next time.
+		}
 		f.Me = me.Username
 		f.SyncedAt = now
 		f.SyncError = ""
 		return nil
 	})
 	return res, err
+}
+
+// keepOwn copies the user's own fields (and when the issue was assigned
+// and first seen) from the record of the same issue under its old key.
+func (is *Issue) keepOwn(old Issue) {
+	is.Status, is.Rank, is.Notes, is.NotesAt = old.Status, old.Rank, old.Notes, old.NotesAt
+	is.Hidden, is.TouchedAt, is.AssignedAt, is.FirstSeen = old.Hidden, old.TouchedAt, old.AssignedAt, old.FirstSeen
 }
 
 // merge copies GitLab's view of an issue into is and counts the changes.

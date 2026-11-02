@@ -61,5 +61,9 @@ func SaveToken(home, token string) error {
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		return err
 	}
-	return atomicfile.Write(TokenPath(home), []byte(token+"\n"), 0o600)
+	if err := atomicfile.Write(TokenPath(home), []byte(token+"\n"), 0o600); err != nil {
+		return err
+	}
+	// Write keeps the mode of an existing file; a token must not stay readable for others.
+	return os.Chmod(TokenPath(home), 0o600)
 }

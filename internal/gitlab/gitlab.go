@@ -19,6 +19,7 @@ import (
 // Client calls one GitLab instance with a personal access token (scope read_api).
 type Client struct {
 	base  string // https://gitlab.example.com/api/v4
+	host  string
 	token string
 	http  *http.Client
 }
@@ -30,12 +31,30 @@ func New(host, token string) *Client {
 
 // NewWithURL returns a client of the GitLab at baseURL (used by tests).
 func NewWithURL(baseURL, token string) *Client {
-	return &Client{
-		base:  strings.TrimRight(baseURL, "/") + "/api/v4",
-		token: token,
-		http:  &http.Client{Timeout: 30 * time.Second},
+	c := &Client{base: strings.TrimRight(baseURL, "/") + "/api/v4", token: token}
+	if u, err := url.Parse(baseURL); err == nil {
+		c.host = strings.ToLower(u.Hostname())
 	}
+	c.http = &http.Client{Timeout: 30 * time.Second, CheckRedirect: keepToken}
+	return c
 }
+
+// keepToken refuses a redirect to another host or from https to http: Go
+// would send the PRIVATE-TOKEN header along (it drops only Authorization
+// and cookies), e.g. to an SSO proxy in front of a company GitLab.
+func keepToken(req *http.Request, via []*http.Request) error {
+	first := via[0].URL
+	if !strings.EqualFold(req.URL.Host, first.Host) || first.Scheme == "https" && req.URL.Scheme != "https" {
+		return fmt.Errorf("GitLab přesměroval požadavek na %s://%s – token se tam neposílá, zkontroluj host v issues.yaml", req.URL.Scheme, req.URL.Host)
+	}
+	if len(via) >= 10 {
+		return errors.New("GitLab přesměrovává dokola")
+	}
+	return nil
+}
+
+// Host returns the host name of the GitLab ("gitlab.example.com").
+func (c *Client) Host() string { return c.host }
 
 // User is a GitLab user.
 type User struct {
@@ -67,8 +86,11 @@ func (i Issue) AssignedTo(username string) bool {
 }
 
 var (
-	// ErrUnauthorized means the token is missing, wrong, expired or lacks read_api.
-	ErrUnauthorized = errors.New("GitLab odmítl token – je neplatný, vypršel, nebo nemá oprávnění read_api")
+	// ErrUnauthorized means the token is missing, wrong or expired (401).
+	ErrUnauthorized = errors.New("GitLab odmítl token – je neplatný nebo vypršel")
+	// ErrForbidden means the token may not do this (403): it lacks the
+	// read_api scope, or the user lost access to a project.
+	ErrForbidden = errors.New("GitLab odepřel přístup – token nemá oprávnění read_api, nebo k projektu už nemáš přístup")
 	// ErrNotFound means the object does not exist or the user cannot see it.
 	ErrNotFound = errors.New("GitLab objekt nenašel")
 )
@@ -129,10 +151,10 @@ func (c *Client) AssignedAt(ctx context.Context, projectPath string, iid int, us
 	return time.Time{}, nil
 }
 
-var assignedRe = regexp.MustCompile(`(?i)(?:^|\s)assigned to ((?:@[\w.-]+(?:,\s*|\s+and\s+)?)+)`)
+var assignedRe = regexp.MustCompile(`(?i)(?:^|\s)assigned to ((?:@[\w.-]+(?:,\s*(?:and\s+)?|\s+and\s+)?)+)`)
 
-// AssignsTo reports whether a system note body such as "assigned to @a and
-// @b and unassigned @c" assigns the issue to username.
+// AssignsTo reports whether a system note body such as "assigned to @a,
+// @b, and @c and unassigned @d" assigns the issue to username.
 func AssignsTo(body, username string) bool {
 	for _, m := range assignedRe.FindAllStringSubmatch(body, -1) {
 		for _, f := range strings.FieldsFunc(m[1], func(r rune) bool { return r == ',' || r == ' ' }) {
@@ -161,8 +183,10 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) (h
 	}
 	defer resp.Body.Close()
 	switch {
-	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+	case resp.StatusCode == http.StatusUnauthorized:
 		return nil, ErrUnauthorized
+	case resp.StatusCode == http.StatusForbidden:
+		return nil, ErrForbidden
 	case resp.StatusCode == http.StatusNotFound:
 		return nil, ErrNotFound
 	case resp.StatusCode != http.StatusOK:

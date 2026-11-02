@@ -104,3 +104,21 @@ func Lock(path string) (func(), error) {
 		f.Close()
 	}, nil
 }
+
+// TryLock is Lock without waiting: when another process (or another Lock
+// in this one) holds the lock, it returns ok false and no error.
+func TryLock(path string) (unlock func(), ok bool, err error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, false, err
+	}
+	busy, err := tryLockFile(f)
+	if err != nil || busy {
+		f.Close()
+		return nil, false, err
+	}
+	return func() {
+		unlockFile(f)
+		f.Close()
+	}, true, nil
+}

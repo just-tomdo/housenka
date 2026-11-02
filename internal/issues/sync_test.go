@@ -19,6 +19,8 @@ type fakeSource struct {
 	lookups  []string
 }
 
+func (s *fakeSource) Host() string { return "gitlab.example.com" }
+
 func (s *fakeSource) CurrentUser(context.Context) (gitlab.User, error) {
 	return gitlab.User{Username: "jnovak"}, s.err
 }

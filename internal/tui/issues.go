@@ -568,9 +568,6 @@ type issuesSyncedMsg struct {
 	err error
 }
 
-// syncTimeout bounds one sync.
-const syncTimeout = 2 * time.Minute
-
 // syncIssues reads GitLab in the background.
 func (m *Model) syncIssues() tea.Cmd {
 	v := m.iss
@@ -587,7 +584,7 @@ func (m *Model) syncIssues() tea.Cmd {
 	}
 	v.syncing = true
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), syncTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), issues.SyncTimeout)
 		defer cancel()
 		res, err := issues.Sync(ctx, src, st)
 		return issuesSyncedMsg{res, err}

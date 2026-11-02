@@ -8,4 +8,6 @@ import "os"
 // and the version checks of the callers only.
 func lockFile(*os.File) error { return nil }
 
+func tryLockFile(*os.File) (bool, error) { return false, nil }
+
 func unlockFile(*os.File) {}
