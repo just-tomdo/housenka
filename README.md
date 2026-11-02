@@ -7,6 +7,7 @@ Aplikace pro vykazování práce do Bílého motýla (BM), která hlídá, aby k
 - Čas přijímá jen po čtvrthodinách (`2,75`, `2.5`, `1:45`).
 - Pro každý záznam vygeneruje odkaz, který otevře BM s předvyplněným formulářem.
 - Statistiky za den, týden a měsíc, poměr produktivní / neproduktivní práce a týdenní souhrn pro teamový status.
+- Volitelně **přehled issues z GitLabu**: issue přiřazená tobě na vlastní nástěnce se stavy, poznámkami a vykazováním jednou klávesou ([docs/issues.md](docs/issues.md)).
 
 ## Instalace
 
@@ -58,7 +59,19 @@ Ukázka s vymyšlenými projekty a půlrokem vyplněných výkazů je v [example
 HOUSENKA_HOME=examples/demo housenka
 ```
 
-Podrobnosti a generování dat k dnešnímu dni v [examples/README.md](examples/README.md).
+Demo má zapnutý i přehled issues z GitLabu (v TUI klávesa `T`, ve webu odkaz Issues). Podrobnosti a generování dat k dnešnímu dni v [examples/README.md](examples/README.md).
+
+## Přehled issues z GitLabu
+
+Volitelné rozšíření pro ty, kdo mají na sobě hromadu issues. Issue přiřazená tobě se načítají z GitLabu a čekají jako **nová**, dokud je nezařadíš na vlastní **nástěnku**. Ta má sloupce podle tvých stavů s vlastními barvami. U issue si píšeš poznámky, vidíš, kdy ti bylo přiřazeno a kolik je na něm vykázáno, a `v` otevře formulář výkazu s vyplněným issue. Zapomenutá issue se obarví, mrtvá skryješ.
+
+```sh
+housenka issues init      # zapne rozšíření (~/.housenka/issues.yaml)
+housenka issues token     # uloží token GitLabu s oprávněním read_api
+housenka issues sync      # načte issue
+```
+
+V TUI přehled otevře `T`, ve webu odkaz **Issues** (zapnout jde i v Nastavení → Issues). Nastavení je v samostatném `issues.yaml`, token mimo config. Vše o rozšíření v [docs/issues.md](docs/issues.md).
 
 ## Ovládání
 
@@ -79,6 +92,7 @@ Klávesy jsou vim-friendly, ale každá akce má i běžnou alternativu. `?` zob
 | souhrn issue (všechny výkazy, hodiny podle činností) | `I` (v souhrnu `i` otevře issue) |
 | přepnout „odesláno“ | `s` · Space |
 | týdenní souhrn pro status | `S` (v souhrnu `y` zkopíruje text, `m` Markdown) |
+| přehled issues z GitLabu (je-li zapnutý) | `T` ([klávesy v něm](docs/issues.md#ovládání)) |
 | filtr | `/` (Esc zruší) |
 | konec | `q`, `:q`, `ctrl+c` |
 
@@ -124,6 +138,7 @@ Celý config se dá upravit v sekci **⚙ Nastavení**, bez psaní YAML:
 - **Projekty**: přehled kódů s barvou, povolenými a výchozí činností, repozitáři a počtem záznamů. Ve formuláři se vybírá barva štítku, povolené činnosti a repozitáře.
 - **Činnosti**: kódy činností z BM, jejich krátké popisky a jestli jsou produktivní.
 - **Obecné**: domény GitLabu, adresa a pole Bílého motýla (vyplní se samy z odkazu, který vytvoří editor BM), časové limity, web a vzhled TUI.
+- **Issues**: zapnutí přehledu issues z GitLabu, token, stavy nástěnky a `issues.yaml` jako text ([docs/issues.md](docs/issues.md)).
 - **YAML**: celý soubor jako text pro pokročilé úpravy. Když je config rozbitý, web nabídne jen tuhle záložku, dokud ho neopravíš.
 
 Přejmenování kódu se propíše do celého configu; uložené záznamy si nechají starý kód, tak jak byly odeslány do BM. Smazání se vždy potvrzuje a vypíše, co dalšího se změní. Každá změna se před uložením zkontroluje, komentáře v configu zůstanou a předchozí verze se uloží do `config.yaml.bak`.

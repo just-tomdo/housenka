@@ -19,6 +19,18 @@ Aplikace v Go pro vykazování práce do Bílého motýla (BM) s TUI a webovým 
 - HTMX je embednutý v `internal/web/static/htmx.min.js` (verze v commitu, stažený přes Go proxy: `proxy.golang.org/github.com/bigskysoftware/htmx/@v/<verze>+incompatible.zip`).
 - Bezpečnost serveru: poslouchá jen na `127.0.0.1`, kontroluje `Host` (jen `127.0.0.1`, `localhost` a `web.hostnames` načtené při startu; na portu 80 i bez portu), změnové požadavky vyžadují `Origin` stránky (chybějící `Origin` se odmítá) a CSRF token (cookie + hlavička `X-CSRF-Token`). Tohle neoslabovat.
 
+## Rozšíření: přehled issues z GitLabu
+
+Uživatelská dokumentace je v [docs/issues.md](docs/issues.md).
+
+- Volitelné: zapnuté, dokud existuje `~/.housenka/issues.yaml` (vlastní soubor, `config.yaml` ho nezná). Bez něj se TUI ani web nesmí změnit (žádný odkaz, `/issues` vrací 404, žádná síť). Rozbitý `issues.yaml` nesmí rozbít výkazy.
+- Doména je v `internal/issues` (config `issues.yaml` + `ConfigFile` se znovunačítáním, model, `issues/issues.json` přes `Store` se zámkem `issues/.lock`, karty, filtr, řazení, značky, `BuildOverview`, `Sync`) a `internal/gitlab` (REST klient jen nad `net/http`, token). TUI (`internal/tui/issues*.go`) a web (`internal/web/issues.go`, `settings_issues.go`) jen vykreslují; plná parita včetně kláves.
+- Synchronizace mění jen pole z GitLabu; stav, pořadí, poznámky a skrytí jsou uživatelovy. Poznámky mají vlastní verzi `NotesAt` (`issues.ErrConflict`, web ji nosí v poli `version`).
+- Token nikdy do configu ani `issues.yaml`: `HOUSENKA_GITLAB_TOKEN`, jinak `~/.housenka/gitlab-token` (0600). Web ho nikdy nevrací v HTML.
+- Testy bez sítě: `issues.Dial` se v testech nahrazuje falešným zdrojem, klient `gitlab` se testuje proti `httptest`. Testy webu a TUI mají vlastní `HOUSENKA_HOME`.
+- Issue se páruje s výkazy přes `gitlaburl.KeyOf` (cesta malými písmeny, `issues` = `work_items`, bez `#note`). Issue z repozitáře mimo `repos` se zobrazí se značkou a vykázat jde až po doplnění repozitáře.
+- Úpravy `issues.yaml` z webu dělá `configedit` (`LoadIssues`, `SetStatus` …) se stejnými zárukami jako u configu; přejmenování a smazání stavu přeřadí issue v `issues.json`.
+
 ## Prostředí: Claude běží v sandboxu
 
 Claude Code tu běží v izolovaném kontejneru (konfigurace v `.hole/`), ne přímo na uživatelově WSL. To má tyto důsledky:

@@ -10,8 +10,9 @@ stale_days: 14            # karta se obarví, když na issue tolik dní nesáhne
 
 # Tvoje stavy issue = sloupce nástěnky v tomto pořadí.
 # Barva: red, orange, yellow, green, teal, cyan, blue, purple, pink nebo "#rrggbb".
+# watch: false = v tomto stavu se nehlídá, jestli na issue dlouho nesaháš.
 statuses:
-  - {code: todo,    name: Na řadě,      color: blue}
-  - {code: doing,   name: Rozpracováno, color: orange}
-  - {code: waiting, name: Čeká,         color: purple}
-  - {code: done,    name: Hotovo,       color: green}
+  - { code: todo,    name: Na řadě,      color: blue }
+  - { code: doing,   name: Rozpracováno, color: orange }
+  - { code: waiting, name: Čeká,         color: purple }
+  - { code: done,    name: Hotovo,       color: green, watch: false }

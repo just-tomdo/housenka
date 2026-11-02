@@ -75,7 +75,7 @@ func TestIssuesStatusOps(t *testing.T) {
 	out := renderIssues(t, d)
 	for _, want := range []string{
 		"# Housenka – přehled issues z GitLabu",
-		"  - { code: review, name: Review,       color: teal, watch: false }",
+		"  - { code: review, name: Review,       color: teal,  watch: false }",
 		"  - { code: next,   name: Na řadě,      color: blue }",
 		"první z gitlab_hosts\nsync_minutes: 30          # jak často webové rozhraní GitLab načítá\nstale_days: 7 ",
 	} {

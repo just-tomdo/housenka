@@ -1,6 +1,6 @@
 # Ukázková data
 
-Každý podadresář je samostatný domov Housenky (`config.yaml` + `entries/`), takže se dá spustit bez zásahu do `~/.housenka`:
+Každý podadresář je samostatný domov Housenky (`config.yaml` + `entries/`, demo i `issues.yaml` + `issues/` pro [přehled issues](../docs/issues.md)), takže se dá spustit bez zásahu do `~/.housenka`:
 
 ```sh
 HOUSENKA_HOME=examples/demo housenka
@@ -18,4 +18,4 @@ go run ./examples/gen examples/demo                 # data do dneška
 go run ./examples/gen -to 2026-10-15 examples/demo  # data do zadaného dne
 ```
 
-Existující `entries/*.json` v adresáři se přepíšou. Před prezentací stačí generátor pustit znovu, aby data končila dnešním dnem.
+Když je v adresáři `issues.yaml`, generátor vyrobí i `issues/issues.json` z issue, na kterých se v datech pracovalo (rozpracovaná, hotová, čekající, zapomenutá, nová a jedno z neznámého repozitáře). Existující `entries/*.json` a `issues/issues.json` v adresáři se přepíšou. Před prezentací stačí generátor pustit znovu, aby data končila dnešním dnem.
