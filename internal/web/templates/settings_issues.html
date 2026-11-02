@@ -1,0 +1,110 @@
+{{define "settings-issues"}}<section class="issue-settings">
+  <div class="section-head">
+    <div>
+      <h2>Přehled issues z GitLabu</h2>
+      <p class="subtext">Volitelné rozšíření: issue přiřazená tobě se načítají z GitLabu, třídíš je na vlastní nástěnku a rovnou z nich vykazuješ. Nastavení je v <code>{{.Path}}</code>, odděleně od configu výkazů.</p>
+    </div>
+    {{if .Enabled}}<button class="btn ghost danger-text" hx-post="/settings/issues/disable" hx-swap="none" hx-confirm="Vypnout přehled issues? Nastavení i data (stavy, poznámky) zůstanou a Zapnout je vrátí.">Vypnout</button>{{end}}
+  </div>
+  {{if not .Enabled}}<div class="card pad">
+    <p>Přehled issues je vypnutý. Po zapnutí vznikne <code>issues.yaml</code> se vzorovými stavy a v horní liště přibude odkaz <strong>Issues</strong>.</p>
+    <div><button class="btn primary" hx-post="/settings/issues/enable" hx-swap="none">Zapnout přehled issues</button></div>
+  </div>
+  {{else}}
+  {{with .ConfigErr}}<div class="banner err">issues.yaml obsahuje chyby, oprav ho níže: {{.}}</div>{{end}}
+  {{if not .ConfigErr}}<div class="general">
+    <form class="card pad" hx-post="/settings/issues/general" hx-target="#settings-content" hx-swap="outerHTML">
+      <h2>Obecné</h2>
+      {{if eq .Part "general"}}{{template "form-errors" .Errors}}{{end}}
+      <input type="hidden" name="ihash" value="{{.Hash}}">
+      <label class="field"><span>GitLab (doména; prázdné = {{with .HostHint}}{{.}}{{else}}první z domén GitLabu{{end}})</span>
+        <input name="host" value="{{.Host}}" placeholder="{{.HostHint}}" autocomplete="off"></label>
+      <div class="grid3">
+        <label class="field"><span>Načítat každých (min)</span><input name="sync_minutes" value="{{.Sync}}" inputmode="numeric"></label>
+        <label class="field"><span>Upozornit po (dnech beze mě)</span><input name="stale_days" value="{{.Stale}}" inputmode="numeric"></label>
+      </div>
+      <button class="btn primary" type="submit">Uložit</button>
+    </form>
+
+    <form class="card pad" hx-post="/settings/issues/token" hx-target="#settings-content" hx-swap="outerHTML" autocomplete="off">
+      <h2>Token GitLabu</h2>
+      {{if eq .Part "token"}}{{template "form-errors" .Errors}}{{end}}
+      <p class="subtext">{{if eq .Token "env"}}✓ Token je v proměnné <code>HOUSENKA_GITLAB_TOKEN</code> (má přednost před uloženým).{{else if eq .Token "file"}}✓ Token je uložený (jen pro tebe čitelný soubor <code>gitlab-token</code>, nikdy ne v configu).{{else}}Token zatím chybí. Vytvoř ho v GitLabu: Preferences → Access tokens, oprávnění <code>read_api</code>.{{end}}</p>
+      <label class="field"><span>{{if .Token}}Nový token{{else}}Token{{end}}</span><input type="password" name="token" placeholder="glpat-…" autocomplete="new-password"></label>
+      <div class="row-actions">
+        <button class="btn primary" type="submit">Uložit a ověřit</button>
+        {{if eq .Token "file"}}<button class="btn ghost danger-text" type="submit" name="remove" value="1">Smazat token</button>{{end}}
+      </div>
+    </form>
+  </div>
+
+  <div class="section-head">
+    <div>
+      <h2>Stavy</h2>
+      <p class="subtext">Tvoje stavy issue = sloupce nástěnky v tomto pořadí. Každé issue má nejvýš jeden.</p>
+    </div>
+    <button class="btn primary" hx-get="/settings/issues/status-form" hx-target="#modal">+ Nový stav</button>
+  </div>
+  <div class="card table-wrap"><table class="settings-table">
+    <thead><tr><th>Stav</th><th>Kód</th><th>Hlídat zapomenutá</th><th class="num">Issue</th><th></th></tr></thead>
+    <tbody>{{range .Statuses}}<tr>
+      <td><span class="badge proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}}>{{.Label}}</span></td>
+      <td><code>{{.Code}}</code></td>
+      <td>{{if .Watched}}ano{{else}}<span class="muted">ne</span>{{end}}</td>
+      <td class="num muted">{{.Issues}}</td>
+      <td class="row-actions">
+        <button class="btn icon small" hx-post="/settings/issues/status/move" hx-vals='{"code": "{{.Code}}", "delta": "-1", "ihash": "{{$.Hash}}"}' hx-swap="none" title="O sloupec doleva"{{if .First}} disabled{{end}}>←</button>
+        <button class="btn icon small" hx-post="/settings/issues/status/move" hx-vals='{"code": "{{.Code}}", "delta": "1", "ihash": "{{$.Hash}}"}' hx-swap="none" title="O sloupec doprava"{{if .Last}} disabled{{end}}>→</button>
+        <button class="btn small" hx-get="/settings/issues/status-form?code={{.Code}}" hx-target="#modal">Upravit</button>
+        <button class="btn small ghost danger-text" hx-post="/settings/issues/status/delete" hx-vals='{"code": "{{.Code}}", "ihash": "{{$.Hash}}"}' hx-swap="none" hx-confirm="{{.Confirm}}">Smazat</button>
+      </td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  {{end}}
+
+  <form class="card pad yaml-form" hx-post="/settings/issues/yaml" hx-target="#settings-content" hx-swap="outerHTML">
+    <h2>issues.yaml jako text</h2>
+    <input type="hidden" name="ihash" value="{{.Hash}}">
+    {{with .Problems}}<div class="form-errors" role="alert"><strong>issues.yaml obsahuje chyby:</strong><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
+    {{if eq .Part "yaml"}}{{template "form-errors" .Errors}}{{with .Message}}<p class="note ok">✓ {{.}}</p>{{end}}{{end}}
+    <textarea name="yaml" class="yaml" rows="18" spellcheck="false">
+{{.YAML}}</textarea>
+    <footer class="form-foot">
+      <button class="btn" type="submit" name="action" value="check">Zkontrolovat</button>
+      <button class="btn primary" type="submit" name="action" value="save">Uložit</button>
+    </footer>
+  </form>
+  {{end}}
+</section>{{end}}
+
+{{define "status-form"}}<dialog class="modal" aria-labelledby="status-form-title">
+<form class="status-form" hx-post="/settings/issues/status" hx-target="#modal">
+  <header class="modal-head">
+    <h2 id="status-form-title">{{if .Old}}Upravit stav {{.Old}}{{else}}Nový stav{{end}}</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
+  </header>
+  <div class="modal-body fields">
+    {{template "form-errors" .Errors}}
+    <input type="hidden" name="old" value="{{.Old}}">
+    <input type="hidden" name="ihash" value="{{.Hash}}">
+    <div class="grid2">
+      <label class="field"><span>Kód <span class="subtext">(malá písmena, ukládá se k issue)</span></span><input name="code" value="{{.Code}}" placeholder="doing" autocomplete="off" required{{if not .Old}} autofocus{{end}}></label>
+      <label class="field"><span>Název</span><input name="name" value="{{.Name}}" placeholder="Rozpracováno" autocomplete="off"></label>
+    </div>
+    <fieldset class="field">
+      <legend>Barva <span class="badge proj preview" id="color-preview">{{if .Code}}{{.Code}}{{else}}KÓD{{end}}</span></legend>
+      <div class="swatches">
+        <label class="swatch auto" title="automaticky podle kódu{{with .Derived}} ({{.}}){{end}}"><input type="radio" name="color" value=""{{if eq .Color ""}} checked{{end}} data-derived="{{.Derived}}"><span>auto</span></label>
+        {{range .Swatches}}<label class="swatch pc-{{.Name}}" title="{{.Label}}"><input type="radio" name="color" value="{{.Name}}"{{if .Checked}} checked{{end}}><span></span></label>{{end}}
+        <label class="swatch custom" title="vlastní barva"><input type="radio" name="color" value="custom"{{if eq .Color "custom"}} checked{{end}}><input type="color" name="custom" value="{{if .Custom}}{{.Custom}}{{else}}#3a7bd5{{end}}"></label>
+      </div>
+    </fieldset>
+    <label class="check"><input type="checkbox" name="watch"{{if .Watch}} checked{{end}}> hlídat zapomenutá issue (obarvit kartu, když na issue dlouho nesáhneš)</label>
+    {{if .Old}}<p class="hint">Přejmenování kódu přeřadí i issue v tomto stavu.</p>{{end}}
+  </div>
+  <footer class="modal-foot">
+    <button class="btn primary" type="submit">Uložit</button>
+    <button class="btn" type="button" data-close>Zrušit</button>
+  </footer>
+</form>
+</dialog>{{end}}

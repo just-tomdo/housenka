@@ -47,11 +47,12 @@ func (s *Server) settingsRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /settings/bm/from-link", s.bmFromLink)
 	mux.HandleFunc("GET /settings/date-preview", s.datePreview)
 	mux.HandleFunc("POST /settings/examples/delete", s.deleteExamples)
+	s.issueSettingsRoutes(mux)
 }
 
 var settingsTabs = []struct{ ID, Label string }{
 	{"setup", "Průvodce"}, {"repos", "Repozitáře"}, {"projects", "Projekty"},
-	{"activities", "Činnosti"}, {"general", "Obecné"}, {"yaml", "YAML"},
+	{"activities", "Činnosti"}, {"general", "Obecné"}, {"issues", "Issues"}, {"yaml", "YAML"},
 }
 
 // exampleConfig is ExampleConfig parsed once per server.
@@ -94,6 +95,9 @@ func (s *Server) settingsTab(w http.ResponseWriter, r *http.Request) {
 	if tab == "yaml" {
 		d.YAML = s.yamlView(q)
 	}
+	if tab == "repos" {
+		d.AddRepo = r.URL.Query().Get("add")
+	}
 	s.render(w, "settings-page", d)
 }
 
@@ -101,6 +105,8 @@ func (s *Server) settingsTab(w http.ResponseWriter, r *http.Request) {
 
 type settingsData struct {
 	chrome
+	AddRepo    string // opens the form of a new repository with this link (from the issue overview)
+	Issues     issueSettingsView
 	Tab        string
 	Tabs       []tabLink
 	Hash       string
@@ -197,6 +203,9 @@ func (s *Server) buildSettings(q *req, tab string) settingsData {
 	}
 	if cfg == nil {
 		return d
+	}
+	if tab == "issues" {
+		d.Issues = s.buildIssueSettings(cfg)
 	}
 
 	all, _ := s.store.All()
@@ -500,7 +509,7 @@ func (s *Server) buildRepoForm(cfg *config.Config, r *rules.Rules, f repoFormVie
 
 func (s *Server) repoForm(w http.ResponseWriter, r *http.Request) {
 	q := s.req(w, r)
-	f := repoFormView{Old: r.URL.Query().Get("pattern")}
+	f := repoFormView{Old: r.URL.Query().Get("pattern"), Input: r.URL.Query().Get("repo")}
 	var selected []string
 	if f.Old != "" {
 		codes, ok := q.cfg.Repos[f.Old]

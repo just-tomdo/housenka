@@ -1,0 +1,165 @@
+{{define "issues-page"}}{{template "head" .}}
+{{template "issues-main" .Main}}
+{{template "foot"}}{{end}}
+
+{{define "issues-update"}}{{template "issues-main" .Main}}{{if .Toast.Text}}{{template "toast" .}}{{end}}{{end}}
+
+{{define "issues-main"}}<div id="issues" class="main issues"{{if .OOB}} hx-swap-oob="true"{{end}} data-tab="{{.State.Tab}}">
+<form id="viewstate" hidden>
+  <input type="hidden" name="v_tab" value="{{.State.Tab}}">
+  <input type="hidden" name="v_q" value="{{.State.Q}}">
+  <input type="hidden" name="v_sort" value="{{.State.Sort}}">
+  <input type="hidden" name="v_lanes" value="{{if .State.Lanes}}1{{end}}">
+</form>
+{{with .Err}}<div class="banner err">{{.}}</div>{{end}}
+{{if .Tabs}}
+<section class="toolbar">
+  <nav class="tabs" aria-label="Issues">
+    {{range .Tabs}}<a class="tab{{if .Active}} active{{end}}" href="/issues?{{.State.Query}}" hx-get="/issues/view?{{.State.Query}}" hx-target="#issues" hx-swap="outerHTML" hx-push-url="/issues?{{.State.Query}}" data-key="{{.Key}}">{{.Label}} <span class="count{{if and (eq .Key "1") .Count}} new{{end}}">{{.Count}}</span></a>{{end}}
+  </nav>
+  <div class="toolbar-right">
+    <input id="filter" class="filter" type="search" name="q" value="{{.State.Q}}" placeholder="Filtr  /  (r:repo p:KÓD l:štítek is:stale)" autocomplete="off"
+      hx-get="/issues/view?{{.State.WithoutQ.Query}}" hx-trigger="input changed delay:250ms, search" hx-target="#issues" hx-swap="outerHTML" aria-label="Filtr issue">
+    <label class="sort-picker" title="Řazení (O)">
+      <span class="subtext">Řadit:</span>
+      <select id="sort" name="sort" hx-get="/issues/view?{{.State.WithoutSort.Query}}" hx-target="#issues" hx-swap="outerHTML" aria-label="Řazení">
+        {{range .Sorts}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+      </select>
+    </label>
+    {{if eq .State.Tab "board"}}<a class="btn{{if .State.Lanes}} active{{end}}" href="/issues?{{.State.ToggleLanes.Query}}" hx-get="/issues/view?{{.State.ToggleLanes.Query}}" hx-target="#issues" hx-swap="outerHTML" hx-push-url="/issues?{{.State.ToggleLanes.Query}}" data-key="p" title="Seskupit podle repozitáře (p)">▤ Podle repozitáře</a>{{end}}
+    <button class="btn" hx-post="/issues/sync" hx-swap="none" hx-disabled-elt="this" data-key="r" title="Načíst issue z GitLabu (r)">⟳ Načíst z GitLabu</button>
+  </div>
+</section>
+<p class="sync-line subtext">
+  {{with .Sync.Err}}<span class="err">⚠ Poslední načtení z GitLabu selhalo: {{.}}</span>
+  {{else}}{{with .Sync.When}}Z GitLabu načteno {{.}}.{{else}}Z GitLabu se zatím nic nenačetlo – stiskni <kbd>r</kbd>.{{end}}{{end}}
+</p>
+
+{{if or .Cards .Columns .Lanes}}
+{{if .Columns}}{{template "board" .Columns}}
+{{else if .Lanes}}{{range .Lanes}}<section class="lane">
+  <h3><span class="badge proj {{.Class}}"{{with .Style}} style="{{.}}"{{end}}>{{.Path}}</span></h3>
+  {{template "board" .Cols}}
+</section>{{end}}
+{{else}}<section class="ilist" aria-label="Issues">{{range .Cards}}{{template "icard" .}}{{end}}</section>{{end}}
+{{else}}<div class="empty">{{.Empty}}</div>{{end}}
+
+<footer class="statusline">
+  <span>{{plural .Shown "issue" "issue" "issue"}}{{if .State.Q}} · filtr „{{.State.Q}}“{{end}}</span>
+</footer>
+{{end}}
+</div>{{end}}
+
+{{define "board"}}<div class="board" style="--cols: {{len .}}">
+  {{range .}}<section class="column" data-status="{{.Code}}">
+    <header class="col-head {{.Class}}"{{with .Style}} style="{{.}}"{{end}}><span class="dot"></span>{{.Label}} <span class="count">{{len .Cards}}</span></header>
+    <div class="col-body">{{range .Cards}}{{template "icard" .}}{{else}}<p class="col-empty muted">Přetáhni sem issue</p>{{end}}</div>
+  </section>{{end}}
+</div>{{end}}
+
+{{define "icard"}}<article class="icard{{if .Stale}} stale{{end}}{{if or .Closed .Unassigned}} out{{end}} {{.Status.Class}}"{{with .Status.Style}} style="{{.}}"{{end}} tabindex="-1" data-issue="{{.Key}}" draggable="true">
+  <header class="ic-head">
+    <span class="badge proj {{.RepoClass}}"{{with .RepoStyle}} style="{{.}}"{{end}} title="{{.ProjectPath}}">{{.RepoName}}</span>
+    <a class="iid" href="{{.URL}}" target="_blank" rel="noopener" data-key="o" title="Otevřít v GitLabu (o)">#{{.IID}}</a>
+    {{if .Status.Code}}<span class="ic-status">{{.Status.Label}}</span>{{end}}
+    {{if .Work.Total}}<span class="ic-hours" title="vykázáno celkem">{{hours .Work.Total}} h</span>{{end}}
+  </header>
+  <button class="ic-title" type="button" hx-get="/issues/detail?key={{qs .Key}}" hx-target="#modal" data-key="Enter" title="Detail (Enter)">{{.Title}}</button>
+  <div class="ic-meta">
+    <span title="přiřazeno {{.AssignedDate}}">přiřazeno {{.AssignedAge}}</span>
+    {{with .DueLabel}}<span class="{{$.DueKind}}">termín {{.}}</span>{{end}}
+    {{if .Notes}}<span class="ic-note" title="{{.NotesFirst}}">✎ poznámka</span>{{end}}
+    {{range .Labels}}<span class="tag">{{.}}</span>{{end}}
+  </div>
+  {{with .Marks}}<div class="ic-marks">{{range .}}<span class="tag {{.Kind}}" title="{{.Title}}">{{.Text}}</span>{{end}}</div>{{end}}
+  <div class="ic-actions">
+    {{if .Hidden}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{"key": "{{.Key}}", "hidden": "0"}' hx-swap="none" data-key="x" title="Vrátit (x)">↺ Vrátit</button>
+    {{else if lt .Column 0}}{{range .Statuses}}<button class="btn small chip-status {{.Class}}"{{with .Style}} style="{{.}}"{{end}} hx-post="/issues/status" hx-vals='{"key": "{{$.Key}}", "status": "{{.Code}}"}' hx-swap="none" title="Zařadit do „{{.Label}}“">→ {{.Label}}</button>{{end}}
+    <button class="sr-key" hx-post="/issues/status" hx-vals='{"key": "{{.Key}}", "status": "{{.First}}"}' hx-swap="none" data-key="L" tabindex="-1" aria-hidden="true"></button>
+    {{else}}
+    {{if .Prev}}<button class="btn icon small" hx-post="/issues/status" hx-vals='{"key": "{{.Key}}", "status": "{{.Prev}}"}' hx-swap="none" data-key="H" title="Do předchozího stavu (H)">‹</button>{{end}}
+    {{if .Next}}<button class="btn icon small" hx-post="/issues/status" hx-vals='{"key": "{{.Key}}", "status": "{{.Next}}"}' hx-swap="none" data-key="L" title="Do dalšího stavu (L)">›</button>{{end}}
+    <button class="sr-key" hx-post="/issues/move" hx-vals='{"key": "{{.Key}}", "delta": "1"}' hx-swap="none" data-key="J" tabindex="-1" aria-hidden="true"></button>
+    <button class="sr-key" hx-post="/issues/move" hx-vals='{"key": "{{.Key}}", "delta": "-1"}' hx-swap="none" data-key="K" tabindex="-1" aria-hidden="true"></button>
+    {{end}}
+    <span class="spacer"></span>
+    <button class="btn small" hx-get="/entries/new?issue={{qs .URL}}" hx-target="#modal" data-key="v" title="Vykázat práci na issue (v)">+ Vykázat</button>
+    <button class="btn icon small" hx-get="/issues/detail?key={{qs .Key}}&amp;notes=1" hx-target="#modal" data-key="n" title="Poznámky (n)">✎</button>
+    {{if not .Hidden}}<button class="btn icon small" hx-post="/issues/hidden" hx-vals='{"key": "{{.Key}}", "hidden": "1"}' hx-swap="none" data-key="x" title="Skrýt (x)">⨯</button>{{end}}
+  </div>
+</article>{{end}}
+
+{{define "issue-detail"}}<dialog class="modal modal-wide" aria-labelledby="idetail-title">
+  <header class="modal-head">
+    <h2 id="idetail-title"><span class="badge proj {{.RepoClass}}"{{with .RepoStyle}} style="{{.}}"{{end}}>{{.RepoName}}</span> #{{.IID}} {{.Title}}</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít">×</button>
+  </header>
+  <div class="modal-body">
+    <p class="facts">
+      <a class="btn small" href="{{.URL}}" target="_blank" rel="noopener" data-modal-key="o i"{{if not .FocusNote}} autofocus{{end}}>Otevřít v GitLabu ↗ <kbd>o</kbd></a>
+      <button class="btn small primary" hx-get="/entries/new?issue={{qs .URL}}" hx-target="#modal" data-modal-key="v">+ Vykázat <kbd>v</kbd></button>
+      {{if .Hidden}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{"key": "{{.Key}}", "hidden": "0"}' hx-target="#modal" data-modal-key="x">↺ Vrátit ze skrytých <kbd>x</kbd></button>
+      {{else}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{"key": "{{.Key}}", "hidden": "1"}' hx-target="#modal" data-modal-key="x">Skrýt <kbd>x</kbd></button>{{end}}
+      <span class="subtext">{{.ProjectPath}}</span>
+    </p>
+    <p class="facts">
+      <span title="{{.AssignedDate}}">přiřazeno {{.AssignedAge}} ({{.AssignedDate}})</span>
+      {{with .DueLabel}}<span class="{{$.DueKind}}">termín {{.}}</span>{{end}}
+      <span class="subtext">v přehledu od {{.FirstSeen}}</span>
+      {{range .Labels}}<span class="tag">{{.}}</span>{{end}}
+      {{range .Marks}}<span class="tag {{.Kind}}" title="{{.Title}}">{{.Text}}</span>{{end}}
+    </p>
+    {{with .RepoLink}}<p class="note warn">Na toto issue zatím nejde vykázat: housenka nezná jeho {{if $.Repo.HostKnown}}repozitář{{else}}GitLab{{end}}.
+      <a class="btn small" href="/settings/repos?add={{.}}" target="_blank" rel="noopener">Přidat repozitář do housenky ↗</a></p>{{end}}
+
+    <h3>Můj stav</h3>
+    <div class="status-picks">
+      {{range .Statuses}}<button class="btn small chip-status {{.Class}}{{if .Current}} current{{end}}"{{with .Style}} style="{{.}}"{{end}} hx-post="/issues/status" hx-vals='{"key": "{{$.Key}}", "status": "{{.Code}}"}' hx-target="#modal" data-modal-key="{{.Key}}">{{if .Current}}● {{end}}{{.Label}} <kbd>{{.Key}}</kbd></button>{{end}}
+    </div>
+
+    <h3>Poznámky</h3>
+    <form class="notes-form" hx-post="/issues/notes" hx-target="#modal">
+      <input type="hidden" name="key" value="{{.Key}}">
+      <input type="hidden" name="version" value="{{.Version}}">
+      {{with .Notice}}<p class="note warn" role="alert">{{.}}</p>{{end}}
+      <textarea name="notes" rows="5" placeholder="Co je potřeba, na co čekám, kontakty…"{{if .FocusNote}} autofocus{{end}}>{{.Notes}}</textarea>
+      <div class="modal-foot inline"><button class="btn primary" type="submit">Uložit poznámky</button> <span class="subtext"><kbd>Ctrl+Enter</kbd></span></div>
+    </form>
+
+    <h3>Vykázaná práce</h3>
+    {{if .Worked}}<p class="facts">{{template "issue-facts" .Work}}</p>
+    {{template "issue-tables" .Work}}{{else}}<p class="muted">Na issue zatím nic vykázáno.</p>{{end}}
+  </div>
+</dialog>{{end}}
+
+{{define "help-issues"}}<dialog class="modal" aria-labelledby="help-title">
+  <header class="modal-head">
+    <h2 id="help-title">Klávesové zkratky – Issues</h2>
+    <button class="btn icon ghost" type="button" data-close aria-label="Zavřít" autofocus>×</button>
+  </header>
+  <div class="modal-body help">
+    <p class="subtext">Stejné jako v TUI. Fungují, když se nepíše do pole formuláře.</p>
+    <div class="help-cols">
+      <dl>
+        <dt><kbd>j</kbd> <kbd>k</kbd> <kbd>h</kbd> <kbd>l</kbd></dt><dd>výběr issue (na nástěnce i mezi sloupci)</dd>
+        <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>nová / nástěnka / skrytá</dd>
+        <dt><kbd>/</kbd></dt><dd>filtr (<kbd>Esc</kbd> ho zruší)</dd>
+        <dt><kbd>O</kbd></dt><dd>další řazení</dd>
+        <dt><kbd>p</kbd></dt><dd>seskupit podle repozitáře</dd>
+        <dt><kbd>r</kbd></dt><dd>načíst z GitLabu</dd>
+        <dt><kbd>T</kbd></dt><dd>zpět na výkazy</dd>
+        <dt><kbd>?</kbd></dt><dd>tato nápověda</dd>
+      </dl>
+      <dl>
+        <dt><kbd>H</kbd> <kbd>L</kbd></dt><dd>do předchozího / dalšího stavu (nové issue: <kbd>L</kbd> zařadí)</dd>
+        <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>posunout ve sloupci dolů / nahoru</dd>
+        <dt><kbd>Enter</kbd> <kbd>s</kbd></dt><dd>detail, výběr stavu (<kbd>1</kbd>–<kbd>9</kbd>)</dd>
+        <dt><kbd>n</kbd></dt><dd>poznámky</dd>
+        <dt><kbd>v</kbd></dt><dd>vykázat práci na issue</dd>
+        <dt><kbd>o</kbd> <kbd>g</kbd><kbd>x</kbd></dt><dd>otevřít v GitLabu</dd>
+        <dt><kbd>x</kbd></dt><dd>skrýt / vrátit</dd>
+      </dl>
+    </div>
+    <p class="subtext">Filtr: <code>r:repo</code>, <code>p:KÓD</code> projektu, <code>l:štítek</code>, <code>is:stale</code> (dlouho beze mě), <code>is:unknown</code> (repozitář mimo housenku), <code>is:closed</code>, <code>is:notes</code>, <code>is:due</code>; <code>-</code> před slovem ho neguje. Karty jde přetahovat myší mezi sloupci.</p>
+  </div>
+</dialog>{{end}}

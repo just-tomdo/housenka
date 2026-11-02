@@ -86,15 +86,22 @@ type fetched struct {
 func Sync(ctx context.Context, src Source, st *Store) (SyncResult, error) {
 	res, err := pull(ctx, src, st)
 	if err != nil {
-		msg := err.Error()
-		if uerr := st.Update(func(f *File, _ time.Time) error {
-			f.SyncError = msg
-			return nil
-		}); uerr != nil {
-			return res, errors.Join(err, uerr)
-		}
+		return res, RecordSyncError(st, err)
 	}
-	return res, err
+	return res, nil
+}
+
+// RecordSyncError keeps err as the last sync's failure in the file (the
+// UIs show it) and returns it.
+func RecordSyncError(st *Store, err error) error {
+	msg := err.Error()
+	if uerr := st.Update(func(f *File, _ time.Time) error {
+		f.SyncError = msg
+		return nil
+	}); uerr != nil {
+		return errors.Join(err, uerr)
+	}
+	return err
 }
 
 func pull(ctx context.Context, src Source, st *Store) (SyncResult, error) {

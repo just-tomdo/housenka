@@ -321,6 +321,7 @@ func Serve(o Options, out io.Writer) error {
 	}
 	defer removeState(st.Token)
 	go keepState(ctx, st)
+	go srv.keepIssuesSynced(ctx)
 	if o.Config != nil && !srv.themes.valid(o.Config.Web.Theme) {
 		fmt.Fprintf(out, "Varování: neznámé téma web.theme %q, použije se auto (možnosti: %s)\n", o.Config.Web.Theme, strings.Join(srv.themes.ids(), ", "))
 	}

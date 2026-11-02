@@ -73,6 +73,7 @@ type Card struct {
 	Work       Work
 	Column     int  // index in Config.Statuses; -1 = new
 	LostStatus bool // Status is set but no longer configured
+	Assigned   int  // days since the issue was assigned to the user
 	Idle       int  // days since the user last did anything with the issue
 	Stale      bool // idle for StaleDays or longer in a watched place
 }
@@ -89,6 +90,7 @@ func Cards(f File, cfg *Config, r *rules.Rules, work map[string]Work, today civi
 		}
 		last = maxDate(last, c.Work.Last)
 		c.Idle = max(last.DaysTo(today), 0)
+		c.Assigned = max(civil.Of(is.AssignedAt.Local()).DaysTo(today), 0)
 		watched := c.Column < 0 || cfg.Statuses[c.Column].Watched()
 		c.Stale = watched && !is.Hidden && !is.Closed && !is.Unassigned && c.Idle >= cfg.StaleDays
 		cards = append(cards, c)

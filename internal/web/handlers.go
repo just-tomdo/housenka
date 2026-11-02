@@ -50,11 +50,13 @@ const themeCookie = "housenka_theme"
 
 // chrome is what every full page needs: theme, CSRF token and navigation.
 type chrome struct {
-	Theme   string
-	Themes  []themeOption
-	CSRF    string
-	Section string // "entries" or "settings"
-	Setup   bool   // the configuration still holds example values
+	Theme     string
+	Themes    []themeOption
+	CSRF      string
+	Section   string // "entries", "issues" or "settings"
+	Setup     bool   // the configuration still holds example values
+	Issues    bool   // the issue overview is on
+	NewIssues int    // issues waiting to be sorted
 }
 
 type pageData struct {
@@ -69,6 +71,15 @@ func (s *Server) chrome(q *req, section string) chrome {
 		c.Themes = append(c.Themes, themeOption{ID: t.ID, Name: t.Name, Selected: c.Theme == t.ID})
 	}
 	c.Setup = q.cfg != nil && !configedit.SetupDone(s.setupSteps(q.cfg))
+	icfg, err := s.iss.config()
+	c.Issues = icfg != nil || err != nil
+	if icfg != nil {
+		if st, err := s.iss.openStore(); err == nil {
+			if f, err := st.Load(); err == nil {
+				c.NewIssues = len(f.New(icfg))
+			}
+		}
+	}
 	return c
 }
 
@@ -124,14 +135,15 @@ func (s *Server) find(id string) (entry.Entry, error) {
 	return s.store.Get(id)
 }
 
-// newEntry opens the form for a new entry on ?date=, or for a copy of ?copy=.
+// newEntry opens the form for a new entry on ?date=, for a copy of ?copy=,
+// or for work on the issue ?issue= (from the issue overview).
 func (s *Server) newEntry(w http.ResponseWriter, r *http.Request) {
 	q := s.req(w, r)
 	date, err := civil.Parse(r.URL.Query().Get("date"))
 	if err != nil {
 		date = q.today
 	}
-	e, title := entry.Entry{Date: date}, "Nový záznam"
+	e, title := entry.Entry{Date: date, IssueURL: r.URL.Query().Get("issue")}, "Nový záznam"
 	if id := r.URL.Query().Get("copy"); id != "" {
 		orig, err := s.find(id)
 		if err != nil {
@@ -226,6 +238,10 @@ func (s *Server) saveEntry(w http.ResponseWriter, r *http.Request) {
 	if u, err := entryedit.BMURL(q.cfg, q.rules.Validate(saved, q.today), saved); err == nil {
 		t.Link, t.LinkLabel = u, "Otevřít v BM ↗"
 	}
+	if fromIssues(r) {
+		s.issuesChanged(w, r, t)
+		return
+	}
 	s.update(w, q, v, t, saved.ID)
 }
 
@@ -305,7 +321,11 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "status", buildStatus(q.cfg, stats.BuildStatus(p, entries, q.cfg), v))
 }
 
-func (s *Server) help(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) help(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("issues") != "" {
+		s.render(w, "help-issues", nil)
+		return
+	}
 	s.render(w, "help", nil)
 }
 

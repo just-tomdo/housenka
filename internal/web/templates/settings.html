@@ -1,5 +1,6 @@
 {{define "settings-page"}}{{template "head" .}}
 {{template "settings-content" .}}
+{{with .AddRepo}}<div hidden hx-get="/settings/repos/form?repo={{qs .}}" hx-target="#modal" hx-trigger="load"></div>{{end}}
 {{template "foot"}}{{end}}
 
 {{define "settings-update"}}{{template "settings-content" .Settings}}{{template "toast" .}}{{end}}
@@ -15,6 +16,7 @@
 {{else if eq .Tab "projects"}}{{template "settings-projects" .}}
 {{else if eq .Tab "activities"}}{{template "settings-activities" .}}
 {{else if eq .Tab "general"}}{{template "settings-general" .General}}
+{{else if eq .Tab "issues"}}{{template "settings-issues" .Issues}}
 {{else if eq .Tab "yaml"}}{{template "settings-yaml" .}}{{end}}
 </div>{{end}}
 

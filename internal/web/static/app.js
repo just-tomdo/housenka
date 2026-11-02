@@ -220,8 +220,9 @@
     }
     const note = $("[data-rename-note]", form);
     if (note) note.hidden = !old || code === old;
-    const allowed = $$("[name=activities]:checked", form).map((c) => c.value);
     const select = $("[name=default_activity]", form);
+    if (!select) return; // the status form has a color only
+    const allowed = $$("[name=activities]:checked", form).map((c) => c.value);
     for (const opt of select.options) {
       opt.hidden = opt.value !== "" && allowed.length > 0 && !allowed.includes(opt.value);
     }
@@ -230,15 +231,145 @@
 
   for (const ev of ["input", "change"]) {
     document.addEventListener(ev, (e) => {
-      const form = e.target.closest && e.target.closest("form.project-form");
+      const form = e.target.closest && e.target.closest("form.project-form, form.status-form");
       if (!form) return;
       if (e.target.name === "custom") $("[name=color][value=custom]", form).checked = true;
       updateProjectForm(form);
     });
   }
   document.addEventListener("htmx:afterSwap", (e) => {
-    const form = $("form.project-form", e.detail.target);
+    const form = $("form.project-form, form.status-form", e.detail.target);
     if (form) updateProjectForm(form);
+  });
+
+  // --- issue overview -------------------------------------------------------------------------------
+
+  let selectedIssue = null;
+  const icards = () => $$("#issues .icard");
+  const selectedCard = () => icards().find((c) => c.dataset.issue === selectedIssue) || null;
+
+  function selectCard(card, scroll = true) {
+    icards().forEach((c) => c.classList.toggle("selected", c === card));
+    selectedIssue = card ? card.dataset.issue : null;
+    if (card && scroll) card.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
+  function restoreCard() {
+    if (!$("#issues")) return;
+    const all = icards();
+    selectCard(all.find((c) => c.dataset.issue === selectedIssue) || all[0] || null, false);
+  }
+
+  // The cards of the selected card's column, across repository lanes; the
+  // new and hidden tabs are one list.
+  function columnOf(card) {
+    const col = card && card.closest(".column");
+    if (!col) return icards();
+    return $$(`#issues .column[data-status="${CSS.escape(col.dataset.status)}"] .icard`);
+  }
+
+  function moveCard(delta) {
+    const card = selectedCard();
+    if (!card) return selectCard(icards()[0] || null);
+    const list = columnOf(card);
+    const i = list.indexOf(card);
+    selectCard(list[Math.max(0, Math.min(list.length - 1, i + delta))]);
+  }
+
+  // moveColumn selects the card at about the same place in the next column
+  // with cards; in the lists h and l move like k and j.
+  function moveColumn(delta) {
+    const card = selectedCard();
+    const col = card && card.closest(".column");
+    if (!col) return moveCard(delta);
+    const board = col.closest(".board");
+    const cols = $$(".column", board);
+    const row = $$(".icard", col).indexOf(card);
+    for (let i = cols.indexOf(col) + delta; i >= 0 && i < cols.length; i += delta) {
+      const cs = $$(".icard", cols[i]);
+      if (cs.length) return selectCard(cs[Math.min(row, cs.length - 1)]);
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const card = e.target.closest(".icard");
+    if (card) selectCard(card, false);
+  });
+  document.addEventListener("htmx:afterSettle", () => restoreCard());
+
+  function issuesKey(e) {
+    const card = selectedCard();
+    let handled = true;
+    switch (e.key) {
+      case "j": case "ArrowDown": moveCard(1); break;
+      case "k": case "ArrowUp": moveCard(-1); break;
+      case "h": case "ArrowLeft": moveColumn(-1); break;
+      case "l": case "ArrowRight": moveColumn(1); break;
+      case "G": case "End": { const l = columnOf(card); selectCard(l[l.length - 1] || null); break; }
+      case "Home": selectCard(columnOf(card)[0] || null); break;
+      case "g": sequence("g", () => selectCard(columnOf(card)[0] || null)); break;
+      case "x":
+        if (pending === "g" && card) { pending = ""; clickKey(card, "o"); } else handled = clickKey(card, "x");
+        break;
+      case "/": $("#filter").focus(); break;
+      case "Escape":
+        if ($("#filter").value) {
+          $("#filter").value = "";
+          $("#filter").dispatchEvent(new Event("search", { bubbles: true }));
+        }
+        break;
+      case "O": {
+        const sel = $("#sort");
+        sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        break;
+      }
+      case "s": handled = clickKey(card, "Enter"); break;
+      default:
+        handled = clickKey(card, e.key);
+    }
+    if (handled) e.preventDefault();
+  }
+
+  // Dragging a card onto a column puts it there, before the card under the pointer.
+  let dragged = null;
+  const clearDrop = () => $$(".drop-before, .col-body.over").forEach((el) => el.classList.remove("drop-before", "over"));
+
+  function dropTarget(body, y) {
+    return $$(".icard", body).find((c) => c !== dragged && y < c.getBoundingClientRect().top + c.offsetHeight / 2) || null;
+  }
+
+  document.addEventListener("dragstart", (e) => {
+    const card = e.target.closest && e.target.closest(".icard");
+    if (!card) return;
+    dragged = card;
+    selectCard(card, false);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", card.dataset.issue);
+    requestAnimationFrame(() => card.classList.add("dragging"));
+  });
+  document.addEventListener("dragend", () => {
+    if (dragged) dragged.classList.remove("dragging");
+    dragged = null;
+    clearDrop();
+  });
+  document.addEventListener("dragover", (e) => {
+    const body = dragged && e.target.closest && e.target.closest(".col-body");
+    if (!body) return;
+    e.preventDefault();
+    clearDrop();
+    body.classList.add("over");
+    const before = dropTarget(body, e.clientY);
+    if (before) before.classList.add("drop-before");
+  });
+  document.addEventListener("drop", (e) => {
+    const body = dragged && e.target.closest && e.target.closest(".col-body");
+    if (!body) return;
+    e.preventDefault();
+    const before = dropTarget(body, e.clientY);
+    const values = { key: dragged.dataset.issue, status: body.closest(".column").dataset.status, before: before ? before.dataset.issue : "" };
+    clearDrop();
+    htmx.ajax("POST", "/issues/status", { source: body, values, swap: "none" });
   });
 
   // --- keyboard ------------------------------------------------------------------------------------
@@ -269,7 +400,7 @@
 
     // Form: Ctrl+Enter or Ctrl+S saves.
     if (dlg && (e.ctrlKey || e.metaKey) && (e.key === "Enter" || e.key === "s")) {
-      const form = $("form.entry-form", dlg);
+      const form = $("form.entry-form", dlg) || $("form.notes-form", dlg);
       if (form) {
         e.preventDefault();
         form.requestSubmit();
@@ -298,6 +429,7 @@
       return;
     }
 
+    if ($("#issues")) return issuesKey(e);
     if (!$("#main")) return; // the shortcuts belong to the entries page
 
     const row = selectedRow();
@@ -344,6 +476,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     restoreSelection();
+    restoreCard();
     scheduleToastHide();
   });
 })();

@@ -301,16 +301,7 @@ func issuePrefix(ref gitlaburl.Ref) string {
 // projectColor returns the badge class (named color) or inline style
 // (#rrggbb) of a project.
 func projectColor(cfg *config.Config, code string) (string, template.CSS) {
-	spec := cfg.Projects[code].Color
-	if strings.HasPrefix(spec, "#") && len(spec) == 7 && !strings.ContainsAny(spec, ";:(){}\"'<>") {
-		return "", template.CSS("--pc: " + spec)
-	}
-	for _, n := range config.ColorNames {
-		if n == spec {
-			return "pc-" + n, ""
-		}
-	}
-	return "pc-" + config.DerivedColorName(code), ""
+	return colorOf(code, cfg.Projects[code].Color)
 }
 
 // --- form ----------------------------------------------------------------------
@@ -589,6 +580,7 @@ var funcs = template.FuncMap{
 		return strings.TrimSpace(r)
 	},
 	"plural": text.Plural,
+	"qs":     url.QueryEscape,
 	"sub":    func(a, b int) int { return a - b },
 	"inc":    func(a int) int { return a + 1 },
 }

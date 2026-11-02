@@ -58,6 +58,8 @@ type Server struct {
 	token    string
 	shutdown func()
 
+	iss *issueSide // the optional issue overview
+
 	mu       sync.Mutex
 	cfg      *config.Config
 	rules    *rules.Rules
@@ -90,7 +92,7 @@ func New(cfg *config.Config, cfgPath string, s Store, clock func() civil.Date, p
 	srv := &Server{
 		cfgPath: cfgPath, store: s, clock: clock, port: port, tmpl: tmpl, themes: themes,
 		static: http.FileServerFS(static), token: randomToken(),
-		cfg: cfg, cfgStamp: statConfig(cfgPath), home: homeID(),
+		cfg: cfg, cfgStamp: statConfig(cfgPath), home: homeID(), iss: newIssueSide(),
 	}
 	if cfg == nil {
 		srv.cfg, srv.cfgErr = config.Load(cfgPath)
@@ -151,6 +153,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /_/health", s.health)
 	mux.HandleFunc("POST /_/shutdown", s.shutdownHandler)
 	s.settingsRoutes(mux)
+	s.issueRoutes(mux)
 	return s.checkHost(s.checkCSRF(s.requireConfig(mux)))
 }
 

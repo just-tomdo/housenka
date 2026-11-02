@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{if eq .Section "settings"}}Nastavení – {{end}}Housenka</title>
+<title>{{if eq .Section "settings"}}Nastavení – {{else if eq .Section "issues"}}Issues – {{end}}Housenka</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐛</text></svg>">
 <link rel="stylesheet" href="/themes.css">
 <link rel="stylesheet" href="/static/app.css">
@@ -14,7 +14,8 @@
 <header class="topbar">
   <a class="brand" href="/" title="Housenka – vykazování práce">🐛 <span>Housenka</span></a>
   <nav class="sections" aria-label="Sekce">
-    <a class="section-link{{if eq .Section "entries"}} active{{end}}" href="/">Výkazy</a>
+    <a class="section-link{{if eq .Section "entries"}} active{{end}}" href="/"{{if eq .Section "issues"}} data-key="T"{{end}}>Výkazy</a>
+    {{if .Issues}}<a class="section-link{{if eq .Section "issues"}} active{{end}}" href="/issues"{{if eq .Section "entries"}} data-key="T"{{end}} title="Issues přiřazená tobě (T)">Issues{{if .NewIssues}} <span class="count new" title="{{plural .NewIssues "nové issue" "nová issue" "nových issue"}} čeká na zařazení">{{.NewIssues}}</span>{{end}}</a>{{end}}
     <a class="section-link{{if eq .Section "settings"}} active{{end}}" href="/settings">⚙ Nastavení{{if .Setup}} <span class="dot" title="Nastavení není dokončené"></span>{{end}}</a>
   </nav>
   <div class="topbar-right">
@@ -25,6 +26,7 @@
       </select>
     </label>
     {{if eq .Section "entries"}}<button class="btn ghost" hx-get="/help" hx-target="#modal" data-key="?" title="Klávesové zkratky (?)">⌨ Zkratky</button>{{end}}
+    {{if eq .Section "issues"}}<button class="btn ghost" hx-get="/help?issues=1" hx-target="#modal" data-key="?" title="Klávesové zkratky (?)">⌨ Zkratky</button>{{end}}
   </div>
 </header>
 {{end}}

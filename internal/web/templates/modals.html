@@ -6,13 +6,19 @@
   <div class="modal-body">
     <p class="facts">
       <a class="btn small" href="{{.URL}}" target="_blank" rel="noopener" data-modal-key="i o" autofocus>Otevřít issue ↗ <kbd>i</kbd></a>
-      <span>celkem <strong>{{hours .Total}} h</strong></span>
+      {{template "issue-facts" .}}
+    </p>
+    {{template "issue-tables" .}}
+  </div>
+</dialog>{{end}}
+
+{{define "issue-facts"}}<span>celkem <strong>{{hours .Total}} h</strong></span>
       <span>{{plural (len .Entries) "výkaz" "výkazy" "výkazů"}}</span>
       <span>{{plural .Days "den" "dny" "dní"}}</span>
       {{with .Span}}<span class="subtext">{{.}}</span>{{end}}
-      {{if .Unsent}}<span class="warn">• neodesláno {{hours .Unsent}} h</span>{{end}}
-    </p>
-    <h3>Činnosti</h3>
+      {{if .Unsent}}<span class="warn">• neodesláno {{hours .Unsent}} h</span>{{end}}{{end}}
+
+{{define "issue-tables"}}<h3>Činnosti</h3>
     <table class="shares">
       {{range .Activities}}<tr>
         <td class="{{.Kind}} code"{{if ne .Label .Code}} title="v BM {{.Code}}"{{end}}>{{.Label}}</td>
@@ -42,9 +48,7 @@
         <td class="num"><strong>{{hours .Quarters}}</strong></td>
         <td class="desc">{{.Description}}</td>
       </tr>{{end}}
-    </table>
-  </div>
-</dialog>{{end}}
+    </table>{{end}}
 
 {{define "status"}}<dialog class="modal modal-wide" aria-labelledby="status-title">
   <header class="modal-head">

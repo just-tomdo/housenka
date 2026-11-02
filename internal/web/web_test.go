@@ -53,6 +53,7 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	dir := t.TempDir()
+	t.Setenv(config.HomeEnv, dir) // issues.yaml and issues.json live in the home
 	cfgPath := filepath.Join(dir, "config.yaml")
 	if err := os.WriteFile(cfgPath, []byte(testYAML), 0o644); err != nil {
 		t.Fatal(err)
