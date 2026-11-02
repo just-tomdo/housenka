@@ -1,0 +1,17 @@
+# Housenka – přehled issues z GitLabu (rozšíření, viz docs/issues.md)
+#
+# Umístění: ~/.housenka/issues.yaml. Dokud soubor neexistuje, je rozšíření vypnuté.
+# Token GitLabu sem nepatří: nastav ho příkazem `housenka issues token`
+# (nebo v Nastavení webového rozhraní), případně proměnnou HOUSENKA_GITLAB_TOKEN.
+
+host: gitlab.example.com  # GitLab, ze kterého se načítají issue přiřazená tobě; vynech = první z gitlab_hosts
+sync_minutes: 15          # jak často webové rozhraní GitLab načítá
+stale_days: 14            # karta se obarví, když na issue tolik dní nesáhneš
+
+# Tvoje stavy issue = sloupce nástěnky v tomto pořadí.
+# Barva: red, orange, yellow, green, teal, cyan, blue, purple, pink nebo "#rrggbb".
+statuses:
+  - {code: todo,    name: Na řadě,      color: blue}
+  - {code: doing,   name: Rozpracováno, color: orange}
+  - {code: waiting, name: Čeká,         color: purple}
+  - {code: done,    name: Hotovo,       color: green}

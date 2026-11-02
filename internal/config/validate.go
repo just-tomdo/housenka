@@ -16,6 +16,16 @@ var (
 	themeNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 )
 
+// ValidColor reports whether spec is a name from ColorNames or "#rrggbb".
+func ValidColor(spec string) bool {
+	return slices.Contains(ColorNames, spec) || hexColor.MatchString(spec)
+}
+
+// ColorProblem describes why spec is not a valid color.
+func ColorProblem(spec string) string {
+	return fmt.Sprintf("neznámá barva %q (možnosti: %s nebo #rrggbb)", spec, strings.Join(ColorNames, ", "))
+}
+
 // Problems is a list of configuration errors, reported all at once.
 type Problems []string
 
@@ -149,8 +159,8 @@ func (c *Config) Validate() error {
 		default:
 			add("projects.%s.issue: neplatná hodnota %q (required nebo optional)", code, pr.Issue)
 		}
-		if pr.Color != "" && !slices.Contains(ColorNames, pr.Color) && !hexColor.MatchString(pr.Color) {
-			add("projects.%s.color: neznámá barva %q (možnosti: %s nebo #rrggbb)", code, pr.Color, strings.Join(ColorNames, ", "))
+		if pr.Color != "" && !ValidColor(pr.Color) {
+			add("projects.%s.color: %s", code, ColorProblem(pr.Color))
 		}
 	}
 

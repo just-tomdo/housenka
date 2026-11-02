@@ -191,23 +191,32 @@ func Load(path string) (*Config, error) {
 // Unknown keys are rejected so that typos do not silently disable rules.
 func Parse(data []byte) (*Config, error) {
 	cfg := Default()
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	dec.KnownFields(true)
-	if err := dec.Decode(&cfg); err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil, errors.New("config je prázdný")
-		}
-		return nil, translateYAMLError(err)
-	}
-	if loc := unquotedHexRe.FindIndex(data); loc != nil {
-		// YAML reads `color: #abc123` as an empty value with a comment.
-		line := bytes.Count(data[:loc[0]], []byte("\n")) + 1
-		return nil, fmt.Errorf("řádek %d: barvu zapiš v uvozovkách, např. color: \"#e06c75\" (bez nich ji YAML čte jako komentář)", line)
+	if err := DecodeYAML(data, &cfg); err != nil {
+		return nil, err
 	}
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+// DecodeYAML decodes a configuration file into v, which holds the defaults.
+// Unknown keys and unquoted "#rrggbb" colors are rejected with Czech messages.
+func DecodeYAML(data []byte, v any) error {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(v); err != nil {
+		if errors.Is(err, io.EOF) {
+			return errors.New("config je prázdný")
+		}
+		return translateYAMLError(err)
+	}
+	if loc := unquotedHexRe.FindIndex(data); loc != nil {
+		// YAML reads `color: #abc123` as an empty value with a comment.
+		line := bytes.Count(data[:loc[0]], []byte("\n")) + 1
+		return fmt.Errorf("řádek %d: barvu zapiš v uvozovkách, např. color: \"#e06c75\" (bez nich ji YAML čte jako komentář)", line)
+	}
+	return nil
 }
 
 var unquotedHexRe = regexp.MustCompile(`(?m)^\s*color:\s*#`)

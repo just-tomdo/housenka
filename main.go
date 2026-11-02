@@ -12,6 +12,7 @@ import (
 
 	"github.com/just-tomdo/housenka/internal/cli"
 	"github.com/just-tomdo/housenka/internal/config"
+	"github.com/just-tomdo/housenka/internal/issues"
 	"github.com/just-tomdo/housenka/internal/opener"
 	"github.com/just-tomdo/housenka/internal/tui"
 	"github.com/just-tomdo/housenka/internal/web"
@@ -22,6 +23,11 @@ import (
 //go:embed config.example.yaml
 var exampleConfig []byte
 
+// exampleIssues is the example of the issue overview's issues.yaml (`housenka issues init`).
+//
+//go:embed issues.example.yaml
+var exampleIssues []byte
+
 // version is set by scripts/build-release.sh (-ldflags "-X main.version=v1.2.3").
 var version = "dev"
 
@@ -29,6 +35,7 @@ func main() {
 	cli.Version = buildVersion()
 	cli.ExampleConfig = exampleConfig
 	web.ExampleConfig = exampleConfig
+	issues.ExampleConfig = exampleIssues
 	cli.TUI = func(cfg *config.Config, _ string) error { return tui.Run(cfg) }
 	cli.Web = runWeb
 	cli.WebRunning = web.Running

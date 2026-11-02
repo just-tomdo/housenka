@@ -86,3 +86,21 @@ func StatStamp(path string) (Stamp, error) {
 	}
 	return Stamp{fi.ModTime(), fi.Size(), fileID(fi)}, nil
 }
+
+// Lock takes an advisory lock on the file at path (created if missing),
+// which processes sharing the data hold while they change it. Call the
+// returned function to release it.
+func Lock(path string) (func(), error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	if err := lockFile(f); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return func() {
+		unlockFile(f)
+		f.Close()
+	}, nil
+}

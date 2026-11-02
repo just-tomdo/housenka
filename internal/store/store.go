@@ -197,18 +197,11 @@ func (s *Store) Delete(id string) error {
 
 // lock takes the directory's advisory lock; call the returned function to release it.
 func (s *Store) lock() (func(), error) {
-	f, err := os.OpenFile(filepath.Join(s.dir, ".lock"), os.O_CREATE|os.O_RDWR, 0o644)
+	unlock, err := atomicfile.Lock(filepath.Join(s.dir, ".lock"))
 	if err != nil {
-		return nil, err
-	}
-	if err := lockFile(f); err != nil {
-		f.Close()
 		return nil, fmt.Errorf("nelze zamknout data: %w", err)
 	}
-	return func() {
-		unlockFile(f)
-		f.Close()
-	}, nil
+	return unlock, nil
 }
 
 func (s *Store) path(year int) string {

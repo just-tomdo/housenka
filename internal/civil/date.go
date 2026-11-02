@@ -55,6 +55,11 @@ func (d Date) AddDays(n int) Date {
 	return Of(d.Time().AddDate(0, 0, n))
 }
 
+// DaysTo returns the number of days from d to o (negative when o is earlier).
+func (d Date) DaysTo(o Date) int {
+	return int(o.Time().Sub(d.Time()).Hours()) / 24
+}
+
 // Weekday returns the day of the week.
 func (d Date) Weekday() time.Weekday {
 	return d.Time().Weekday()
