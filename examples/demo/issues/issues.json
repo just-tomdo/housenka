@@ -1,7 +1,7 @@
 {
   "version": 1,
   "me": "demo",
-  "synced_at": "2026-10-15T08:30:00Z",
+  "synced_at": "2026-10-15T08:30:00+02:00",
   "issues": [
     {
       "key": "clients/acme-web#166",
@@ -11,12 +11,12 @@
       "title": "Notifikace o expiraci smluv",
       "url": "https://gitlab.example.com/clients/acme-web/-/issues/166",
       "closed": true,
-      "assigned_at": "2026-08-15T09:13:00Z",
-      "first_seen": "2026-08-15T10:43:00Z",
+      "assigned_at": "2026-08-15T09:13:00+02:00",
+      "first_seen": "2026-08-15T10:43:00+02:00",
       "status": "done",
       "rank": 10,
       "hidden": true,
-      "touched_at": "2026-09-21T16:14:00Z"
+      "touched_at": "2026-09-21T16:14:00+02:00"
     },
     {
       "key": "clients/acme-web#169",
@@ -26,11 +26,11 @@
       "title": "Dashboard s grafy spotřeby",
       "url": "https://gitlab.example.com/clients/acme-web/-/issues/169",
       "closed": true,
-      "assigned_at": "2026-08-25T09:28:00Z",
-      "first_seen": "2026-08-25T10:35:00Z",
+      "assigned_at": "2026-08-25T09:28:00+02:00",
+      "first_seen": "2026-08-25T10:35:00+02:00",
       "status": "done",
       "rank": 20,
-      "touched_at": "2026-10-02T16:50:00Z"
+      "touched_at": "2026-10-02T16:50:00+02:00"
     },
     {
       "key": "clients/shop-web#550",
@@ -40,12 +40,12 @@
       "title": "Pomalé načítání kategorie Akce",
       "url": "https://gitlab.example.com/clients/shop-web/-/issues/550",
       "closed": true,
-      "assigned_at": "2026-09-12T09:25:00Z",
-      "first_seen": "2026-09-12T10:09:00Z",
+      "assigned_at": "2026-09-12T09:25:00+02:00",
+      "first_seen": "2026-09-12T10:09:00+02:00",
       "status": "done",
       "rank": 30,
       "hidden": true,
-      "touched_at": "2026-09-25T16:35:00Z"
+      "touched_at": "2026-09-25T16:35:00+02:00"
     },
     {
       "key": "clients/shop-web#446",
@@ -55,11 +55,11 @@
       "title": "Věrnostní program – sbírání bodů",
       "url": "https://gitlab.example.com/clients/shop-web/-/work_items/446",
       "closed": true,
-      "assigned_at": "2026-09-17T09:13:00Z",
-      "first_seen": "2026-09-17T10:28:00Z",
+      "assigned_at": "2026-09-17T09:13:00+02:00",
+      "first_seen": "2026-09-17T10:28:00+02:00",
       "status": "done",
       "rank": 40,
-      "touched_at": "2026-10-07T16:57:00Z"
+      "touched_at": "2026-10-07T16:57:00+02:00"
     },
     {
       "key": "clients/shop-web#552",
@@ -68,12 +68,12 @@
       "iid": 552,
       "title": "Duplicitní e-maily o objednávce",
       "url": "https://gitlab.example.com/clients/shop-web/-/issues/552",
-      "assigned_at": "2026-09-21T09:31:00Z",
-      "first_seen": "2026-09-21T10:47:00Z",
+      "assigned_at": "2026-09-21T09:31:00+02:00",
+      "first_seen": "2026-09-21T10:47:00+02:00",
       "status": "todo",
       "rank": 20,
       "notes": "Domluvit s klientem rozsah, pak odhad.",
-      "touched_at": "2026-09-22T11:11:00Z"
+      "touched_at": "2026-09-22T11:11:00+02:00"
     },
     {
       "key": "clients/shop-web#453",
@@ -83,11 +83,11 @@
       "title": "Detail produktu – galerie a zoom",
       "url": "https://gitlab.example.com/clients/shop-web/-/work_items/453",
       "closed": true,
-      "assigned_at": "2026-09-26T09:42:00Z",
-      "first_seen": "2026-09-26T10:30:00Z",
+      "assigned_at": "2026-09-26T09:42:00+02:00",
+      "first_seen": "2026-09-26T10:30:00+02:00",
       "status": "done",
       "rank": 50,
-      "touched_at": "2026-10-14T16:47:00Z"
+      "touched_at": "2026-10-14T16:47:00+02:00"
     },
     {
       "key": "clients/acme-web#180",
@@ -97,11 +97,11 @@
       "title": "Import ceníků z CSV",
       "url": "https://gitlab.example.com/clients/acme-web/-/issues/180",
       "closed": true,
-      "assigned_at": "2026-09-26T09:47:00Z",
-      "first_seen": "2026-09-26T10:54:00Z",
+      "assigned_at": "2026-09-26T09:47:00+02:00",
+      "first_seen": "2026-09-26T10:54:00+02:00",
       "status": "done",
       "rank": 60,
-      "touched_at": "2026-10-08T16:53:00Z"
+      "touched_at": "2026-10-08T16:53:00+02:00"
     },
     {
       "key": "clients/acme-web#184",
@@ -110,11 +110,11 @@
       "iid": 184,
       "title": "Dvoufázové ověření",
       "url": "https://gitlab.example.com/clients/acme-web/-/issues/184",
-      "assigned_at": "2026-10-04T09:55:00Z",
-      "first_seen": "2026-10-04T10:39:00Z",
+      "assigned_at": "2026-10-04T09:55:00+02:00",
+      "first_seen": "2026-10-04T10:39:00+02:00",
       "status": "doing",
       "rank": 10,
-      "touched_at": "2026-10-15T16:09:00Z"
+      "touched_at": "2026-10-15T16:09:00+02:00"
     },
     {
       "key": "clients/brewery-web#18",
@@ -123,11 +123,11 @@
       "iid": 18,
       "title": "Rezervace stolů online",
       "url": "https://gitlab.example.com/clients/brewery-web/-/issues/18",
-      "assigned_at": "2026-10-07T09:25:00Z",
-      "first_seen": "2026-10-07T10:02:00Z",
+      "assigned_at": "2026-10-07T09:25:00+02:00",
+      "first_seen": "2026-10-07T10:02:00+02:00",
       "status": "doing",
       "rank": 20,
-      "touched_at": "2026-10-15T16:16:00Z"
+      "touched_at": "2026-10-15T16:16:00+02:00"
     },
     {
       "key": "tools/wiki#21",
@@ -139,8 +139,8 @@
       "labels": [
         "Dokumentace"
       ],
-      "assigned_at": "2026-10-13T09:43:00Z",
-      "first_seen": "2026-10-13T10:29:00Z"
+      "assigned_at": "2026-10-13T09:43:00+02:00",
+      "first_seen": "2026-10-13T10:29:00+02:00"
     },
     {
       "key": "clients/shop-web#460",
@@ -150,12 +150,12 @@
       "title": "Export objednávek do ERP",
       "url": "https://gitlab.example.com/clients/shop-web/-/work_items/460",
       "unassigned": true,
-      "assigned_at": "2026-10-14T09:19:00Z",
-      "first_seen": "2026-10-14T10:12:00Z",
+      "assigned_at": "2026-10-14T09:19:00+02:00",
+      "first_seen": "2026-10-14T10:12:00+02:00",
       "status": "waiting",
       "rank": 10,
       "notes": "Čeká na podklady od klienta – přeřazeno na kolegu z podpory.",
-      "touched_at": "2026-10-15T16:32:00Z"
+      "touched_at": "2026-10-15T16:32:00+02:00"
     },
     {
       "key": "clients/brewery-web#20",
@@ -164,8 +164,8 @@
       "iid": 20,
       "title": "Stránka s pivním lístkem",
       "url": "https://gitlab.example.com/clients/brewery-web/-/issues/20",
-      "assigned_at": "2026-10-15T09:15:00Z",
-      "first_seen": "2026-10-15T10:30:00Z"
+      "assigned_at": "2026-10-15T09:15:00+02:00",
+      "first_seen": "2026-10-15T10:30:00+02:00"
     },
     {
       "key": "clients/shop-web#462",
@@ -174,8 +174,8 @@
       "iid": 462,
       "title": "Doporučené produkty v košíku",
       "url": "https://gitlab.example.com/clients/shop-web/-/work_items/462",
-      "assigned_at": "2026-10-15T09:24:00Z",
-      "first_seen": "2026-10-15T10:10:00Z"
+      "assigned_at": "2026-10-15T09:24:00+02:00",
+      "first_seen": "2026-10-15T10:10:00+02:00"
     }
   ]
 }

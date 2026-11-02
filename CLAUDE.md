@@ -25,7 +25,8 @@ Uživatelská dokumentace je v [docs/issues.md](docs/issues.md).
 
 - Volitelné: zapnuté, dokud existuje `~/.housenka/issues.yaml` (vlastní soubor, `config.yaml` ho nezná). Bez něj se TUI ani web nesmí změnit (žádný odkaz, `/issues` vrací 404, žádná síť). Rozbitý `issues.yaml` nesmí rozbít výkazy.
 - Doména je v `internal/issues` (config `issues.yaml` + `ConfigFile` se znovunačítáním, model, `issues/issues.json` přes `Store` se zámkem `issues/.lock`, karty, filtr, řazení, značky, `BuildOverview`, `Sync`) a `internal/gitlab` (REST klient jen nad `net/http`, token). TUI (`internal/tui/issues*.go`) a web (`internal/web/issues.go`, `settings_issues.go`) jen vykreslují; plná parita včetně kláves.
-- Synchronizace mění jen pole z GitLabu; stav, pořadí, poznámky a skrytí jsou uživatelovy. Poznámky mají vlastní verzi `NotesAt` (`issues.ErrConflict`, web ji nosí v poli `version`).
+- Synchronizace mění jen pole z GitLabu; stav, pořadí, poznámky a skrytí jsou uživatelovy. Poznámky mají vlastní verzi `NotesAt` (`issues.ErrConflict`, web ji nosí v poli `version`). Najednou běží jen jedna synchronizace i napříč procesy (`issues/.sync.lock`, `atomicfile.TryLock`); přesunuté issue převádí uživatelova pole na nový klíč. Klient GitLabu nesmí poslat token po přesměrování na jiný host (`CheckRedirect`).
+- Pořadí ve sloupci se mění jen ve vlastním řazení a vždy vůči viditelnému sousedovi (`issues.Shift`, `File.MoveNextTo`), nikdy o pozici mezi všemi issue stavu.
 - Token nikdy do configu ani `issues.yaml`: `HOUSENKA_GITLAB_TOKEN`, jinak `~/.housenka/gitlab-token` (0600). Web ho nikdy nevrací v HTML.
 - Testy bez sítě: `issues.Dial` se v testech nahrazuje falešným zdrojem, klient `gitlab` se testuje proti `httptest`. Testy webu a TUI mají vlastní `HOUSENKA_HOME`.
 - Issue se páruje s výkazy přes `gitlaburl.KeyOf` (cesta malými písmeny, `issues` = `work_items`, bez `#note`). Issue z repozitáře mimo `repos` se zobrazí se značkou a vykázat jde až po doplnění repozitáře.

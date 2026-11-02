@@ -169,6 +169,7 @@ type issuesMain struct {
 	Lanes    []laneView
 	Shown    int
 	Empty    string
+	NewCount int // for the badge in the top bar
 }
 
 type syncView struct {
@@ -259,12 +260,7 @@ func (s *Server) newCardView(q *issueReq, c issues.Card) cardView {
 	v.NotesFirst, _, _ = strings.Cut(c.Notes, "\n")
 	if c.Column >= 0 {
 		v.Status = newIssueStatusView(q.icfg.Statuses[c.Column], c.Column)
-		if c.Column > 0 {
-			v.Prev = q.icfg.Statuses[c.Column-1].Code
-		}
-		if c.Column+1 < len(q.icfg.Statuses) {
-			v.Next = q.icfg.Statuses[c.Column+1].Code
-		}
+		v.Prev, v.Next = q.icfg.Around(c.Column)
 	}
 	v.First = q.icfg.Statuses[0].Code
 	if c.Column < 0 && !c.Hidden {
@@ -294,20 +290,13 @@ func (s *Server) buildIssuesMain(q *issueReq, v issuesState) issuesMain {
 	o := issues.BuildOverview(f, q.icfg, q.rules, entries, q.today, v.Q, v.Sort, false)
 	all, b := o.All, o.Shown
 	if v.Tab == "" {
-		v.Tab = "board"
-		if len(all.New) > 0 {
-			v.Tab = "new"
-		}
+		v.Tab = issues.DefaultTab(all)
 		m.State = v
 	}
-	m.Sync = syncInfo(f, q.today)
-	m.Tabs = []issuesTab{
-		{Label: "Nová", Key: "1", Count: len(all.New), State: v.WithTab("new")},
-		{Label: "Nástěnka", Key: "2", Count: all.Total(), State: v.WithTab("board")},
-		{Label: "Skrytá", Key: "3", Count: len(all.Hidden), State: v.WithTab("hidden")},
-	}
-	for i := range m.Tabs {
-		m.Tabs[i].Active = m.Tabs[i].State.Tab == v.Tab
+	m.Sync = syncView{When: issues.SyncedLabel(f, q.today), Err: f.SyncError}
+	m.NewCount = len(all.New)
+	for _, t := range issues.Tabs {
+		m.Tabs = append(m.Tabs, issuesTab{Label: t.Label, Key: t.Key, Count: t.Count(all), State: v.WithTab(t.ID), Active: t.ID == v.Tab})
 	}
 	for _, so := range issues.Sorts {
 		m.Sorts = append(m.Sorts, sortOption{Value: string(so), Label: so.Label(), Selected: so == v.Sort})
@@ -342,10 +331,8 @@ func (s *Server) buildIssuesMain(q *issueReq, v issuesState) issuesMain {
 	switch v.Tab {
 	case "new":
 		m.Cards, m.Shown = views(b.New), len(b.New)
-		m.Empty = "Žádná nová issue 🐛 Vše je zařazené."
 	case "hidden":
 		m.Cards, m.Shown = views(b.Hidden), len(b.Hidden)
-		m.Empty = "Žádná skrytá issue."
 	default:
 		var boardCards []issues.Card
 		for _, col := range b.Columns {
@@ -362,21 +349,9 @@ func (s *Server) buildIssuesMain(q *issueReq, v issuesState) issuesMain {
 		} else {
 			m.Columns = columns(b)
 		}
-		m.Empty = "Na nástěnce nic není – zařaď issue ze záložky Nová."
 	}
-	if v.Q != "" {
-		m.Empty = "Filtru „" + v.Q + "“ nic neodpovídá."
-	}
+	m.Empty = issues.EmptyText(v.Tab, v.Q)
 	return m
-}
-
-func syncInfo(f issues.File, today civil.Date) syncView {
-	v := syncView{Err: f.SyncError}
-	if !f.SyncedAt.IsZero() {
-		t := f.SyncedAt.Local()
-		v.When = issues.AgeLabel(civil.Of(t).DaysTo(today)) + " " + t.Format("15:04")
-	}
-	return v
 }
 
 // --- handlers -------------------------------------------------------------------------
@@ -409,10 +384,12 @@ func (s *Server) issuesChanged(w http.ResponseWriter, r *http.Request, t toastDa
 	}
 	m := s.buildIssuesMain(q, readIssuesState(r.FormValue, "v_"))
 	m.OOB = true
+	nav := chrome{Section: "issues", Issues: true, NewIssues: m.NewCount, NavOOB: true}
 	s.render(w, "issues-update", struct {
 		Main  issuesMain
+		Nav   chrome
 		Toast toastData
-	}{m, t})
+	}{m, nav, t})
 }
 
 type issueDetailView struct {

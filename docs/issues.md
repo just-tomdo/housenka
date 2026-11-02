@@ -56,9 +56,11 @@ Housenka se ptá GitLabu na **otevřená issue přiřazená tobě** (vlastníku 
 
 U nového issue zjistí, **kdy ti bylo přiřazeno** (ze systémové poznámky „assigned to @ty“). Když ji nenajde, platí čas, kdy issue poprvé uviděla.
 
-Issue, které ze seznamu zmizí, se zeptá zvlášť: zavřené dostane značku **zavřeno v GitLabu**, přeřazené na někoho jiného **už není na tobě**. Když se issue znovu otevře nebo vrátí na tebe, značka zmizí; skryté issue se pak zase ukáže. Název, štítky a termín se při každém načtení obnoví, tvůj stav, pořadí a poznámky nikdy.
+Issue, které ze seznamu zmizí, se zeptá zvlášť: zavřené dostane značku **zavřeno v GitLabu**, přeřazené na někoho jiného **už není na tobě**. Smazané issue a issue, ke kterému ztratíš přístup, se označí jako zavřené. Když se issue znovu otevře nebo vrátí na tebe, značka zmizí; skryté issue se pak zase ukáže. Název, štítky a termín se při každém načtení obnoví, tvůj stav, pořadí a poznámky nikdy.
 
-Chyba načítání (síť, neplatný token) se ukáže v hlavičce přehledu, data zůstanou.
+Když se projekt přejmenuje nebo přesune, issue si stav, pořadí a poznámky vezme s sebou pod novou adresu. Po změně `host` se issue původního GitLabu nechají, jak jsou (skryješ je).
+
+Načítá vždy jen jedno okno najednou, i když běží TUI i web. Chyba načítání (síť, neplatný token) se ukáže v hlavičce přehledu, data zůstanou. Když GitLab přesměruje na jinou adresu (třeba přihlašovací stránku), Housenka tam token neposílá a načtení skončí chybou.
 
 ## Barvy a repozitáře
 

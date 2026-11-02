@@ -40,6 +40,7 @@ type issuesView struct {
 	sel       string // the key of the selected issue
 	pending   string // first key of gg / gx
 	syncing   bool
+	lastTry   time.Time // of the last sync, so that a failing one is not retried at every T
 	detail    *issueDetail
 }
 
@@ -105,7 +106,7 @@ func (m *Model) openIssues() tea.Cmd {
 	m.issuesOpen = true
 	m.loadIssues()
 	v := m.iss
-	if v.cfg != nil && time.Since(v.data.SyncedAt) >= time.Duration(v.cfg.SyncMinutes)*time.Minute {
+	if v.cfg != nil && issues.SyncDue(v.data, v.cfg, v.lastTry, time.Now()) {
 		return m.syncIssues()
 	}
 	return nil
@@ -131,15 +132,20 @@ func (m *Model) loadIssues() {
 	}
 	v.view = issues.BuildOverview(v.data, v.cfg, m.rules, entries, m.today, v.filter.Value(), v.sort, v.byRepo)
 	if v.tab == "" {
-		v.tab = "board"
-		if len(v.view.All.New) > 0 {
-			v.tab = "new"
-		}
+		v.tab = issues.DefaultTab(v.view.All)
 	}
 	v.col = min(max(v.col, 0), len(v.cfg.Statuses)-1)
-	if v.tab == "board" && v.sel != "" {
+	if v.tab == "board" {
+		found := false
 		for i, col := range v.view.Shown.Columns {
-			if slices.ContainsFunc(col.Cards, func(c issues.Card) bool { return c.Key == v.sel }) {
+			if v.sel != "" && slices.ContainsFunc(col.Cards, func(c issues.Card) bool { return c.Key == v.sel }) {
+				v.col, found = i, true
+			}
+		}
+		// Nothing selected (another tab before, or the card moved away) and
+		// an empty column: start at the first column with cards.
+		if cols := v.view.Shown.Columns; !found && len(cols[v.col].Cards) == 0 {
+			if i := slices.IndexFunc(cols, func(c issues.Column) bool { return len(c.Cards) > 0 }); i >= 0 {
 				v.col = i
 			}
 		}
@@ -417,24 +423,18 @@ func (m *Model) moveIssueColumn(delta, row int) {
 // shiftIssueStatus moves an issue to the next or previous status; a new
 // issue goes to the first one.
 func (m *Model) shiftIssueStatus(card issues.Card, next bool) tea.Cmd {
-	v := m.iss
-	to := -1
-	switch {
-	case card.Hidden:
-		return nil
-	case card.Column < 0:
-		if next {
-			to = 0
-		}
-	case next:
-		to = card.Column + 1
-	default:
-		to = card.Column - 1
-	}
-	if to < 0 || to >= len(v.cfg.Statuses) {
+	if card.Hidden {
 		return nil
 	}
-	return m.setIssueStatus(card, to)
+	prev, nxt := m.iss.cfg.Around(card.Column)
+	to := prev
+	if next {
+		to = nxt
+	}
+	if to == "" {
+		return nil
+	}
+	return m.setIssueStatus(card, m.iss.cfg.StatusIndex(to))
 }
 
 func (m *Model) setIssueStatus(card issues.Card, to int) tea.Cmd {
@@ -576,6 +576,7 @@ func (m *Model) syncIssues() tea.Cmd {
 	if v.syncing || v.cfg == nil {
 		return nil
 	}
+	v.lastTry = time.Now()
 	st, err := m.issueStore()
 	if err != nil {
 		return m.fail(err)

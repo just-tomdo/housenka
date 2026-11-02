@@ -2,7 +2,7 @@
 {{template "issues-main" .Main}}
 {{template "foot"}}{{end}}
 
-{{define "issues-update"}}{{template "issues-main" .Main}}{{if .Toast.Text}}{{template "toast" .}}{{end}}{{end}}
+{{define "issues-update"}}{{template "issues-main" .Main}}{{template "nav-issues" .Nav}}{{if .Toast.Text}}{{template "toast" .}}{{end}}{{end}}
 
 {{define "issues-main"}}<div id="issues" class="main issues"{{if .OOB}} hx-swap-oob="true"{{end}} data-tab="{{.State.Tab}}">
 <form id="viewstate" hidden>
@@ -117,7 +117,7 @@
       {{range .Statuses}}<button class="btn small chip-status {{.Class}}{{if .Current}} current{{end}}"{{with .Style}} style="{{.}}"{{end}} hx-post="/issues/status" hx-vals='{{vals "key" $.Key "status" .Code}}' hx-target="#modal" data-modal-key="{{.Key}}">{{if .Current}}● {{end}}{{.Label}} <kbd>{{.Key}}</kbd></button>{{end}}
     </div>
 
-    <h3>Poznámky</h3>
+    <h3>Poznámky <kbd>n</kbd></h3>
     <form class="notes-form" hx-post="/issues/notes" hx-target="#modal">
       <input type="hidden" name="key" value="{{.Key}}">
       <input type="hidden" name="version" value="{{.Version}}">
@@ -142,12 +142,13 @@
     <div class="help-cols">
       <dl>
         <dt><kbd>j</kbd> <kbd>k</kbd> <kbd>h</kbd> <kbd>l</kbd></dt><dd>výběr issue (na nástěnce i mezi sloupci)</dd>
+        <dt><kbd>g</kbd><kbd>g</kbd> <kbd>G</kbd></dt><dd>na začátek / konec sloupce</dd>
         <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>nová / nástěnka / skrytá</dd>
         <dt><kbd>/</kbd></dt><dd>filtr (<kbd>Esc</kbd> ho zruší)</dd>
         <dt><kbd>O</kbd></dt><dd>další řazení</dd>
         <dt><kbd>p</kbd></dt><dd>seskupit podle repozitáře</dd>
         <dt><kbd>r</kbd></dt><dd>načíst z GitLabu</dd>
-        <dt><kbd>T</kbd></dt><dd>zpět na výkazy</dd>
+        <dt><kbd>T</kbd> <kbd>Esc</kbd></dt><dd>zpět na výkazy (Esc nejdřív zruší filtr)</dd>
         <dt><kbd>?</kbd></dt><dd>tato nápověda</dd>
       </dl>
       <dl>

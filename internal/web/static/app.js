@@ -299,6 +299,7 @@
 
   function issuesKey(e) {
     const card = selectedCard();
+    const filter = $("#filter"), sort = $("#sort"); // missing while issues.yaml is broken
     let handled = true;
     switch (e.key) {
       case "j": case "ArrowDown": moveCard(1); break;
@@ -311,19 +312,22 @@
       case "x":
         if (pending === "g" && card) { pending = ""; clickKey(card, "o"); } else handled = clickKey(card, "x");
         break;
-      case "/": $("#filter").focus(); break;
+      case "/": if (filter) filter.focus(); break;
       case "Escape":
-        if ($("#filter").value) {
-          $("#filter").value = "";
-          $("#filter").dispatchEvent(new Event("search", { bubbles: true }));
+        // Like the TUI: Esc clears the filter, else goes back to the entries.
+        if (filter && filter.value) {
+          filter.value = "";
+          filter.dispatchEvent(new Event("search", { bubbles: true }));
+        } else {
+          clickKey(null, "T");
         }
         break;
-      case "O": {
-        const sel = $("#sort");
-        sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length;
-        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      case "O":
+        if (sort) {
+          sort.selectedIndex = (sort.selectedIndex + 1) % sort.options.length;
+          sort.dispatchEvent(new Event("change", { bubbles: true }));
+        }
         break;
-      }
       case "s": handled = clickKey(card, "Enter"); break;
       default:
         handled = clickKey(card, e.key);
@@ -427,9 +431,13 @@
     if (dlg) {
       // Modal shortcuts (status: h/l/y/m; issue: i opens the issue).
       const el = $(`[data-modal-key~="${CSS.escape(e.key)}"]`, dlg);
+      const notes = $("textarea[name=notes]", dlg);
       if (el) {
         e.preventDefault();
         el.click();
+      } else if (e.key === "n" && notes) {
+        e.preventDefault(); // the issue detail: n edits the notes, like the TUI
+        notes.focus();
       } else if (e.key === "q") {
         dlg.close();
       }

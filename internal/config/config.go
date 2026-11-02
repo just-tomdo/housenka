@@ -191,7 +191,9 @@ func Load(path string) (*Config, error) {
 // Unknown keys are rejected so that typos do not silently disable rules.
 func Parse(data []byte) (*Config, error) {
 	cfg := Default()
-	if err := DecodeYAML(data, &cfg); err != nil {
+	if err := DecodeYAML(data, &cfg); errors.Is(err, ErrEmpty) {
+		return nil, errors.New("config je prázdný")
+	} else if err != nil {
 		return nil, err
 	}
 	if err := cfg.Validate(); err != nil {
@@ -200,26 +202,35 @@ func Parse(data []byte) (*Config, error) {
 	return &cfg, nil
 }
 
+// ErrEmpty means a configuration file has no content.
+var ErrEmpty = errors.New("soubor je prázdný")
+
 // DecodeYAML decodes a configuration file into v, which holds the defaults.
 // Unknown keys and unquoted "#rrggbb" colors are rejected with Czech messages.
 func DecodeYAML(data []byte, v any) error {
+	// YAML reads `color: #abc123` as an empty value with a comment (inside
+	// `{ … }` as a syntax error), so this is checked first.
+	for _, loc := range unquotedHexRe.FindAllIndex(data, -1) {
+		start := bytes.LastIndexByte(data[:loc[0]], '\n') + 1
+		if bytes.HasPrefix(bytes.TrimLeft(data[start:loc[0]+1], " \t"), []byte("#")) {
+			continue // in a comment
+		}
+		line := bytes.Count(data[:loc[0]], []byte("\n")) + 1
+		return fmt.Errorf("řádek %d: barvu zapiš v uvozovkách, např. color: \"#e06c75\" (bez nich ji YAML čte jako komentář)", line)
+	}
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	if err := dec.Decode(v); err != nil {
 		if errors.Is(err, io.EOF) {
-			return errors.New("config je prázdný")
+			return ErrEmpty
 		}
 		return translateYAMLError(err)
-	}
-	if loc := unquotedHexRe.FindIndex(data); loc != nil {
-		// YAML reads `color: #abc123` as an empty value with a comment.
-		line := bytes.Count(data[:loc[0]], []byte("\n")) + 1
-		return fmt.Errorf("řádek %d: barvu zapiš v uvozovkách, např. color: \"#e06c75\" (bez nich ji YAML čte jako komentář)", line)
 	}
 	return nil
 }
 
-var unquotedHexRe = regexp.MustCompile(`(?m)^\s*color:\s*#`)
+// unquotedHexRe finds `color: #…` in block style and inside `{ … }`.
+var unquotedHexRe = regexp.MustCompile(`(?m)(?:^|[{,])\s*color:\s*#`)
 
 var unknownFieldRe = regexp.MustCompile(`^line (\d+): field (\S+) not found in type \S+$`)
 

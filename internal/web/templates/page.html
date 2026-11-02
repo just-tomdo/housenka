@@ -15,7 +15,7 @@
   <a class="brand" href="/" title="Housenka – vykazování práce">🐛 <span>Housenka</span></a>
   <nav class="sections" aria-label="Sekce">
     <a class="section-link{{if eq .Section "entries"}} active{{end}}" href="/"{{if eq .Section "issues"}} data-key="T"{{end}}>Výkazy</a>
-    {{if .Issues}}<a class="section-link{{if eq .Section "issues"}} active{{end}}" href="/issues"{{if eq .Section "entries"}} data-key="T"{{end}} title="Issues přiřazená tobě (T)">Issues{{if .NewIssues}} <span class="count new" title="{{plural .NewIssues "nové issue" "nová issue" "nových issue"}} čeká na zařazení">{{.NewIssues}}</span>{{end}}</a>{{end}}
+    {{if .Issues}}{{template "nav-issues" .}}{{end}}
     <a class="section-link{{if eq .Section "settings"}} active{{end}}" href="/settings">⚙ Nastavení{{if .Setup}} <span class="dot" title="Nastavení není dokončené"></span>{{end}}</a>
   </nav>
   <div class="topbar-right">
@@ -30,6 +30,8 @@
   </div>
 </header>
 {{end}}
+
+{{define "nav-issues"}}<a id="nav-issues" class="section-link{{if eq .Section "issues"}} active{{end}}" href="/issues"{{if eq .Section "entries"}} data-key="T"{{end}}{{if .NavOOB}} hx-swap-oob="true"{{end}} title="Issues přiřazená tobě (T)">Issues{{if .NewIssues}} <span class="count new" title="{{plural .NewIssues "nové issue" "nová issue" "nových issue"}} čeká na zařazení">{{.NewIssues}}</span>{{end}}</a>{{end}}
 
 {{define "foot"}}<div id="modal"></div>
 <div class="toast-area"><div id="toast"></div></div>

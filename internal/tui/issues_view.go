@@ -41,12 +41,9 @@ func (m *Model) issuesHeader() string {
 	title := st.Title.Render("🐛 Housenka") + "  " + st.Period.Render("Issues")
 	all := v.view.All
 	var tabs []string
-	for _, t := range []struct {
-		key, id, label string
-		count          int
-	}{{"1", "new", "Nová", len(all.New)}, {"2", "board", "Nástěnka", all.Total()}, {"3", "hidden", "Skrytá", len(all.Hidden)}} {
-		label := fmt.Sprintf("%s %s %d", t.key, t.label, t.count)
-		if t.id == v.tab {
+	for _, t := range issues.Tabs {
+		label := fmt.Sprintf("%s %s %d", t.Key, t.Label, t.Count(all))
+		if t.ID == v.tab {
 			tabs = append(tabs, st.TabActive.Render(label))
 		} else {
 			tabs = append(tabs, st.TabInactive.Render(label))
@@ -62,11 +59,12 @@ func (m *Model) issuesHeader() string {
 		line2 = st.Accent.Render("Načítám z GitLabu…")
 	case v.data.SyncError != "":
 		line2 = st.Err.Render(m.icons.Warning + " Poslední načtení z GitLabu selhalo: " + text.OneLine(v.data.SyncError))
+	case v.cfg == nil:
+		line2 = st.Warn.Render("Přehled issues je vypnutý (issues.yaml chybí).")
 	case v.data.SyncedAt.IsZero():
 		line2 = st.Muted.Render("Z GitLabu se zatím nic nenačetlo – r načte.")
 	default:
-		t := v.data.SyncedAt.Local()
-		line2 = st.Muted.Render("Z GitLabu načteno " + issues.AgeLabel(civil.Of(t).DaysTo(m.today)) + " " + t.Format("15:04"))
+		line2 = st.Muted.Render("Z GitLabu načteno " + issues.SyncedLabel(v.data, m.today))
 	}
 	line2 = spread(line2, st.Muted.Render("řazení: "+v.sort.Label()+map[bool]string{true: " · podle repozitáře"}[v.byRepo]), inner)
 	return m.surfaceBlock([]string{line1, line2})
@@ -82,8 +80,10 @@ func (m *Model) issuesBody() string {
 	h := m.issuesBodyHeight()
 	var lines []string
 	switch {
-	case v.cfg == nil:
+	case v.cfg == nil && v.cfgErr != nil:
 		lines = []string{"", m.st.Muted.Render("  Oprav issues.yaml (housenka issues edit) nebo se vrať k výkazům (T).")}
+	case v.cfg == nil:
+		lines = []string{"", m.st.Muted.Render("  Zapneš ho příkazem housenka issues init. T se vrátí k výkazům.")}
 	case v.loadErr != nil:
 		lines = []string{m.st.Err.Render("Chyba při načítání: " + v.loadErr.Error())}
 	case v.tab == "board":
@@ -103,14 +103,7 @@ func (m *Model) issueListView(h int) []string {
 		lines = append(lines, st.Muted.Render(fmt.Sprintf("  L zařadí do „%s“ · s/enter vybere stav · x skryje · v vykáže", v.cfg.Statuses[0].Label())), "")
 	}
 	if len(list) == 0 {
-		msg := "Žádná nová issue 🐛 Vše je zařazené."
-		if v.tab == "hidden" {
-			msg = "Žádná skrytá issue."
-		}
-		if q := v.filter.Value(); q != "" {
-			msg = "Filtru „" + q + "“ nic neodpovídá."
-		}
-		return append(lines, "", "  "+st.Muted.Render(msg))
+		return append(lines, "", "  "+st.Muted.Render(issues.EmptyText(v.tab, v.filter.Value())))
 	}
 	var cards [][]string
 	selected := 0

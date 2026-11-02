@@ -37,8 +37,13 @@ func demoIssues(icfg *issues.Config, g *gen, entries []entry.Entry, last civil.D
 	status := func(i int) string { return icfg.Statuses[min(i, len(icfg.Statuses)-1)].Code }
 	done := icfg.Statuses[len(icfg.Statuses)-1].Code
 	r := rand.New(rand.NewPCG(g.sc.Seed, 0x6973737565730000))
+	// A fixed zone, like the entries: the file must not depend on the machine.
+	loc, err := time.LoadLocation("Europe/Prague")
+	if err != nil {
+		loc = time.UTC
+	}
 	at := func(d civil.Date, hour int) time.Time {
-		return time.Date(d.Year, d.Month, d.Day, hour, r.IntN(60), 0, 0, time.Local)
+		return time.Date(d.Year, d.Month, d.Day, hour, r.IntN(60), 0, 0, loc)
 	}
 	synced := at(last, 8)
 

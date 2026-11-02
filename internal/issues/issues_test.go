@@ -114,6 +114,8 @@ func TestParseConfigErrors(t *testing.T) {
 		{"sync_minutes: 0\nstatuses: [{code: a}]", "sync_minutes"},
 		{"host: https://gitlab.example.com\nstatuses: [{code: a}]", "jen doménu"},
 		{"hots: x\nstatuses: [{code: a}]", "neznámý klíč"},
+		{"statuses:\n  - {code: a, color: #112233}", "v uvozovkách"},
+		{"", "issues.yaml je prázdný"},
 	}
 	for _, tt := range tests {
 		_, err := ParseConfig([]byte(tt.yaml))

@@ -94,7 +94,9 @@ func Enabled(err error) bool {
 // ParseConfig decodes and validates issues.yaml.
 func ParseConfig(data []byte) (*Config, error) {
 	cfg := DefaultConfig()
-	if err := config.DecodeYAML(data, &cfg); err != nil {
+	if err := config.DecodeYAML(data, &cfg); errors.Is(err, config.ErrEmpty) {
+		return nil, errors.New("issues.yaml je prázdný – vzor vytvoří housenka issues init --force")
+	} else if err != nil {
 		return nil, err
 	}
 	if err := cfg.Validate(); err != nil {

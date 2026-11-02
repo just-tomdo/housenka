@@ -57,6 +57,7 @@ type chrome struct {
 	Setup     bool   // the configuration still holds example values
 	Issues    bool   // the issue overview is on
 	NewIssues int    // issues waiting to be sorted
+	NavOOB    bool   // the Issues link alone, swapped out of band after a change
 }
 
 type pageData struct {
@@ -239,7 +240,11 @@ func (s *Server) saveEntry(w http.ResponseWriter, r *http.Request) {
 		t.Link, t.LinkLabel = u, "Otevřít v BM ↗"
 	}
 	if fromIssues(r) {
-		s.issuesChanged(w, r, t)
+		if icfg, err := s.iss.config(); icfg != nil || err != nil {
+			s.issuesChanged(w, r, t)
+			return
+		}
+		w.Header().Set("HX-Redirect", "/?"+v.Query()) // the overview was turned off meanwhile
 		return
 	}
 	s.update(w, q, v, t, saved.ID)

@@ -339,6 +339,7 @@ func TestYAMLKeepsCRLF(t *testing.T) {
 
 func TestBrokenConfig(t *testing.T) {
 	dir := t.TempDir()
+	t.Setenv(config.HomeEnv, dir)
 	cfgPath := filepath.Join(dir, "config.yaml")
 	os.WriteFile(cfgPath, []byte("gitlab_hosts: [\n"), 0o644)
 	st, _ := store.Open(filepath.Join(dir, "entries"))

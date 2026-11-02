@@ -413,7 +413,9 @@ func TestHeaderBackgroundHasNoHoles(t *testing.T) {
 
 func TestMidnightRollover(t *testing.T) {
 	cfg, _ := config.Parse(exampleConfig(t))
-	s, _ := store.Open(filepath.Join(t.TempDir(), "entries"))
+	home := t.TempDir()
+	t.Setenv(config.HomeEnv, home)
+	s, _ := store.Open(filepath.Join(home, "entries"))
 	now := today
 	m := New(cfg, s, &fakeOpener{}, func() civil.Date { return now })
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
