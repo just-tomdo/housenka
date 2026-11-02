@@ -582,6 +582,13 @@ var funcs = template.FuncMap{
 	},
 	"plural": text.Plural,
 	"qs":     url.QueryEscape,
+	// muteValue is what the odložit button sends: the opposite of muted.
+	"muteValue": func(muted bool) string {
+		if muted {
+			return "0"
+		}
+		return "1"
+	},
 	// vals builds the JSON of hx-vals from key, value pairs (escaped properly
 	// whatever the values hold).
 	"vals": func(kv ...string) (string, error) {

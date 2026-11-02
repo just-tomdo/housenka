@@ -64,6 +64,7 @@ func (s *Server) issueRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /issues/status", s.issueStatus)
 	mux.HandleFunc("POST /issues/move", s.issueMove)
 	mux.HandleFunc("POST /issues/hidden", s.issueHidden)
+	mux.HandleFunc("POST /issues/muted", s.issueMuted)
 	mux.HandleFunc("POST /issues/notes", s.issueNotes)
 	mux.HandleFunc("POST /issues/sync", s.issueSync)
 }
@@ -528,6 +529,23 @@ func (s *Server) issueHidden(w http.ResponseWriter, r *http.Request) {
 	t := toastData{Text: issueLabel(key) + " skryto"}
 	if !hidden {
 		t.Text = issueLabel(key) + " je zpět"
+	}
+	s.issuesChanged(w, r, t)
+}
+
+func (s *Server) issueMuted(w http.ResponseWriter, r *http.Request) {
+	q, ok := s.issueReq(w, r, false)
+	if !ok {
+		return
+	}
+	key, muted := r.FormValue("key"), r.FormValue("muted") == "1"
+	if err := q.store.SetMuted(key, muted); err != nil {
+		s.fail(w, err)
+		return
+	}
+	t := toastData{Text: issueLabel(key) + " odloženo – zašedlé na konci sloupce"}
+	if !muted {
+		t.Text = issueLabel(key) + " už není odložené"
 	}
 	s.issuesChanged(w, r, t)
 }

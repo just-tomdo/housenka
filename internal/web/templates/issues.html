@@ -57,7 +57,7 @@
   </section>{{end}}
 </div>{{end}}
 
-{{define "icard"}}<article class="icard{{if .Stale}} stale{{end}}{{if or .Closed .Unassigned}} out{{end}} {{.Status.Class}}"{{with .Status.Style}} style="{{.}}"{{end}} tabindex="-1" data-issue="{{.Key}}" draggable="true">
+{{define "icard"}}<article class="icard{{if .Stale}} stale{{end}}{{if or .Closed .Unassigned}} out{{end}}{{if .Muted}} muted{{end}} {{.Status.Class}}"{{with .Status.Style}} style="{{.}}"{{end}} tabindex="-1" data-issue="{{.Key}}" draggable="true">
   <header class="ic-head">
     <span class="badge proj {{.RepoClass}}"{{with .RepoStyle}} style="{{.}}"{{end}} title="{{.ProjectPath}}">{{.RepoName}}</span>
     <a class="iid" href="{{.URL}}" target="_blank" rel="noopener" data-key="o" title="Otevřít v GitLabu (o)">#{{.IID}}</a>
@@ -85,6 +85,7 @@
     <span class="spacer"></span>
     <button class="btn small" hx-get="/entries/new?issue={{qs .URL}}" hx-target="#modal" data-key="v" title="Vykázat práci na issue (v)">+ Vykázat</button>
     <button class="btn icon small" hx-get="/issues/detail?key={{qs .Key}}&amp;notes=1" hx-target="#modal" data-key="n" title="Poznámky (n)">✎</button>
+    <button class="btn icon small" hx-post="/issues/muted" hx-vals='{{vals "key" .Key "muted" (muteValue .Muted)}}' hx-swap="none" data-key="z" title="{{if .Muted}}Vrátit z odložených (z){{else}}Odložit – zašednout na konec sloupce (z){{end}}">{{if .Muted}}◑{{else}}◐{{end}}</button>
     {{if not .Hidden}}<button class="btn icon small" hx-post="/issues/hidden" hx-vals='{{vals "key" .Key "hidden" "1"}}' hx-swap="none" data-key="x" title="Skrýt (x)">⨯</button>{{end}}
   </div>
 </article>{{end}}
@@ -98,6 +99,7 @@
     <p class="facts">
       <a class="btn small" href="{{.URL}}" target="_blank" rel="noopener" data-modal-key="o i"{{if not .FocusNote}} autofocus{{end}}>Otevřít v GitLabu ↗ <kbd>o</kbd></a>
       <button class="btn small primary" hx-get="/entries/new?issue={{qs .URL}}" hx-target="#modal" data-modal-key="v">+ Vykázat <kbd>v</kbd></button>
+      <button class="btn small" hx-post="/issues/muted" hx-vals='{{vals "key" .Key "muted" (muteValue .Muted)}}' hx-target="#modal" data-modal-key="z">{{if .Muted}}Vrátit z odložených{{else}}Odložit{{end}} <kbd>z</kbd></button>
       {{if .Hidden}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{{vals "key" .Key "hidden" "0"}}' hx-target="#modal" data-modal-key="x">↺ Vrátit ze skrytých <kbd>x</kbd></button>
       {{else}}<button class="btn small" hx-post="/issues/hidden" hx-vals='{{vals "key" .Key "hidden" "1"}}' hx-target="#modal" data-modal-key="x">Skrýt <kbd>x</kbd></button>{{end}}
       <span class="subtext">{{.ProjectPath}}</span>
@@ -159,8 +161,9 @@
         <dt><kbd>v</kbd></dt><dd>vykázat práci na issue</dd>
         <dt><kbd>o</kbd> <kbd>g</kbd><kbd>x</kbd></dt><dd>otevřít v GitLabu</dd>
         <dt><kbd>x</kbd></dt><dd>skrýt / vrátit</dd>
+        <dt><kbd>z</kbd></dt><dd>odložit (zašedne na konec sloupce) / vrátit</dd>
       </dl>
     </div>
-    <p class="subtext">Filtr: <code>r:repo</code>, <code>p:KÓD</code> projektu, <code>l:štítek</code>, <code>is:stale</code> (dlouho beze mě), <code>is:unknown</code> (repozitář mimo housenku), <code>is:closed</code>, <code>is:notes</code>, <code>is:due</code>; <code>-</code> před slovem ho neguje. Karty jde přetahovat myší mezi sloupci.</p>
+    <p class="subtext">Filtr: <code>r:repo</code>, <code>p:KÓD</code> projektu, <code>l:štítek</code>, <code>is:stale</code> (dlouho beze mě), <code>is:unknown</code> (repozitář mimo housenku), <code>is:closed</code>, <code>is:notes</code>, <code>is:due</code>, <code>is:muted</code> (odložené); <code>-</code> před slovem ho neguje. Karty jde přetahovat myší mezi sloupci.</p>
   </div>
 </dialog>{{end}}

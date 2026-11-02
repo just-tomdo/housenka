@@ -207,8 +207,8 @@ func (m *Model) issueByKey(key string) (issues.Card, bool) {
 // --- keys ---------------------------------------------------------------------------
 
 type issuesKeyMap struct {
-	Move, Column, Status, Order, Tabs, Detail, Notes, Report, Open, Hide key.Binding
-	Filter, Sort, ByRepo, Sync, Back, Help, Quit                         key.Binding
+	Move, Column, Status, Order, Tabs, Detail, Notes, Report, Open, Hide, Mute key.Binding
+	Filter, Sort, ByRepo, Sync, Back, Help, Quit                               key.Binding
 }
 
 var issuesKeys = issuesKeyMap{
@@ -222,6 +222,7 @@ var issuesKeys = issuesKeyMap{
 	Report: key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "vykázat")),
 	Open:   key.NewBinding(key.WithKeys("o"), key.WithHelp("o/gx", "otevřít v GitLabu")),
 	Hide:   key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "skrýt/vrátit")),
+	Mute:   key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "odložit/vrátit")),
 	Filter: key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filtr")),
 	Sort:   key.NewBinding(key.WithKeys("O"), key.WithHelp("O", "řazení")),
 	ByRepo: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "podle repozitáře")),
@@ -239,13 +240,13 @@ func (k issuesKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Move, k.Column, k.Tabs, k.Filter, k.Sort, k.ByRepo},
 		{k.Status, k.Order, k.Detail, k.Notes, k.Report},
-		{k.Open, k.Hide, k.Sync, k.Back, k.Help, k.Quit},
+		{k.Open, k.Hide, k.Mute, k.Sync, k.Back, k.Help, k.Quit},
 	}
 }
 
 type issueDetailKeyMap struct {
-	Status, Notes, Report, Open, Hide, Scroll, Close, Save, Cancel key.Binding
-	editing                                                        bool
+	Status, Notes, Report, Open, Hide, Mute, Scroll, Close, Save, Cancel key.Binding
+	editing                                                              bool
 }
 
 var issueDetailKeys = issueDetailKeyMap{
@@ -254,6 +255,7 @@ var issueDetailKeys = issueDetailKeyMap{
 	Report: key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "vykázat")),
 	Open:   key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "otevřít v GitLabu")),
 	Hide:   key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "skrýt/vrátit")),
+	Mute:   key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "odložit")),
 	Scroll: key.NewBinding(key.WithKeys("j", "k"), key.WithHelp("j/k", "posun")),
 	Close:  key.NewBinding(key.WithKeys("esc", "q"), key.WithHelp("esc/q", "zavřít")),
 	Save:   key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "uložit poznámky")),
@@ -264,7 +266,7 @@ func (k issueDetailKeyMap) ShortHelp() []key.Binding {
 	if k.editing {
 		return []key.Binding{k.Save, k.Cancel}
 	}
-	return []key.Binding{k.Status, k.Notes, k.Report, k.Open, k.Hide, k.Scroll, k.Close}
+	return []key.Binding{k.Status, k.Notes, k.Report, k.Open, k.Hide, k.Mute, k.Scroll, k.Close}
 }
 
 func (k issueDetailKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
@@ -393,6 +395,10 @@ func (m *Model) handleIssuesKey(km tea.KeyPressMsg) tea.Cmd {
 		if ok {
 			return m.toggleIssueHidden(card)
 		}
+	case "z":
+		if ok {
+			return m.toggleIssueMuted(card)
+		}
 	case "/":
 		v.filtering = true
 		return v.filter.Focus()
@@ -460,6 +466,16 @@ func (m *Model) toggleIssueHidden(card issues.Card) tea.Cmd {
 		return m.notify(card.Label()+" je zpět", false)
 	}
 	return m.notify(card.Label()+" skryto (3 = skrytá)", false)
+}
+
+func (m *Model) toggleIssueMuted(card issues.Card) tea.Cmd {
+	if err := m.iss.store.SetMuted(card.Key, !card.Muted); err != nil {
+		return m.fail(err)
+	}
+	if card.Muted {
+		return m.notify(card.Label()+" už není odložené", false)
+	}
+	return m.notify(card.Label()+" odloženo – zašedlé na konci sloupce", false)
 }
 
 func (m *Model) openIssueURL() tea.Cmd {
@@ -557,6 +573,8 @@ func (m *Model) handleIssueDetailKey(km tea.KeyPressMsg) tea.Cmd {
 	case "x":
 		v.detail = nil
 		return m.toggleIssueHidden(card)
+	case "z":
+		return m.toggleIssueMuted(card)
 	default:
 		if n, err := strconv.Atoi(k); err == nil && n >= 1 && n <= len(v.cfg.Statuses) {
 			v.detail = nil

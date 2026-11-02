@@ -258,6 +258,7 @@ func pull(ctx context.Context, src Source, st *Store) (SyncResult, error) {
 func (is *Issue) keepOwn(old Issue) {
 	is.Status, is.Rank, is.Notes, is.NotesAt = old.Status, old.Rank, old.Notes, old.NotesAt
 	is.Hidden, is.TouchedAt, is.AssignedAt, is.FirstSeen = old.Hidden, old.TouchedAt, old.AssignedAt, old.FirstSeen
+	is.Muted = old.Muted
 }
 
 // adopt merges the record of the same issue under its old key into is,

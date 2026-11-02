@@ -39,6 +39,7 @@ type Issue struct {
 	Notes     string    `json:"notes,omitempty"`
 	NotesAt   time.Time `json:"notes_at,omitzero"` // version of Notes, against concurrent edits
 	Hidden    bool      `json:"hidden,omitempty"`
+	Muted     bool      `json:"muted,omitempty"`     // put off: greyed, after the others of its status
 	TouchedAt time.Time `json:"touched_at,omitzero"` // last change by the user
 }
 
@@ -173,6 +174,19 @@ func (f *File) SetHidden(key string, hidden bool, now time.Time) error {
 				is.Rank = max(is.Rank, o.Rank+10)
 			}
 		}
+	}
+	return nil
+}
+
+// SetMuted puts an issue off (greyed, after the others of its status,
+// never marked as forgotten) or back.
+func (f *File) SetMuted(key string, muted bool, now time.Time) error {
+	is, err := f.find(key)
+	if err != nil {
+		return err
+	}
+	if is.Muted != muted {
+		is.Muted, is.TouchedAt = muted, now
 	}
 	return nil
 }

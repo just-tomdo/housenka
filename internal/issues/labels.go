@@ -15,6 +15,9 @@ type Mark struct {
 // Marks returns the remarks the UIs show on a card, most important first.
 func (c Card) Marks() []Mark {
 	var out []Mark
+	if c.Muted {
+		out = append(out, Mark{"odložené", "muted", "Issue je odložené na později: je zašedlé a na konci sloupce. Klávesa z ho vrátí."})
+	}
 	if c.Closed {
 		out = append(out, Mark{"zavřeno v GitLabu", "muted", "Issue je v GitLabu zavřené (nebo smazané či přesunuté). Až ho nebudeš potřebovat, skryj ho."})
 	}

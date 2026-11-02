@@ -503,6 +503,8 @@ label.field { display: grid; gap: 0.3rem; }
 .icard.selected { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); border-left-color: var(--pc, var(--accent)); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); box-shadow: var(--ring); }
 .icard:focus { outline: none; }
 .icard.out { opacity: 0.7; }
+.icard.muted { opacity: 0.5; filter: grayscale(1); background: color-mix(in srgb, var(--overlay) 18%, var(--surface)); }
+.icard.muted:hover, .icard.muted.selected { opacity: 0.85; }
 .icard.stale { background: color-mix(in srgb, var(--yellow) 6%, var(--surface)); }
 .icard.dragging { opacity: 0.4; }
 .icard.drop-before { box-shadow: 0 -3px 0 var(--accent); }

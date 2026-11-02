@@ -275,6 +275,9 @@ func (m *Model) cardLines(c issues.Card, width int, selected, showStatus bool) [
 		lines = append(lines, ansi.Truncate(strings.Join(marks, st.Muted.Render(" · ")), inner, "…"))
 	}
 	for i, l := range lines {
+		if c.Muted {
+			l = st.Muted.Render(ansi.Strip(l)) // put off: the whole card greyed
+		}
 		l = bar + " " + l
 		if selected {
 			l = st.Selected.Render(fit(l, width))

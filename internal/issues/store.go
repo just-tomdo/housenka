@@ -77,6 +77,10 @@ func (s *Store) MoveNextTo(key, neighbour string, after bool) error {
 	return s.Update(func(f *File, now time.Time) error { return f.MoveNextTo(key, neighbour, after, now) })
 }
 
+func (s *Store) SetMuted(key string, muted bool) error {
+	return s.Update(func(f *File, now time.Time) error { return f.SetMuted(key, muted, now) })
+}
+
 func (s *Store) SetHidden(key string, hidden bool) error {
 	return s.Update(func(f *File, now time.Time) error { return f.SetHidden(key, hidden, now) })
 }

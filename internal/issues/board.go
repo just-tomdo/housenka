@@ -92,7 +92,7 @@ func Cards(f File, cfg *Config, r *rules.Rules, work map[string]Work, today civi
 		c.Idle = max(last.DaysTo(today), 0)
 		c.Assigned = max(civil.Of(is.AssignedAt.Local()).DaysTo(today), 0)
 		watched := c.Column < 0 || cfg.Statuses[c.Column].Watched()
-		c.Stale = watched && !is.Hidden && !is.Closed && !is.Unassigned && c.Idle >= cfg.StaleDays
+		c.Stale = watched && !is.Hidden && !is.Muted && !is.Closed && !is.Unassigned && c.Idle >= cfg.StaleDays
 		cards = append(cards, c)
 	}
 	return cards
@@ -170,8 +170,8 @@ func Shift(shown []Card, key string, delta int, sameRepo bool) (neighbour string
 	if i < 0 || delta == 0 || j < 0 || j >= len(shown) {
 		return "", false, false
 	}
-	if sameRepo && !strings.EqualFold(shown[i].ProjectPath, shown[j].ProjectPath) {
-		return "", false, false
+	if sameRepo && !strings.EqualFold(shown[i].ProjectPath, shown[j].ProjectPath) || shown[i].Muted != shown[j].Muted {
+		return "", false, false // a card stays in its group, and among the issues put off (or not)
 	}
 	return shown[j].Key, delta > 0, true
 }
@@ -247,6 +247,18 @@ func SortCards(cards []Card, s Sort) {
 		f = manual
 	}
 	slices.SortStableFunc(cards, f)
+	// Issues put off go after the others, in any order.
+	slices.SortStableFunc(cards, func(a, b Card) int { return cmpBool(a.Muted, b.Muted) })
+}
+
+func cmpBool(a, b bool) int {
+	switch {
+	case a == b:
+		return 0
+	case a:
+		return 1
+	}
+	return -1
 }
 
 // Filter keeps the cards matching query: words separated by spaces, all
@@ -255,7 +267,7 @@ func SortCards(cards []Card, s Sort) {
 //   - p:CODE – a project code allowed for the repository starts with CODE,
 //   - l:text – a GitLab label contains text,
 //   - is:closed, is:unassigned, is:unknown (repository or GitLab not in
-//     housenka), is:stale, is:notes, is:due,
+//     housenka), is:stale, is:notes, is:due, is:muted (put off),
 //   - anything else – found in the title, the key, labels, notes or the path.
 //
 // A word starting with "-" must not match.
@@ -296,6 +308,8 @@ func matchWord(c Card, w string) bool {
 			return c.Stale
 		case "notes":
 			return c.Notes != ""
+		case "muted":
+			return c.Muted
 		case "due":
 			return c.Due != nil
 		}
