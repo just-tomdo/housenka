@@ -123,18 +123,26 @@ func generateDir(dir string, last civil.Date) (int, error) {
 	if err := dec.Decode(&sc); err != nil {
 		return 0, fmt.Errorf("scenario.yaml: %v", err)
 	}
-	entries, err := Generate(cfg, sc, last)
+	entries, g, err := generate(cfg, sc, last)
 	if err != nil {
 		return 0, err
 	}
-	return len(entries), write(filepath.Join(dir, "entries"), entries)
+	if err := write(filepath.Join(dir, "entries"), entries); err != nil {
+		return 0, err
+	}
+	return len(entries), writeIssues(dir, g, entries, last)
 }
 
 // Generate simulates entries from the first day of the month sc.Months
 // before last up to last (inclusive).
 func Generate(cfg *config.Config, sc Scenario, last civil.Date) ([]entry.Entry, error) {
+	entries, _, err := generate(cfg, sc, last)
+	return entries, err
+}
+
+func generate(cfg *config.Config, sc Scenario, last civil.Date) ([]entry.Entry, *gen, error) {
 	if len(sc.Issues) == 0 {
-		return nil, errors.New("scenario.yaml: chybí issues")
+		return nil, nil, errors.New("scenario.yaml: chybí issues")
 	}
 	host := cmp.Or(sc.IssueHost, firstOr(cfg.GitLabHosts, "gitlab.example.com"))
 	months := cmp.Or(sc.Months, 6)
@@ -174,7 +182,7 @@ func Generate(cfg *config.Config, sc Scenario, last civil.Date) ([]entry.Entry, 
 			out = append(out, e)
 		}
 	}
-	return out, nil
+	return out, g, nil
 }
 
 type openIssue struct {
@@ -190,8 +198,9 @@ type gen struct {
 	host string
 	rnd  *rand.Rand
 	open []*openIssue
-	iids map[int]int // next IID per issue group
-	used map[int]int // titles used per issue group
+	all  []*openIssue // every issue opened, in order
+	iids map[int]int  // next IID per issue group
+	used map[int]int  // titles used per issue group
 }
 
 // day returns the entries of one working day (without date and metadata).
@@ -268,18 +277,10 @@ func (g *gen) newIssue() *openIssue {
 	for i, grp := range g.sc.Issues {
 		weights[i] = cmp.Or(grp.Weight, 1)
 	}
-	gi := weighted(g.rnd, weights)
-	grp := g.sc.Issues[gi]
-	title := grp.Titles[g.used[gi]%len(grp.Titles)]
-	g.used[gi]++
-	iid := g.iids[gi]
-	g.iids[gi] += 1 + g.rnd.IntN(7)
-	return &openIssue{
-		group:  gi,
-		url:    fmt.Sprintf("https://%s/%s/-/%s/%d", g.host, grp.Repo, cmp.Or(grp.Kind, "issues"), iid),
-		title:  title,
-		budget: 4 * (2 + g.rnd.IntN(30)),
-	}
+	o := g.newIssueIn(weighted(g.rnd, weights))
+	o.budget = 4 * (2 + g.rnd.IntN(30))
+	g.all = append(g.all, o)
+	return o
 }
 
 func (g *gen) closeDone() {
