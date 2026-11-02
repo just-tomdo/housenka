@@ -11,7 +11,7 @@ type keyMap struct {
 	Add, Edit, Copy, Yank, Paste, Delete    key.Binding
 	OpenBM, CopyURL, OpenIssue, ToggleSent  key.Binding
 	IssueSummary                            key.Binding
-	Status                                  key.Binding
+	Status, Issues                          key.Binding
 	Filter, Help, Quit                      key.Binding
 }
 
@@ -45,6 +45,7 @@ func newKeyMap() keyMap {
 		IssueSummary: b([]string{"I"}, "I", "souhrn issue"),
 		ToggleSent:   b([]string{"s", "space"}, "s/space", "odesláno"),
 		Status:       b([]string{"S"}, "S", "týdenní souhrn"),
+		Issues:       b([]string{"T"}, "T", "issues z GitLabu"),
 		Filter:       b([]string{"/"}, "/", "filtr"),
 		Help:         b([]string{"?", "f1"}, "?", "nápověda"),
 		Quit:         b([]string{"q", "ctrl+c"}, "q/:q", "konec"),
@@ -62,7 +63,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Down, k.Up, k.Top, k.Bottom, k.HalfDown, k.HalfUp},
 		{k.PrevPeriod, k.NextPeriod, k.Today, k.Day, k.Week, k.Month, k.CycleKind},
 		{k.Add, k.Edit, k.Copy, k.Yank, k.Paste, k.Delete},
-		{k.OpenBM, k.CopyURL, k.OpenIssue, k.IssueSummary, k.ToggleSent, k.Status, k.Filter, k.Help, k.Quit},
+		{k.OpenBM, k.CopyURL, k.OpenIssue, k.IssueSummary, k.ToggleSent, k.Status, k.Issues, k.Filter, k.Help, k.Quit},
 	}
 }
 

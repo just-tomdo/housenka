@@ -8,7 +8,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
+	"github.com/just-tomdo/housenka/internal/atomicfile"
 	"github.com/just-tomdo/housenka/internal/config"
 )
 
@@ -177,4 +179,41 @@ func (c *Config) Status(code string) (Status, bool) {
 		return c.Statuses[i], true
 	}
 	return Status{}, false
+}
+
+// ConfigFile is issues.yaml, read again whenever it changed (the TUI, the
+// web interface and a text editor may all change it).
+type ConfigFile struct {
+	Path string
+
+	mu    sync.Mutex
+	cfg   *Config
+	err   error
+	stamp atomicfile.Stamp
+	read  bool
+}
+
+// Get returns the configuration, or nil and no error while the file is
+// missing (the extension is off). An invalid file is an error.
+func (c *ConfigFile) Get() (*Config, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.Path == "" {
+		return nil, nil
+	}
+	st, err := atomicfile.StatStamp(c.Path)
+	if err != nil {
+		return nil, err
+	}
+	if c.read && st == c.stamp {
+		return c.cfg, c.err
+	}
+	c.read, c.stamp, c.cfg, c.err = true, st, nil, nil
+	if st != (atomicfile.Stamp{}) {
+		c.cfg, c.err = LoadConfig(c.Path)
+		if !Enabled(c.err) {
+			c.err = nil // removed meanwhile
+		}
+	}
+	return c.cfg, c.err
 }

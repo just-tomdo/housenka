@@ -112,7 +112,10 @@ func newForm(r *rules.Rules, st styles, today civil.Date, e entry.Entry, title s
 
 	// Start where typing is most likely needed.
 	f.focus = fieldIssue
-	if e.IssueURL != "" {
+	switch {
+	case e.IssueURL != "" && f.project == "" && len(f.projects) > 1:
+		f.focus = fieldProject // e.g. reporting from the issue overview
+	case e.IssueURL != "":
 		f.focus = fieldHours
 	}
 	f.setWidth(70)

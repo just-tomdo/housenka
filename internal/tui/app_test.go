@@ -41,7 +41,9 @@ func newTestModel(t *testing.T) (*Model, *store.Store, *fakeOpener) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := store.Open(filepath.Join(t.TempDir(), "entries"))
+	home := t.TempDir()
+	t.Setenv(config.HomeEnv, home) // the issue overview lives in the home
+	s, err := store.Open(filepath.Join(home, "entries"))
 	if err != nil {
 		t.Fatal(err)
 	}

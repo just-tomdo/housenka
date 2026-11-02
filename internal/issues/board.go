@@ -288,3 +288,32 @@ func matchWord(c Card, w string) bool {
 	text := strings.ToLower(strings.Join(append([]string{c.Title, c.Key, c.Notes, c.ProjectPath}, c.Labels...), "\n"))
 	return strings.Contains(text, w)
 }
+
+// Overview is the board as the UIs show it: All counts every issue, Shown
+// holds the cards matching the filter in the chosen order.
+type Overview struct {
+	All, Shown Board
+}
+
+// BuildOverview prepares the overview. With byRepo the cards of each
+// status are grouped by repository (keeping the order within a repository).
+func BuildOverview(f File, cfg *Config, r *rules.Rules, entries []entry.Entry, today civil.Date, query string, s Sort, byRepo bool) Overview {
+	cards := Cards(f, cfg, r, WorkByIssue(entries), today)
+	shown := Filter(cards, query)
+	SortCards(shown, s)
+	if byRepo {
+		slices.SortStableFunc(shown, func(a, b Card) int {
+			return strings.Compare(strings.ToLower(a.ProjectPath), strings.ToLower(b.ProjectPath))
+		})
+	}
+	return Overview{All: Arrange(cards, cfg), Shown: Arrange(shown, cfg)}
+}
+
+// Total returns the number of cards on the board (all statuses).
+func (b Board) Total() int {
+	n := 0
+	for _, c := range b.Columns {
+		n += len(c.Cards)
+	}
+	return n
+}

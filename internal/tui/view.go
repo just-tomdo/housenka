@@ -12,6 +12,7 @@ import (
 	"github.com/just-tomdo/housenka/internal/gitlaburl"
 	"github.com/just-tomdo/housenka/internal/hours"
 	"github.com/just-tomdo/housenka/internal/period"
+	"github.com/just-tomdo/housenka/internal/text"
 )
 
 // View implements tea.Model.
@@ -34,13 +35,18 @@ func (m *Model) render() string {
 	if m.width < 50 || m.height < 15 {
 		return m.paint(m.st.Warn.Render("Terminál je příliš malý – zvětši okno (min. 50×15)."), m.width, m.height)
 	}
-	base := m.paint(lipgloss.JoinVertical(lipgloss.Left,
-		m.headerView(),
-		m.listView(),
-		m.detailView(),
-		m.statusLine(),
-		m.helpView(),
-	), m.width, m.height)
+	var base string
+	if m.issuesOpen {
+		base = m.paint(m.issuesScreen(), m.width, m.height)
+	} else {
+		base = m.paint(lipgloss.JoinVertical(lipgloss.Left,
+			m.headerView(),
+			m.listView(),
+			m.detailView(),
+			m.statusLine(),
+			m.helpView(),
+		), m.width, m.height)
+	}
 	switch {
 	case m.mode == modeForm && m.form != nil:
 		return m.overlay(base, m.st.Modal.Width(m.modalWidth()).Render(m.form.View()))
@@ -48,6 +54,8 @@ func (m *Model) render() string {
 		return m.overlay(base, m.statusModal())
 	case m.mode == modeIssue && m.issue != nil:
 		return m.overlay(base, m.issueModal())
+	case m.issuesOpen && m.iss.detail != nil:
+		return m.overlay(base, m.issueDetailModal())
 	}
 	return base
 }
@@ -333,6 +341,22 @@ func (m *Model) statusLine() string {
 	st := m.st
 	modeName, modeStyle := "NORMAL", st.ModeNormal
 	middle := st.StatusBar.Render(" " + m.per.Kind.String() + " · " + m.per.Label(m.layout) + " ")
+	if m.issuesOpen {
+		modeName, modeStyle = "ISSUES", st.ModeOther
+		middle = st.StatusBar.Render(" " + map[string]string{"new": "nová", "board": "nástěnka", "hidden": "skrytá"}[m.iss.tab] + " ")
+		switch {
+		case m.iss.filtering:
+			modeName, modeStyle = "FILTR", st.ModeOther
+			middle = " " + m.iss.filter.View()
+		case m.iss.detail != nil && m.iss.detail.editing:
+			modeName, modeStyle = "INSERT", st.ModeInsert
+		case m.iss.filter.Value() != "":
+			middle += st.Warn.Render(" filtr: " + m.iss.filter.Value())
+		}
+		if m.iss.pending != "" {
+			middle += st.Accent.Render(" " + m.iss.pending)
+		}
+	}
 	switch m.mode {
 	case modeForm:
 		modeName, modeStyle = "INSERT", st.ModeInsert
@@ -357,7 +381,7 @@ func (m *Model) statusLine() string {
 	if m.pending != "" {
 		middle += st.Accent.Render(" " + m.pending)
 	}
-	if f := m.filter.Value(); f != "" && m.mode != modeFilter {
+	if f := m.filter.Value(); f != "" && m.mode != modeFilter && !m.issuesOpen {
 		middle += st.Warn.Render(" filtr: " + f)
 	}
 
@@ -367,6 +391,9 @@ func (m *Model) statusLine() string {
 		right = st.ToastErr.Render(m.toast)
 	case m.toast != "":
 		right = st.Toast.Render(m.toast)
+	case m.issuesOpen:
+		all := m.iss.view.All
+		right = st.StatusSeg.Render(fmt.Sprintf("%d nových · %d na nástěnce · %d skrytých", len(all.New), all.Total(), len(all.Hidden)))
 	default:
 		info := fmt.Sprintf("Σ %s h", hours.Format(m.summary.Total))
 		if n := m.unsentCount(); n > 0 {
@@ -374,6 +401,9 @@ func (m *Model) statusLine() string {
 		}
 		if m.per.Kind == period.Day && m.summary.Total >= int(m.cfg.Time.DailyGoal) {
 			info += " · 🦋 cíl splněn"
+		}
+		if n := m.newIssueCount(); n > 0 {
+			info += " · " + text.Plural(n, "nové issue", "nová issue", "nových issue") + " (T)"
 		}
 		right = st.StatusSeg.Render(info)
 	}
@@ -399,7 +429,16 @@ func (m *Model) helpView() string {
 	case modeIssue:
 		v = m.help.View(issueKeys)
 	default:
-		v = m.help.View(m.keys)
+		switch {
+		case m.issuesOpen && m.iss.detail != nil:
+			k := issueDetailKeys
+			k.editing = m.iss.detail.editing
+			v = m.help.View(k)
+		case m.issuesOpen:
+			v = m.help.View(issuesKeys)
+		default:
+			v = m.help.View(m.keys)
+		}
 	}
 	// help.Model does not always respect its width (when even the ellipsis
 	// does not fit it keeps adding items), so clip every line ourselves.

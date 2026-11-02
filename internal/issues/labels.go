@@ -40,10 +40,10 @@ func (c Card) Marks() []Mark {
 // AgeLabel describes how many days ago something happened: "dnes",
 // "včera", "před 5 dny".
 func AgeLabel(days int) string {
-	switch days {
-	case 0:
+	switch {
+	case days <= 0: // also a clock set back
 		return "dnes"
-	case 1:
+	case days == 1:
 		return "včera"
 	}
 	return "před " + strconv.Itoa(days) + " dny"

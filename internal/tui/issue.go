@@ -77,6 +77,22 @@ func (m *Model) issueModal() string {
 		st.Title.Render("Issue "+s.Label) + "  " + st.Muted.Render(ansi.Truncate(s.URL, max(width-len(s.Label)-8, 10), "…")),
 		"",
 	}
+	lines = append(lines, m.issueWorkLines(s, width)...)
+
+	maxLines := max(m.height-10, 5)
+	m.issue.offset = max(min(m.issue.offset, len(lines)-maxLines), 0)
+	visible := lines[m.issue.offset:min(m.issue.offset+maxLines, len(lines))]
+	if len(lines) > maxLines {
+		visible = append(visible, st.Muted.Render("… j/k posun"))
+	}
+	return st.Modal.Width(m.modalWidth()).Render(strings.Join(visible, "\n"))
+}
+
+// issueWorkLines lists the work on an issue: totals, shares per activity
+// and project, and every entry.
+func (m *Model) issueWorkLines(s stats.IssueSummary, width int) []string {
+	st := m.st
+	var lines []string
 	facts := []string{
 		st.Subtext.Render("celkem ") + st.Bold.Render(hours.Format(s.Total)+" h"),
 		st.Text.Render(text.Plural(len(s.Entries), "výkaz", "výkazy", "výkazů")),
@@ -136,11 +152,5 @@ func (m *Model) issueModal() string {
 		lines = append(lines, head+st.Text.Render(ansi.Truncate(flat(e.Description), max(width-ansi.StringWidth(head), 10), "…")))
 	}
 
-	maxLines := max(m.height-10, 5)
-	m.issue.offset = max(min(m.issue.offset, len(lines)-maxLines), 0)
-	visible := lines[m.issue.offset:min(m.issue.offset+maxLines, len(lines))]
-	if len(lines) > maxLines {
-		visible = append(visible, st.Muted.Render("… j/k posun"))
-	}
-	return st.Modal.Width(m.modalWidth()).Render(strings.Join(visible, "\n"))
+	return lines
 }

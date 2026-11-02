@@ -92,6 +92,8 @@ type Model struct {
 	lastSaved     entry.Entry
 	status        *statusView
 	issue         *issueView
+	iss           *issuesView // the optional issue overview
+	issuesOpen    bool        // the overview replaces the entries (T)
 
 	toast    string
 	toastErr bool
@@ -115,6 +117,7 @@ func New(cfg *config.Config, s Store, o Opener, clock func() civil.Date) *Model 
 		cfg: cfg, rules: rules.New(cfg), store: s, opener: o,
 		st: st, icons: theme.GetIcons(cfg.UI.NerdFont), keys: newKeyMap(), help: h,
 		layout: cfg.UI.DateLayout(), clock: clock, today: today, per: period.Of(period.Day, today), filter: f,
+		iss: newIssuesView(),
 	}
 	m.reload("")
 	return m
@@ -194,11 +197,28 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.fail(msg.err)
 		}
 		return m, m.notify(msg.what+" zkopírován do schránky", false)
+	case issuesSyncedMsg:
+		return m, m.issuesSynced(msg)
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		return m, m.handleKey(msg)
+		cmd := m.handleKey(msg)
+		if m.issuesOpen {
+			m.loadIssues() // changes made by the key, the form or another window
+		}
+		return m, cmd
+	}
+	if m.issuesOpen && m.iss.filtering {
+		var cmd tea.Cmd
+		m.iss.filter, cmd = m.iss.filter.Update(msg)
+		m.loadIssues()
+		return m, cmd
+	}
+	if m.issuesOpen && m.iss.detail != nil && m.iss.detail.editing {
+		var cmd tea.Cmd
+		m.iss.detail.notes, cmd = m.iss.detail.notes.Update(msg)
+		return m, cmd
 	}
 	if m.mode == modeForm && m.form != nil {
 		_, cmd := m.form.Update(msg)
@@ -245,6 +265,9 @@ func (m *Model) handleKey(km tea.KeyPressMsg) tea.Cmd {
 		return m.handleStatusKey(km)
 	case modeIssue:
 		return m.handleIssueKey(km)
+	}
+	if m.issuesOpen {
+		return m.handleIssuesKey(km)
 	}
 	return m.handleListKey(km)
 }
@@ -349,6 +372,8 @@ func (m *Model) handleListKey(km tea.KeyPressMsg) tea.Cmd {
 		return m.toggleSent()
 	case key.Matches(km, keys.Status):
 		return m.openStatus()
+	case key.Matches(km, keys.Issues):
+		return m.openIssues()
 	case key.Matches(km, keys.Filter):
 		m.mode = modeFilter
 		return m.filter.Focus()

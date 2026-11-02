@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/just-tomdo/housenka/internal/atomicfile"
 	"github.com/just-tomdo/housenka/internal/civil"
 	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/issues"
@@ -27,12 +26,9 @@ import (
 // issueSide is the server's part of the overview.
 type issueSide struct {
 	path, dir string // issues.yaml, the directory of issues.json
+	file      issues.ConfigFile
 
 	mu    sync.Mutex
-	cfg   *issues.Config
-	err   error // issues.yaml exists but is invalid
-	stamp atomicfile.Stamp
-	read  bool
 	store *issues.Store
 
 	syncing sync.Mutex // one sync at a time
@@ -42,30 +38,11 @@ type issueSide struct {
 func newIssueSide() *issueSide {
 	path, _ := issues.ConfigPath()
 	dir, _ := issues.DataDir()
-	return &issueSide{path: path, dir: dir}
+	return &issueSide{path: path, dir: dir, file: issues.ConfigFile{Path: path}}
 }
 
-// config returns issues.yaml, re-read when it changed; nil and no error
-// when the extension is off.
-func (s *issueSide) config() (*issues.Config, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.path == "" {
-		return nil, nil
-	}
-	st := statConfig(s.path)
-	if s.read && st == s.stamp {
-		return s.cfg, s.err
-	}
-	s.read, s.stamp, s.cfg, s.err = true, st, nil, nil
-	if st != (atomicfile.Stamp{}) {
-		s.cfg, s.err = issues.LoadConfig(s.path)
-		if !issues.Enabled(s.err) {
-			s.err = nil
-		}
-	}
-	return s.cfg, s.err
-}
+// config returns issues.yaml; nil and no error when the extension is off.
+func (s *issueSide) config() (*issues.Config, error) { return s.file.Get() }
 
 func (s *issueSide) openStore() (*issues.Store, error) {
 	s.mu.Lock()
@@ -313,8 +290,8 @@ func (s *Server) buildIssuesMain(q *issueReq, v issuesState) issuesMain {
 	if err != nil {
 		m.Err = "Chyba při načítání záznamů: " + text.OneLine(err.Error())
 	}
-	cards := issues.Cards(f, q.icfg, q.rules, issues.WorkByIssue(entries), q.today)
-	all := issues.Arrange(cards, q.icfg)
+	o := issues.BuildOverview(f, q.icfg, q.rules, entries, q.today, v.Q, v.Sort, false)
+	all, b := o.All, o.Shown
 	if v.Tab == "" {
 		v.Tab = "board"
 		if len(all.New) > 0 {
@@ -323,13 +300,9 @@ func (s *Server) buildIssuesMain(q *issueReq, v issuesState) issuesMain {
 		m.State = v
 	}
 	m.Sync = syncInfo(f, q.today)
-	onBoard := 0
-	for _, c := range all.Columns {
-		onBoard += len(c.Cards)
-	}
 	m.Tabs = []issuesTab{
 		{Label: "Nová", Key: "1", Count: len(all.New), State: v.WithTab("new")},
-		{Label: "Nástěnka", Key: "2", Count: onBoard, State: v.WithTab("board")},
+		{Label: "Nástěnka", Key: "2", Count: all.Total(), State: v.WithTab("board")},
 		{Label: "Skrytá", Key: "3", Count: len(all.Hidden), State: v.WithTab("hidden")},
 	}
 	for i := range m.Tabs {
@@ -342,9 +315,6 @@ func (s *Server) buildIssuesMain(q *issueReq, v issuesState) issuesMain {
 		m.Statuses = append(m.Statuses, newIssueStatusView(st, i))
 	}
 
-	shown := issues.Filter(cards, v.Q)
-	issues.SortCards(shown, v.Sort)
-	b := issues.Arrange(shown, q.icfg)
 	views := func(cs []issues.Card) []cardView {
 		out := make([]cardView, 0, len(cs))
 		for _, c := range cs {
