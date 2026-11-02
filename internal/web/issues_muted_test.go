@@ -2,7 +2,6 @@ package web
 
 import (
 	"net/url"
-	"strings"
 	"testing"
 )
 
@@ -16,7 +15,7 @@ func TestIssueMutedInWeb(t *testing.T) {
 	body := f.form("/issues/muted", url.Values{"key": {"clients/shop-web#12"}, "muted": {"1"}})
 	contains(t, body, "odloženo", `icard muted`, "odložené")
 	board := f.get("/issues?tab=board")
-	if strings.Index(board, "Košík") < strings.Index(board, "Filtr") {
+	if cardAt(board, "clients/shop-web#12") < cardAt(board, "clients/shop-web#13") || cardAt(board, "clients/shop-web#13") < 0 {
 		t.Error("the muted card must go after the other one")
 	}
 	contains(t, f.get("/issues/detail?key=clients%2Fshop-web%2312"), "Vrátit z odložených")

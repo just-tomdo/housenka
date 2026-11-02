@@ -24,6 +24,7 @@ type Config struct {
 	Host        string   `yaml:"host"`         // GitLab to read issues from; empty = the first of gitlab_hosts
 	SyncMinutes int      `yaml:"sync_minutes"` // how often the web server reads GitLab
 	StaleDays   int      `yaml:"stale_days"`   // an issue untouched this long is marked
+	MoveTo      string   `yaml:"move_to"`      // where an issue moved to another status goes: end (default) or start
 	Statuses    []Status `yaml:"statuses"`     // board columns, in this order
 }
 
@@ -120,6 +121,11 @@ func (c *Config) Validate() error {
 	if c.StaleDays < 1 {
 		add("stale_days: musí být aspoň 1")
 	}
+	switch c.MoveTo {
+	case "", "end", "start":
+	default:
+		add("move_to: %q – zadej end (na konec sloupce) nebo start (na začátek)", c.MoveTo)
+	}
 	if len(c.Statuses) == 0 {
 		add("statuses: zadej aspoň jeden stav (sloupec nástěnky)")
 	}
@@ -166,6 +172,10 @@ func (c *Config) Warnings(main *config.Config) []string {
 	}
 	return nil
 }
+
+// MoveToStart reports whether an issue moved to another status goes to
+// the start of its column (move_to: start) rather than the end.
+func (c *Config) MoveToStart() bool { return c.MoveTo == "start" }
 
 // StatusIndex returns the column of a status code, or -1.
 func (c *Config) StatusIndex(code string) int {

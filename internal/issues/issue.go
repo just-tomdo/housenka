@@ -132,6 +132,21 @@ func (f *File) SetStatus(key, status, before string, now time.Time) error {
 	return nil
 }
 
+// Place puts an issue into a status at the start or the end of the
+// column (move_to), unlike SetStatus at a place the user pointed at.
+func (f *File) Place(key, status string, start bool, now time.Time) error {
+	before := ""
+	if start {
+		for _, o := range f.column(status) {
+			if o.Key != key {
+				before = o.Key
+				break
+			}
+		}
+	}
+	return f.SetStatus(key, status, before, now)
+}
+
 // MoveNextTo puts an issue right before (or after) the issue neighbour of
 // the same status. The UIs pass the neighbour the user sees, so issues
 // hidden by a filter or shown in another group do not count.

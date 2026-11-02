@@ -22,7 +22,10 @@
       <div class="grid3">
         <label class="field"><span>Načítat každých (min)</span><input name="sync_minutes" value="{{.Sync}}" inputmode="numeric"></label>
         <label class="field"><span>Upozornit po (dnech beze mě)</span><input name="stale_days" value="{{.Stale}}" inputmode="numeric"></label>
+        <label class="field"><span>Issue přesunuté do jiného stavu dát</span>
+          <select name="move_to"><option value="end"{{if not .MoveStart}} selected{{end}}>na konec sloupce</option><option value="start"{{if .MoveStart}} selected{{end}}>na začátek sloupce</option></select></label>
       </div>
+      <p class="subtext">Týká se přesunu klávesami H/L a výběru stavu; přetažená karta zůstane tam, kam ji pustíš.</p>
       <button class="btn primary" type="submit">Uložit</button>
     </form>
 

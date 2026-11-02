@@ -24,8 +24,9 @@ func (d *Doc) IssuesConfig() (*issues.Config, error) {
 }
 
 // SetIssueSettings sets the general keys; an empty host is removed (the
-// first of gitlab_hosts is used then).
-func (d *Doc) SetIssueSettings(host string, syncMinutes, staleDays int) {
+// first of gitlab_hosts is used then), move_to is written only when the
+// file has it or it is not the default end.
+func (d *Doc) SetIssueSettings(host string, syncMinutes, staleDays int, moveTo string) {
 	m := d.top()
 	if host = strings.ToLower(strings.TrimSpace(host)); host == "" {
 		del(m, "host")
@@ -34,6 +35,12 @@ func (d *Doc) SetIssueSettings(host string, syncMinutes, staleDays int) {
 	}
 	set(m, "sync_minutes", integer(syncMinutes))
 	set(m, "stale_days", integer(staleDays))
+	if moveTo == "" {
+		moveTo = "end"
+	}
+	if hasKey(m, "move_to") || moveTo != "end" {
+		setAfter(m, "move_to", "stale_days", scalar(moveTo))
+	}
 }
 
 // statusNodes returns the statuses sequence, creating it when missing.

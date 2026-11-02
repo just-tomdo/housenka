@@ -471,7 +471,8 @@ func (s *Server) issueStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	same := slices.ContainsFunc(f.Issues, func(is issues.Issue) bool { return is.Key == key && is.Status == status && !is.Hidden })
-	reorder := same && (r.FormValue("before") != "" || r.FormValue("end") != "") // a drop within the column
+	dropped := r.FormValue("before") != "" || r.FormValue("end") != "" // dragged to a place in the column
+	reorder := same && dropped
 	switch {
 	case same && !reorder: // the current status chosen again
 		s.issuesChanged(w, r, toastData{})
@@ -480,7 +481,12 @@ func (s *Server) issueStatus(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, errReorder) // it would scramble the manual order hidden behind the sort
 		return
 	}
-	if err := q.store.SetStatus(key, status, r.FormValue("before")); err != nil {
+	if dropped {
+		err = q.store.SetStatus(key, status, r.FormValue("before")) // where the user let go
+	} else {
+		err = q.store.Place(key, status, q.icfg.MoveToStart())
+	}
+	if err != nil {
 		s.fail(w, err)
 		return
 	}

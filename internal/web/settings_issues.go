@@ -43,6 +43,7 @@ type issueSettingsView struct {
 	HostHint  string // the first gitlab_hosts, used when Host is empty
 	Sync      int
 	Stale     int
+	MoveStart bool
 	Statuses  []statusRow
 	Token     string // "file", "env" or ""
 	Part      string // the form that failed
@@ -81,7 +82,7 @@ func (s *Server) buildIssueSettings(cfg *config.Config) issueSettingsView {
 	if icfg == nil {
 		return v
 	}
-	v.Host, v.Sync, v.Stale = icfg.Host, icfg.SyncMinutes, icfg.StaleDays
+	v.Host, v.Sync, v.Stale, v.MoveStart = icfg.Host, icfg.SyncMinutes, icfg.StaleDays, icfg.MoveToStart()
 	counts := map[string]int{}
 	if st, err := s.iss.openStore(); err == nil {
 		if f, err := st.Load(); err == nil {
@@ -178,10 +179,10 @@ func (s *Server) saveIssueGeneral(w http.ResponseWriter, r *http.Request) {
 		}
 		return n
 	}
-	host := r.FormValue("host")
+	host, moveTo := r.FormValue("host"), r.FormValue("move_to")
 	sync, stale := num("interval načítání", r.FormValue("sync_minutes")), num("počet dní", r.FormValue("stale_days"))
 	if bad == nil {
-		bad = s.changeIssues(r, func(d *configedit.Doc) error { d.SetIssueSettings(host, sync, stale); return nil })
+		bad = s.changeIssues(r, func(d *configedit.Doc) error { d.SetIssueSettings(host, sync, stale, moveTo); return nil })
 	}
 	if bad != nil {
 		s.issueSettingsFailed(w, r, "general", bad)

@@ -60,7 +60,7 @@ func TestIssuesStatusOps(t *testing.T) {
 	if err := d.DeleteStatus("waiting"); err != nil {
 		t.Fatal(err)
 	}
-	d.SetIssueSettings("GitLab.Example.com", 30, 7)
+	d.SetIssueSettings("GitLab.Example.com", 30, 7, "start")
 	cfg, err := d.IssuesConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func TestIssuesStatusOps(t *testing.T) {
 	for _, s := range cfg.Statuses {
 		codes = append(codes, s.Code)
 	}
-	if strings.Join(codes, ",") != "review,next,doing,done" || cfg.Statuses[0].Watched() || cfg.SyncMinutes != 30 || cfg.StaleDays != 7 || cfg.Host != "gitlab.example.com" {
+	if strings.Join(codes, ",") != "review,next,doing,done" || cfg.Statuses[0].Watched() || cfg.SyncMinutes != 30 || cfg.StaleDays != 7 || cfg.Host != "gitlab.example.com" || !cfg.MoveToStart() {
 		t.Errorf("config %+v", cfg)
 	}
 	out := renderIssues(t, d)
@@ -98,7 +98,7 @@ func TestIssuesStatusOps(t *testing.T) {
 	if err := d.DeleteStatus("done"); err == nil {
 		t.Error("deleted the last status")
 	}
-	d.SetIssueSettings("", 15, 14)
+	d.SetIssueSettings("", 15, 14, "end")
 	if strings.Contains(renderIssues(t, d), "host:") {
 		t.Error("empty host must be removed")
 	}
@@ -111,11 +111,11 @@ func TestIssuesSaveValidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d.SetIssueSettings("", 0, 14)
+	d.SetIssueSettings("", 0, 14, "")
 	if err := d.Save(path); err == nil || !strings.Contains(err.Error(), "sync_minutes") {
 		t.Errorf("invalid issues.yaml saved: %v", err)
 	}
-	d.SetIssueSettings("", 5, 14)
+	d.SetIssueSettings("", 5, 14, "")
 	if err := d.Save(path); err != nil {
 		t.Fatal(err)
 	}

@@ -73,6 +73,10 @@ func (s *Store) SetStatus(key, status, before string) error {
 	return s.Update(func(f *File, now time.Time) error { return f.SetStatus(key, status, before, now) })
 }
 
+func (s *Store) Place(key, status string, start bool) error {
+	return s.Update(func(f *File, now time.Time) error { return f.Place(key, status, start, now) })
+}
+
 func (s *Store) MoveNextTo(key, neighbour string, after bool) error {
 	return s.Update(func(f *File, now time.Time) error { return f.MoveNextTo(key, neighbour, after, now) })
 }

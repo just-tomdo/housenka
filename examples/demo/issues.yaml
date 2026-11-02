@@ -7,6 +7,7 @@
 host: gitlab.example.com  # GitLab, ze kterého se načítají issue přiřazená tobě; vynech = první z gitlab_hosts
 sync_minutes: 15          # jak často webové rozhraní GitLab načítá
 stale_days: 14            # karta se obarví, když na issue tolik dní nesáhneš
+move_to: end              # issue přesunuté do jiného stavu dát na konec sloupce (end), nebo na začátek (start)
 
 # Tvoje stavy issue = sloupce nástěnky v tomto pořadí.
 # Barva: red, orange, yellow, green, teal, cyan, blue, purple, pink nebo "#rrggbb".

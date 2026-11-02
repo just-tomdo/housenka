@@ -449,7 +449,10 @@ func (m *Model) shiftIssueStatus(card issues.Card, next bool) tea.Cmd {
 func (m *Model) setIssueStatus(card issues.Card, to int) tea.Cmd {
 	v := m.iss
 	st := v.cfg.Statuses[to]
-	if err := v.store.SetStatus(card.Key, st.Code, ""); err != nil {
+	if card.Column == to && !card.Hidden {
+		return nil // already there
+	}
+	if err := v.store.Place(card.Key, st.Code, v.cfg.MoveToStart()); err != nil {
 		return m.fail(err)
 	}
 	if v.tab == "board" {
