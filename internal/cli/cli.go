@@ -12,6 +12,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/just-tomdo/housenka/internal/config"
+	"github.com/just-tomdo/housenka/internal/issues"
 	"github.com/just-tomdo/housenka/internal/rules"
 	"github.com/just-tomdo/housenka/internal/text"
 )
@@ -35,6 +36,12 @@ Příkazy:
                         a po uložení ho zkontroluje
   config check          zkontroluje config a vypíše chyby a varování
   config path           vypíše, kde jsou config a data
+  issues                přehled issues z GitLabu (volitelné rozšíření, viz docs/issues.md):
+                        vypíše počty nových, zařazených a skrytých issue
+  issues init [--force] zapne přehled issues: vytvoří ~/.housenka/issues.yaml
+  issues edit           otevře issues.yaml v editoru a po uložení ho zkontroluje
+  issues token          uloží token GitLabu (oprávnění read_api)
+  issues sync           načte issue přiřazená tobě z GitLabu
   parse ODKAZ           rozebere odkaz na issue a vypíše povolené kódy a činnosti
   update [--check] [--force]
                         stáhne a nainstaluje poslední vydanou verzi
@@ -138,6 +145,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return web(stdout, stderr, *cfgPath, rest)
 	case "update":
 		return runUpdate(stdout, stderr, rest)
+	case "issues":
+		return issuesCmd(stdout, stderr, *cfgPath, rest)
 	case "config":
 		sub := ""
 		if len(rest) > 0 {
@@ -149,7 +158,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 		case "edit":
 			return configEdit(stdout, stderr, *cfgPath)
 		case "check":
-			return configCheck(stdout, *cfgPath)
+			if err := configCheck(stdout, *cfgPath); err != nil {
+				return err
+			}
+			return issuesCheckIfEnabled(stdout, *cfgPath)
 		case "path":
 			return configPath(stdout, *cfgPath)
 		}
@@ -282,12 +294,34 @@ func configCheck(stdout io.Writer, cfgPath string) error {
 	return nil
 }
 
+// issuesCheckIfEnabled checks issues.yaml when the extension is on.
+func issuesCheckIfEnabled(stdout io.Writer, cfgPath string) error {
+	path, err := issues.ConfigPath()
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	fmt.Fprintln(stdout)
+	return issuesCheck(stdout, cfgPath, path)
+}
+
 func configPath(stdout io.Writer, cfgPath string) error {
 	data, err := config.DataDir()
 	if err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "config: %s\ndata:   %s\n", cfgPath, data)
+	ipath, err := issues.ConfigPath()
+	if err != nil {
+		return err
+	}
+	state := "zapnuto"
+	if _, err := os.Stat(ipath); err != nil {
+		state = "vypnuto"
+	}
+	fmt.Fprintf(stdout, "issues: %s (%s)\n", ipath, state)
 	return nil
 }
 

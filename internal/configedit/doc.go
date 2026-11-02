@@ -16,6 +16,7 @@ import (
 
 	"github.com/just-tomdo/housenka/internal/atomicfile"
 	"github.com/just-tomdo/housenka/internal/config"
+	"github.com/just-tomdo/housenka/internal/issues"
 )
 
 // ErrConflict means the file changed since it was loaded.
@@ -23,9 +24,10 @@ var ErrConflict = errors.New("config se mezitím změnil (třeba v editoru nebo 
 
 // Doc is a configuration file being edited.
 type Doc struct {
-	root   *yaml.Node // document node
-	source []byte     // the data the document was parsed from
-	hash   string     // of source
+	root     *yaml.Node // document node
+	source   []byte     // the data the document was parsed from
+	hash     string     // of source
+	validate func(data []byte) error
 }
 
 // Hash identifies file contents; forms carry it to detect concurrent changes.
@@ -36,6 +38,21 @@ func Hash(data []byte) string {
 
 // Parse reads a configuration from YAML. It does not validate it.
 func Parse(data []byte) (*Doc, error) {
+	return parseDoc(data, "config musí být mapa klíčů (gitlab_hosts, bm, projects …)", func(data []byte) error {
+		_, err := config.Parse(data)
+		return err
+	})
+}
+
+// ParseIssues reads issues.yaml, the issue overview's own file.
+func ParseIssues(data []byte) (*Doc, error) {
+	return parseDoc(data, "issues.yaml musí být mapa klíčů (host, statuses …)", func(data []byte) error {
+		_, err := issues.ParseConfig(data)
+		return err
+	})
+}
+
+func parseDoc(data []byte, shape string, validate func([]byte) error) (*Doc, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
 		return nil, fmt.Errorf("chyba syntaxe YAML: %w", err)
@@ -44,9 +61,9 @@ func Parse(data []byte) (*Doc, error) {
 		root = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode}}}
 	}
 	if root.Kind != yaml.DocumentNode || len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
-		return nil, errors.New("config musí být mapa klíčů (gitlab_hosts, bm, projects …)")
+		return nil, errors.New(shape)
 	}
-	return &Doc{root: &root, source: data, hash: Hash(data)}, nil
+	return &Doc{root: &root, source: data, hash: Hash(data), validate: validate}, nil
 }
 
 // Load reads the configuration file at path.
@@ -56,6 +73,15 @@ func Load(path string) (*Doc, error) {
 		return nil, err
 	}
 	return Parse(data)
+}
+
+// LoadIssues reads issues.yaml at path.
+func LoadIssues(path string) (*Doc, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIssues(data)
 }
 
 // Hash returns the hash of the data the document was loaded from.
@@ -92,7 +118,7 @@ func (d *Doc) Save(path string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := config.Parse(data); err != nil {
+	if err := d.validate(data); err != nil {
 		return err
 	}
 	return WriteFile(path, data, d.hash)

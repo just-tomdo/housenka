@@ -109,10 +109,24 @@ func normalize(l string) string {
 type gaps struct {
 	pairs map[string][]bool // previous line + line → empty line between them
 	lines map[string][]bool // line → empty line before it
+	keys  map[string][]bool // "key:" of a line (with its indentation) → empty line before it
+}
+
+// keyOf returns the indentation and "key:" of a mapping line, or "".
+func keyOf(l string) string {
+	t := strings.TrimSpace(l)
+	if t == "" || t[0] == '#' || t[0] == '-' {
+		return ""
+	}
+	k, _, ok := strings.Cut(l, ":")
+	if !ok || strings.ContainsAny(k, "{[\"'#") {
+		return ""
+	}
+	return k + ":"
 }
 
 func sourceGaps(source []byte) gaps {
-	g := gaps{pairs: map[string][]bool{}, lines: map[string][]bool{}}
+	g := gaps{pairs: map[string][]bool{}, lines: map[string][]bool{}, keys: map[string][]bool{}}
 	prev, gap := "", false
 	for _, l := range strings.Split(string(source), "\n") {
 		if strings.TrimSpace(l) == "" {
@@ -122,6 +136,9 @@ func sourceGaps(source []byte) gaps {
 		key := normalize(prev) + "\x02" + normalize(l)
 		g.pairs[key] = append(g.pairs[key], gap)
 		g.lines[normalize(l)] = append(g.lines[normalize(l)], gap)
+		if k := keyOf(l); k != "" {
+			g.keys[k] = append(g.keys[k], gap)
+		}
 		prev, gap = l, false
 	}
 	return g
@@ -142,14 +159,20 @@ func take(m map[string][]bool, key string) (bool, bool) {
 
 // before decides whether an empty line goes before l, which follows prev:
 // as in the source when the two lines were neighbours there; for a line
-// whose neighbour changed, as before that line in the source; and for a
-// new top-level line after a section's content, a section break.
+// whose neighbour changed, as before that line in the source; for a line
+// whose value changed, as before its key in the source; and for a new
+// top-level line after a section's content, a section break.
 func (g gaps) before(prev, l string, prevIndented bool) bool {
 	if gap, ok := take(g.pairs, normalize(prev)+"\x02"+normalize(l)); ok {
 		take(g.lines, normalize(l))
+		take(g.keys, keyOf(l))
 		return gap
 	}
 	if gap, ok := take(g.lines, normalize(l)); ok {
+		take(g.keys, keyOf(l))
+		return gap
+	}
+	if gap, ok := take(g.keys, keyOf(l)); ok && keyOf(l) != "" {
 		return gap
 	}
 	return !startsIndented(l) && !strings.HasPrefix(l, "---") &&
@@ -326,10 +349,13 @@ func alignComments(lines []string, verbatim []bool, known map[string]int) []stri
 	return lines
 }
 
-var flowMapRe = regexp.MustCompile(`^(\s*)([^\s#{}][^{}]*?):\s*\{(.*)\}$`)
+var flowMapRe = regexp.MustCompile(`^(\s*)([^\s#{}-][^{}]*?):\s*\{(.*)\}$`)
+
+// flowItemRe matches a sequence item that is a flow mapping: `- {code: todo, …}`.
+var flowItemRe = regexp.MustCompile(`^(\s*)-\s*\{(.*)\}$`)
 
 type flowRow struct {
-	indent, key string
+	indent, key string // key is empty for a sequence item
 	items       []string
 	comment     string
 }
@@ -337,18 +363,20 @@ type flowRow struct {
 func alignFlowMaps(lines []string, verbatim []bool) []string {
 	parse := func(l string) (flowRow, bool) {
 		code, c := splitComment(l)
-		m := flowMapRe.FindStringSubmatch(code)
-		if m == nil {
-			return flowRow{}, false
+		if m := flowMapRe.FindStringSubmatch(code); m != nil {
+			return flowRow{m[1], m[2], splitItems(m[3]), c}, true
 		}
-		return flowRow{m[1], m[2], splitItems(m[3]), c}, true
+		if m := flowItemRe.FindStringSubmatch(code); m != nil {
+			return flowRow{m[1], "", splitItems(m[2]), c}, true
+		}
+		return flowRow{}, false
 	}
 	for i := 0; i < len(lines); {
 		var rows []flowRow
 		j := i
 		for j < len(lines) && !verbatim[j] {
 			r, ok := parse(lines[j])
-			if !ok || len(rows) > 0 && r.indent != rows[0].indent {
+			if !ok || len(rows) > 0 && (r.indent != rows[0].indent || (r.key == "") != (rows[0].key == "")) {
 				break
 			}
 			rows = append(rows, r)
@@ -378,9 +406,15 @@ func alignFlowMaps(lines []string, verbatim []bool) []string {
 						b.WriteString(it)
 					}
 				}
-				lines[i+k] = r.indent + pad(r.key+":", keyW+1) + "{ " + b.String() + " }"
-				if len(r.items) == 0 {
+				switch {
+				case r.key == "" && len(r.items) == 0:
+					lines[i+k] = r.indent + "- {}"
+				case r.key == "":
+					lines[i+k] = r.indent + "- { " + b.String() + " }"
+				case len(r.items) == 0:
 					lines[i+k] = r.indent + r.key + ": {}"
+				default:
+					lines[i+k] = r.indent + pad(r.key+":", keyW+1) + "{ " + b.String() + " }"
 				}
 				if r.comment != "" {
 					lines[i+k] += "  " + r.comment

@@ -52,38 +52,61 @@ func editorCommand(getenv func(string) string, lookPath func(string) (string, er
 // configEdit opens the config in the editor and checks it afterwards.
 // A config with errors can be reopened right away.
 func configEdit(stdout, stderr io.Writer, cfgPath string) error {
+	return editFile(stdout, stderr, editTarget{
+		path:    cfgPath,
+		name:    "Config",
+		create:  writeExample,
+		check:   func(p string) error { _, err := config.Load(p); return err },
+		report:  func() error { return configCheck(stdout, cfgPath) },
+		refused: "config obsahuje chyby, Housenka se s ním nespustí",
+	})
+}
+
+// editTarget is a configuration file `… edit` opens.
+type editTarget struct {
+	path    string
+	name    string                  // "Config", shown in messages
+	create  func(path string) error // writes the example when the file is missing
+	check   func(path string) error // loads and validates the file
+	report  func() error            // prints the result of a valid, changed file
+	refused string                  // the error when the user gives up on a broken file
+}
+
+// editFile opens the file in the editor and checks it afterwards; a file
+// with errors can be reopened right away.
+func editFile(stdout, stderr io.Writer, t editTarget) error {
 	editor, err := editorCommand(os.Getenv, exec.LookPath)
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(cfgPath); errors.Is(err, os.ErrNotExist) {
-		if err := writeExample(cfgPath); err != nil {
+	if _, err := os.Stat(t.path); errors.Is(err, os.ErrNotExist) {
+		if err := t.create(t.path); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Config %s neexistoval, vytvořil jsem ho ze vzoru.\n", cfgPath)
+		fmt.Fprintf(stdout, "%s %s neexistoval, vytvořil jsem ho ze vzoru.\n", t.name, t.path)
 	}
 	in := bufio.NewReader(Stdin)
 	for {
-		before, err := os.ReadFile(cfgPath)
+		before, err := os.ReadFile(t.path)
 		if err != nil {
 			return err
 		}
-		if err := runEditor(editor[0], append(editor[1:], cfgPath)...); err != nil {
+		if err := runEditor(editor[0], append(editor[1:], t.path)...); err != nil {
 			return fmt.Errorf("editor %s: %w", editor[0], err)
 		}
-		after, err := os.ReadFile(cfgPath)
+		after, err := os.ReadFile(t.path)
 		if err != nil {
 			return err
 		}
-		_, loadErr := config.Load(cfgPath)
+		loadErr := t.check(t.path)
 		switch {
 		case loadErr == nil && bytes.Equal(before, after):
-			fmt.Fprintln(stdout, "Config beze změny.")
+			fmt.Fprintf(stdout, "%s beze změny.\n", t.name)
 			return nil
 		case loadErr == nil:
-			return configCheck(stdout, cfgPath)
+			return t.report()
 		}
-		fmt.Fprintf(stderr, "%v\n\nOtevřít config znovu? [A/n] ", loadErr)
+		fmt.Fprintf(stderr, "%v\n\nOtevřít %s znovu? [A/n] ", loadErr, strings.ToLower(t.name))
 		answer, err := in.ReadString('\n')
 		if err != nil && answer == "" {
 			fmt.Fprintln(stderr) // no input (e.g. not a terminal): do not loop
@@ -93,7 +116,7 @@ func configEdit(stdout, stderr io.Writer, cfgPath string) error {
 				continue
 			}
 		}
-		return errors.New("config obsahuje chyby, Housenka se s ním nespustí")
+		return errors.New(t.refused)
 	}
 }
 

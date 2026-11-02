@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/just-tomdo/housenka/internal/civil"
+	"github.com/just-tomdo/housenka/internal/config"
 	"github.com/just-tomdo/housenka/internal/gitlab"
 	"github.com/just-tomdo/housenka/internal/gitlaburl"
 	"github.com/just-tomdo/housenka/internal/text"
@@ -19,6 +20,26 @@ type Source interface {
 	AssignedIssues(ctx context.Context) ([]gitlab.Issue, error)
 	Issue(ctx context.Context, projectPath string, iid int) (gitlab.Issue, error)
 	AssignedAt(ctx context.Context, projectPath string, iid int, username string) (time.Time, error)
+}
+
+// Dial returns the GitLab at host; tests replace it with a fake.
+var Dial = func(host, token string) Source { return gitlab.New(host, token) }
+
+// Connect returns the GitLab of the configuration with the saved token.
+func Connect(cfg *Config, main *config.Config) (Source, error) {
+	host := cfg.GitLabHost(main)
+	if host == "" {
+		return nil, errors.New("není nastavený GitLab – doplň host do issues.yaml")
+	}
+	home, err := config.HomeDir()
+	if err != nil {
+		return nil, err
+	}
+	token, err := gitlab.Token(home)
+	if err != nil {
+		return nil, err
+	}
+	return Dial(host, token), nil
 }
 
 // SyncResult counts what changed.
